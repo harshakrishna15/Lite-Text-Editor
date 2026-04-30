@@ -14,6 +14,11 @@ let package = Package(
         .executableTarget(
             name: "LiteTextEditor",
             path: "Sources/LiteTextEditor"
+        ),
+        .testTarget(
+            name: "LiteTextEditorTests",
+            dependencies: ["LiteTextEditor"],
+            path: "Tests/LiteTextEditorTests"
         )
     ]
 )

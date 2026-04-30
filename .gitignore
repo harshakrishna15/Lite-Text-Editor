@@ -1,5 +1,54 @@
-.build/
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Xcode
 DerivedData/
+build/
+*.xcworkspace/xcuserdata/
 *.xcodeproj/project.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
+*.xcodeproj/*.xcuserstate
+*.xcuserdatad/
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift/Xcode generated files
+*.swiftmodule
+*.swiftdoc
+*.swiftsourceinfo
+
+# App/package artifacts
+*.app
+*.pkg
+*.dmg
+*.xcarchive
+
+# Logs and crash reports
+*.log
+*.crash
+*.trace
+
+# Local editor state
+.vscode/settings.json
+.vscode/tasks.json
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+tmp/
+temp/
+*.tmp
