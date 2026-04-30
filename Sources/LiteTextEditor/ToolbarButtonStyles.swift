@@ -125,3 +125,46 @@ struct StatusBarIconButton: View {
         .help(help)
     }
 }
+
+struct ToolbarMenuButton<Content: View>: View {
+    let title: String
+    let symbol: String
+    let help: String
+    @ViewBuilder let content: () -> Content
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Menu {
+            content()
+        } label: {
+            HStack(spacing: 3) {
+                Image(systemName: symbol)
+                    .font(ChromeStyle.controlSymbolFont)
+
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(ChromeStyle.secondaryTextColor)
+            }
+            .foregroundStyle(ChromeStyle.controlTextColor)
+            .frame(width: ChromeStyle.toolbarIconWidth + 8, height: ChromeStyle.toolbarControlHeight)
+            .background(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(isHovered ? ChromeStyle.toolbarHoverFill : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .stroke(
+                        isHovered ? ChromeStyle.toolbarHoverBorder : Color.clear,
+                        lineWidth: isHovered ? 1 : 0
+                    )
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .onHover { isHovered = $0 }
+        .help(title)
+        .accessibilityLabel(title)
+    }
+}

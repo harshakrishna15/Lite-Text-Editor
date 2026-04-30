@@ -165,6 +165,14 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         NotificationCenter.default.post(name: .liteTextEditorExportPDF, object: nil)
     }
 
+    @objc private func printDocument() {
+        NotificationCenter.default.post(name: .liteTextEditorPrintDocument, object: nil)
+    }
+
+    @objc private func findPanelAction(_ sender: NSMenuItem) {
+        NotificationCenter.default.post(name: .liteTextEditorFindPanelAction, object: sender.tag)
+    }
+
     @objc private func showLiteTextEditorHelp() {
         let alert = NSAlert()
         alert.messageText = "Lite Text Editor Help"
@@ -284,7 +292,7 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         fileMenu.addItem(NSMenuItem.separator())
         fileMenu.addItem(commandItem("Export PDF...", action: #selector(exportPDF), key: "e", modifiers: [.command, .shift]))
         fileMenu.addItem(NSMenuItem.separator())
-        fileMenu.addItem(NSMenuItem(title: "Print...", action: NSSelectorFromString("print:"), keyEquivalent: "p"))
+        fileMenu.addItem(commandItem("Print...", action: #selector(printDocument), key: "p"))
         fileMenuItem.submenu = fileMenu
         mainMenu.addItem(fileMenuItem)
 
@@ -297,6 +305,18 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         editMenu.addItem(NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c"))
         editMenu.addItem(NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
         editMenu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
+        editMenu.addItem(NSMenuItem.separator())
+
+        let findMenuItem = NSMenuItem(title: "Find", action: nil, keyEquivalent: "")
+        let findMenu = NSMenu(title: "Find")
+        findMenu.addItem(findCommandItem("Find...", action: .showFindInterface, key: "f"))
+        findMenu.addItem(findCommandItem("Find and Replace...", action: .showReplaceInterface, key: "f", modifiers: [.command, .option]))
+        findMenu.addItem(NSMenuItem.separator())
+        findMenu.addItem(findCommandItem("Find Next", action: .nextMatch, key: "g"))
+        findMenu.addItem(findCommandItem("Find Previous", action: .previousMatch, key: "G"))
+        findMenu.addItem(findCommandItem("Use Selection for Find", action: .setSearchString, key: "e"))
+        findMenuItem.submenu = findMenu
+        editMenu.addItem(findMenuItem)
 
         editMenuItem.submenu = editMenu
         mainMenu.addItem(editMenuItem)
@@ -423,6 +443,17 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         return item
     }
 
+    private func findCommandItem(
+        _ title: String,
+        action: NSTextFinder.Action,
+        key: String,
+        modifiers: NSEvent.ModifierFlags = [.command]
+    ) -> NSMenuItem {
+        let item = commandItem(title, action: #selector(findPanelAction(_:)), key: key, modifiers: modifiers)
+        item.tag = action.rawValue
+        return item
+    }
+
     private func requestQuitConfirmation() -> NSApplication.TerminateReply {
         let response = QuitConfirmationResponse()
         NotificationCenter.default.post(name: .liteTextEditorConfirmQuit, object: response)
@@ -455,6 +486,8 @@ extension Notification.Name {
     static let liteTextEditorConfirmQuit = Notification.Name("liteTextEditorConfirmQuit")
     static let liteTextEditorFlushAutosave = Notification.Name("liteTextEditorFlushAutosave")
     static let liteTextEditorExportPDF = Notification.Name("liteTextEditorExportPDF")
+    static let liteTextEditorPrintDocument = Notification.Name("liteTextEditorPrintDocument")
+    static let liteTextEditorFindPanelAction = Notification.Name("liteTextEditorFindPanelAction")
     static let liteTextEditorShowSettings = Notification.Name("liteTextEditorShowSettings")
     static let liteTextEditorBeginSpellingReview = Notification.Name("liteTextEditorBeginSpellingReview")
     static let liteTextEditorAcceptSuggestion = Notification.Name("liteTextEditorAcceptSuggestion")

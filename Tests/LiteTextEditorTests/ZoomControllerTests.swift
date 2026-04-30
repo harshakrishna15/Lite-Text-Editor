@@ -19,6 +19,67 @@ final class ZoomControllerTests: XCTestCase {
         XCTAssertEqual(fixture.scrollView.magnification, 0.5, accuracy: 0.001)
     }
 
+    func testSetZoomMagnificationKeepsRequestedContinuousValue() {
+        let fixture = makeControllerFixture()
+
+        fixture.controller.setZoomMagnification(0.93)
+
+        XCTAssertEqual(fixture.controller.zoomMagnification, 0.93, accuracy: 0.001)
+        XCTAssertEqual(fixture.controller.zoomDisplayText, "93%")
+        XCTAssertEqual(fixture.scrollView.magnification, 0.93, accuracy: 0.001)
+
+        fixture.controller.setZoomMagnification(1.31)
+
+        XCTAssertEqual(fixture.controller.zoomMagnification, 1.31, accuracy: 0.001)
+        XCTAssertEqual(fixture.controller.zoomDisplayText, "131%")
+        XCTAssertEqual(fixture.scrollView.magnification, 1.31, accuracy: 0.001)
+    }
+
+    func testPreviewZoomMagnificationKeepsContinuousValueWhenFinished() {
+        let fixture = makeControllerFixture()
+
+        fixture.controller.previewZoomMagnification(0.93)
+
+        XCTAssertEqual(fixture.controller.zoomMagnification, 0.93, accuracy: 0.001)
+        XCTAssertEqual(fixture.controller.zoomDisplayText, "93%")
+        XCTAssertEqual(fixture.scrollView.magnification, 0.93, accuracy: 0.001)
+
+        fixture.controller.setZoomMagnification(fixture.controller.zoomMagnification)
+
+        XCTAssertEqual(fixture.controller.zoomMagnification, 0.93, accuracy: 0.001)
+        XCTAssertEqual(fixture.controller.zoomDisplayText, "93%")
+        XCTAssertEqual(fixture.scrollView.magnification, 0.93, accuracy: 0.001)
+    }
+
+    func testPreviewZoomMagnificationDoesNotResizePageFrame() {
+        let fixture = makeControllerFixture()
+        let frameBeforePreview = fixture.textView.frame
+
+        fixture.controller.previewZoomMagnification(1.31)
+
+        XCTAssertEqual(fixture.textView.frame.size.width, frameBeforePreview.size.width, accuracy: 0.001)
+        XCTAssertEqual(fixture.textView.frame.size.height, frameBeforePreview.size.height, accuracy: 0.001)
+    }
+
+    func testTrackpadZoomPreviewsAroundStablePageAnchorWithoutSnappingWhenFinished() {
+        let fixture = makeControllerFixture()
+        let frameBeforePreview = fixture.textView.frame
+
+        fixture.controller.previewTrackpadZoom(delta: 0.13)
+
+        XCTAssertEqual(fixture.controller.zoomMagnification, 1.13, accuracy: 0.001)
+        XCTAssertEqual(fixture.controller.zoomDisplayText, "113%")
+        XCTAssertEqual(fixture.scrollView.magnification, 1.13, accuracy: 0.001)
+        XCTAssertEqual(fixture.textView.frame.size.width, frameBeforePreview.size.width, accuracy: 0.001)
+        XCTAssertEqual(fixture.textView.frame.size.height, frameBeforePreview.size.height, accuracy: 0.001)
+
+        fixture.controller.finishTrackpadZoom()
+
+        XCTAssertEqual(fixture.controller.zoomMagnification, 1.13, accuracy: 0.001)
+        XCTAssertEqual(fixture.controller.zoomDisplayText, "113%")
+        XCTAssertEqual(fixture.scrollView.magnification, 1.13, accuracy: 0.001)
+    }
+
     func testZoomPresetStepMovesThroughFixedPresets() {
         let fixture = makeControllerFixture()
 

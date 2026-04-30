@@ -174,6 +174,8 @@ struct RichTextEditor: NSViewRepresentable {
             center.addObserver(self, selector: #selector(saveDocument), name: .liteTextEditorSaveDocument, object: nil)
             center.addObserver(self, selector: #selector(saveDocumentAs), name: .liteTextEditorSaveDocumentAs, object: nil)
             center.addObserver(self, selector: #selector(exportPDF), name: .liteTextEditorExportPDF, object: nil)
+            center.addObserver(self, selector: #selector(printDocument), name: .liteTextEditorPrintDocument, object: nil)
+            center.addObserver(self, selector: #selector(performFindPanelAction), name: .liteTextEditorFindPanelAction, object: nil)
             center.addObserver(self, selector: #selector(confirmQuit), name: .liteTextEditorConfirmQuit, object: nil)
             center.addObserver(self, selector: #selector(flushAutosave), name: .liteTextEditorFlushAutosave, object: nil)
         }
@@ -201,6 +203,23 @@ struct RichTextEditor: NSViewRepresentable {
 
         @objc private func exportPDF() {
             controller?.exportPDF()
+        }
+
+        @objc private func printDocument() {
+            guard let textView = controller?.textView else { return }
+            textView.window?.makeFirstResponder(textView)
+            NSApp.sendAction(NSSelectorFromString("print:"), to: textView, from: nil)
+        }
+
+        @objc private func performFindPanelAction(_ notification: Notification) {
+            guard let actionRawValue = notification.object as? Int,
+                  let textView = controller?.textView else { return }
+
+            textView.window?.makeFirstResponder(textView)
+
+            let sender = NSMenuItem()
+            sender.tag = actionRawValue
+            textView.performFindPanelAction(sender)
         }
 
         @objc private func confirmQuit(_ notification: Notification) {

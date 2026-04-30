@@ -116,6 +116,7 @@ extension EditorController {
         do {
             try loadDocument(from: url, into: textView)
             currentDocumentURL = url
+            pendingDocumentDirectoryURL = nil
             AutosaveStore.saveLastDocumentURL(url)
             noteRecentDocument(url)
             clearDocumentEdited()
@@ -132,6 +133,7 @@ extension EditorController {
         do {
             try loadDocument(from: url, into: textView)
             currentDocumentURL = url
+            pendingDocumentDirectoryURL = nil
             AutosaveStore.saveLastDocumentURL(url)
             noteRecentDocument(url)
             clearDocumentEdited()
@@ -183,6 +185,76 @@ extension EditorController {
         }
     }
 
+    var documentLocationDisplayText: String {
+        let directoryURL = documentDirectoryURLForPanels
+        let folderName = directoryURL.lastPathComponent
+        return folderName.isEmpty ? directoryURL.path : folderName
+    }
+
+    var defaultDocumentDirectoryURL: URL {
+        FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?
+            .standardizedFileURL
+            ?? FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL
+    }
+
+    var documentDirectoryURLForPanels: URL {
+        currentDocumentURL?.deletingLastPathComponent().standardizedFileURL
+            ?? pendingDocumentDirectoryURL
+            ?? defaultDocumentDirectoryURL
+    }
+
+    func chooseDocumentSaveLocation() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.prompt = "Choose"
+        panel.directoryURL = documentDirectoryURLForPanels
+
+        guard panel.runModal() == .OK, let directoryURL = panel.url else { return }
+        updateDocumentDirectory(to: directoryURL)
+    }
+
+    func updateDocumentDirectory(to directoryURL: URL) {
+        let standardizedDirectoryURL = directoryURL.standardizedFileURL
+
+        guard let currentDocumentURL else {
+            pendingDocumentDirectoryURL = standardizedDirectoryURL
+            setDocumentStatus("Location updated")
+            return
+        }
+
+        let newURL = documentURL(
+            moving: currentDocumentURL,
+            toDirectory: standardizedDirectoryURL
+        )
+
+        guard newURL.standardizedFileURL.path != currentDocumentURL.standardizedFileURL.path else {
+            pendingDocumentDirectoryURL = nil
+            setDocumentStatus("Location unchanged")
+            return
+        }
+
+        guard !FileManager.default.fileExists(atPath: newURL.path) else {
+            showMessage("The document could not be moved.", informativeText: "A file named \(newURL.lastPathComponent) already exists in \(standardizedDirectoryURL.path).")
+            return
+        }
+
+        do {
+            try FileManager.default.moveItem(at: currentDocumentURL, to: newURL)
+            recentDocumentStore.remove(currentDocumentURL)
+            self.currentDocumentURL = newURL
+            pendingDocumentDirectoryURL = nil
+            AutosaveStore.saveLastDocumentURL(newURL)
+            noteRecentDocument(newURL)
+            updateWindowTitle(for: newURL)
+            setDocumentStatus("Moved")
+        } catch {
+            showError(error, message: "The document could not be moved.")
+        }
+    }
+
     @discardableResult
     func saveDocument() -> Bool {
         guard let url = currentDocumentURL else {
@@ -211,6 +283,7 @@ extension EditorController {
         panel.allowedContentTypes = [.rtf, .plainText]
         panel.canCreateDirectories = true
         panel.nameFieldStringValue = suggestedDocumentName(fileExtension: "rtf")
+        panel.directoryURL = documentDirectoryURLForPanels
 
         guard panel.runModal() == .OK, let selectedURL = panel.url else { return false }
 
@@ -219,6 +292,7 @@ extension EditorController {
         do {
             try writeDocument(to: url)
             currentDocumentURL = url
+            pendingDocumentDirectoryURL = nil
             documentTitle = title(from: url)
             AutosaveStore.saveLastDocumentURL(url)
             noteRecentDocument(url)
@@ -239,6 +313,7 @@ extension EditorController {
         panel.allowedContentTypes = [.pdf]
         panel.canCreateDirectories = true
         panel.nameFieldStringValue = suggestedDocumentName(fileExtension: "pdf")
+        panel.directoryURL = documentDirectoryURLForPanels
 
         guard panel.runModal() == .OK, let selectedURL = panel.url else { return }
 
@@ -364,6 +439,7 @@ extension EditorController {
         textView.invalidatePageMeasurementCache()
         textView.typingAttributes = documentFileStore.defaultTypingAttributes
         currentDocumentURL = nil
+        pendingDocumentDirectoryURL = nil
         documentTitle = "Untitled"
         textView.window?.title = ChromeStyle.windowTitle
         textView.window?.representedURL = nil
@@ -406,6 +482,12 @@ extension EditorController {
     private func updateWindowTitle(for url: URL) {
         textView?.window?.title = ChromeStyle.windowTitle
         textView?.window?.representedURL = url
+    }
+
+    func documentURL(moving currentURL: URL, toDirectory directoryURL: URL) -> URL {
+        directoryURL
+            .standardizedFileURL
+            .appendingPathComponent(currentURL.lastPathComponent)
     }
 
     private func suggestedDocumentName(fileExtension: String) -> String {

@@ -33,6 +33,42 @@ final class DocumentTitleTests: XCTestCase {
         XCTAssertEqual(controller.documentStatusText, "Ready")
     }
 
+    func testUnsavedDocumentLocationDefaultsToDownloads() {
+        let controller = EditorController()
+
+        XCTAssertEqual(controller.documentDirectoryURLForPanels.path, controller.defaultDocumentDirectoryURL.path)
+        XCTAssertEqual(controller.defaultDocumentDirectoryURL.lastPathComponent, "Downloads")
+        XCTAssertEqual(controller.documentLocationDisplayText, "Downloads")
+    }
+
+    func testUnsavedDocumentLocationUsesPendingDirectory() {
+        let controller = EditorController()
+        let directoryURL = URL(fileURLWithPath: "/Users/example/Documents")
+
+        controller.updateDocumentDirectory(to: directoryURL)
+
+        XCTAssertEqual(controller.pendingDocumentDirectoryURL?.path, directoryURL.standardizedFileURL.path)
+        XCTAssertEqual(controller.documentLocationDisplayText, "Documents")
+        XCTAssertEqual(controller.documentStatusText, "Location updated")
+    }
+
+    func testSavedDocumentLocationUsesCurrentDocumentDirectory() {
+        let controller = EditorController()
+        controller.currentDocumentURL = URL(fileURLWithPath: "/Users/example/Documents/Draft.rtf")
+
+        XCTAssertEqual(controller.documentLocationDisplayText, "Documents")
+    }
+
+    func testMovingDocumentBuildsURLInSelectedDirectoryWithSameFilename() {
+        let controller = EditorController()
+        let currentURL = URL(fileURLWithPath: "/Users/example/Documents/Draft.rtf")
+        let targetDirectoryURL = URL(fileURLWithPath: "/Users/example/Desktop")
+
+        let movedURL = controller.documentURL(moving: currentURL, toDirectory: targetDirectoryURL)
+
+        XCTAssertEqual(movedURL.path, "/Users/example/Desktop/Draft.rtf")
+    }
+
     func testTitlebarStateStartsWithCurrentDocumentTitle() {
         let state = TitlebarDocumentTitleState(documentTitle: "Project Notes")
 
@@ -49,16 +85,25 @@ final class DocumentTitleTests: XCTestCase {
     func testTitlebarStateSyncsExternalTitleChangesWhenNotFocused() {
         var state = TitlebarDocumentTitleState(documentTitle: "Untitled")
 
-        state.syncDocumentTitle("Chapter One", isFocused: false)
+        state.syncDocumentTitle("Chapter One", isEditing: false)
 
         XCTAssertEqual(state.draftTitle, "Chapter One")
     }
 
-    func testTitlebarStateDoesNotOverwriteActiveEditingDraft() {
+    func testTitlebarStatePreparesDraftBeforePopoverEditing() {
+        var state = TitlebarDocumentTitleState(documentTitle: "Draft")
+        state.draftTitle = "Stale Draft"
+
+        state.prepareForEditing(documentTitle: "Current Title")
+
+        XCTAssertEqual(state.draftTitle, "Current Title")
+    }
+
+    func testTitlebarStateDoesNotOverwriteActivePopoverEditingDraft() {
         var state = TitlebarDocumentTitleState(documentTitle: "Draft")
         state.draftTitle = "Draft Renamed"
 
-        state.syncDocumentTitle("External Title", isFocused: true)
+        state.syncDocumentTitle("External Title", isEditing: true)
 
         XCTAssertEqual(state.draftTitle, "Draft Renamed")
     }

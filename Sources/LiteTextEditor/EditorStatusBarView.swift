@@ -5,6 +5,7 @@ struct EditorStatusBarView: View {
     @Binding var selectedCountMetric: DocumentCountMetric
     @State private var isCountMenuHovered = false
     @State private var isZoomMenuHovered = false
+    @State private var isZoomSliderEditing = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -155,17 +156,7 @@ struct EditorStatusBarView: View {
                 editor.zoomOut()
             }
 
-            Slider(
-                value: Binding(
-                    get: { editor.zoomMagnification },
-                    set: { editor.setZoomMagnification($0) }
-                ),
-                in: editor.minimumZoomMagnification...editor.maximumZoomMagnification
-            )
-            .frame(width: 120, height: 18)
-            .controlSize(.small)
-            .tint(Color.accentColor)
-            .help("Zoom Slider")
+            zoomSlider
 
             StatusBarIconButton(symbol: "plus", help: "Zoom In") {
                 editor.zoomIn()
@@ -173,6 +164,32 @@ struct EditorStatusBarView: View {
         }
         .frame(height: 22)
         .layoutPriority(2)
+    }
+
+    private var zoomSlider: some View {
+        Slider(
+            value: Binding(
+                get: { editor.zoomMagnification },
+                set: { value in
+                    if isZoomSliderEditing {
+                        editor.previewZoomMagnification(value)
+                    } else {
+                        editor.setZoomMagnification(value)
+                    }
+                }
+            ),
+            in: editor.minimumZoomMagnification...editor.maximumZoomMagnification,
+            onEditingChanged: { isEditing in
+                isZoomSliderEditing = isEditing
+                if !isEditing {
+                    editor.setZoomMagnification(editor.zoomMagnification)
+                }
+            }
+        )
+        .frame(width: 120, height: 18)
+        .controlSize(.small)
+        .tint(Color.accentColor)
+        .help("Zoom Slider")
     }
 
     private var visibleAutosaveStatusText: String? {

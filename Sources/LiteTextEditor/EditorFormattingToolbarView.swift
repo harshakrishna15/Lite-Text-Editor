@@ -12,7 +12,6 @@ struct EditorFormattingToolbarView: View {
     @Binding var isOutlineVisible: Bool
 
     @State private var isCompactToolbar = false
-    @State private var isMoreMenuHovered = false
     @Namespace private var toolbarNamespace
 
     private let fonts = InstalledFontProvider.fontFamilies
@@ -48,16 +47,11 @@ struct EditorFormattingToolbarView: View {
     }
 
     private func updateToolbarMode(for width: CGFloat, animated: Bool) {
-        guard width > 0 else { return }
-        let shouldUseCompactToolbar: Bool
-
-        if animated {
-            shouldUseCompactToolbar = isCompactToolbar
-                ? width < ChromeStyle.toolbarRegularBreakpoint
-                : width < ChromeStyle.toolbarCompactBreakpoint
-        } else {
-            shouldUseCompactToolbar = width < ChromeStyle.toolbarModeInitialBreakpoint
-        }
+        let shouldUseCompactToolbar = ToolbarLayoutPolicy.shouldUseCompactToolbar(
+            width: width,
+            isCurrentlyCompact: isCompactToolbar,
+            animated: animated
+        )
 
         guard shouldUseCompactToolbar != isCompactToolbar else { return }
 
@@ -152,18 +146,6 @@ struct EditorFormattingToolbarView: View {
         }
     }
 
-    private var sizeAdjustmentSection: some View {
-        ToolbarSection {
-            RibbonIconButton(symbol: "textformat.size.larger", help: "Increase Font Size") {
-                adjustSize(by: 1)
-            }
-
-            RibbonIconButton(symbol: "textformat.size.smaller", help: "Decrease Font Size") {
-                adjustSize(by: -1)
-            }
-        }
-    }
-
     private var primaryInlineFormattingSection: some View {
         ToolbarSection {
             RibbonIconButton(symbol: "bold", help: "Bold", isSelected: editor.formattingState.isBold) {
@@ -186,153 +168,38 @@ struct EditorFormattingToolbarView: View {
         }
     }
 
-    private var secondaryTextFormattingSection: some View {
-        ToolbarSection {
-            RibbonIconButton(symbol: "paintbrush", help: "Highlight", isSelected: editor.formattingState.hasHighlight) {
-                editor.toggleHighlight()
-            }
-
-            RibbonIconButton(symbol: "eraser", help: "Clear Formatting") {
-                selectedFont = "System"
-                setSelectedSize(11)
-                textColor = .black
-                editor.clearFormatting()
-            }
-        }
-    }
-
     private var regularOverflowFormattingSection: some View {
         HStack(alignment: .center, spacing: ChromeStyle.toolbarSectionSpacing) {
-            sizeAdjustmentSection
-            ToolbarDivider()
-            secondaryTextFormattingSection
-            ToolbarDivider()
-            paragraphListSection
-            paragraphAlignmentSection
+            textToolsMenu
+            paragraphToolsMenu
+            listToolsMenu
         }
         .fixedSize(horizontal: true, vertical: false)
     }
 
-    private var paragraphListSection: some View {
-        ToolbarSection {
-            RibbonIconButton(symbol: "list.bullet", help: "Bulleted List", isSelected: editor.formattingState.isBulletedList) {
-                editor.togglePlainList()
-            }
-
-            RibbonIconButton(symbol: "list.number", help: "Numbered List", isSelected: editor.formattingState.isNumberedList) {
-                editor.toggleNumberedList()
-            }
-
-            RibbonIconButton(symbol: "decrease.indent", help: "Decrease Indent") {
-                editor.decreaseIndent()
-            }
-
-            RibbonIconButton(symbol: "increase.indent", help: "Increase Indent") {
-                editor.increaseIndent()
-            }
-        }
-    }
-
     private var moreFormattingMenu: some View {
-        Menu {
+        ToolbarMenuButton(title: "More", symbol: "ellipsis.circle", help: "More Formatting") {
             Section("Text") {
-                Button("Increase Size") {
-                    adjustSize(by: 1)
-                }
-
-                Button("Decrease Size") {
-                    adjustSize(by: -1)
-                }
-
-                Button {
-                    editor.toggleHighlight()
-                } label: {
-                    menuItemLabel("Highlight", isSelected: editor.formattingState.hasHighlight)
-                }
-
-                Button("Clear Formatting") {
-                    selectedFont = "System"
-                    setSelectedSize(11)
-                    textColor = .black
-                    editor.clearFormatting()
-                }
+                textToolMenuItems
             }
 
             Section("Paragraph") {
-                Button {
-                    editor.togglePlainList()
-                } label: {
-                    menuItemLabel("Bulleted List", isSelected: editor.formattingState.isBulletedList)
-                }
-
-                Button {
-                    editor.toggleNumberedList()
-                } label: {
-                    menuItemLabel("Numbered List", isSelected: editor.formattingState.isNumberedList)
-                }
-
-                Button("Decrease Indent") {
-                    editor.decreaseIndent()
-                }
-
-                Button("Increase Indent") {
-                    editor.increaseIndent()
-                }
+                paragraphToolMenuItems
             }
 
-            Section("Alignment") {
-                Button {
-                    editor.setAlignment(.left)
-                } label: {
-                    menuItemLabel("Align Left", isSelected: editor.formattingState.alignment == .left)
-                }
-
-                Button {
-                    editor.setAlignment(.center)
-                } label: {
-                    menuItemLabel("Align Center", isSelected: editor.formattingState.alignment == .center)
-                }
-
-                Button {
-                    editor.setAlignment(.right)
-                } label: {
-                    menuItemLabel("Align Right", isSelected: editor.formattingState.alignment == .right)
-                }
-
-                Button {
-                    editor.setAlignment(.justified)
-                } label: {
-                    menuItemLabel("Justify", isSelected: editor.formattingState.alignment == .justified)
-                }
+            Section("Lists") {
+                listToolMenuItems
             }
-        } label: {
-            Image(systemName: "ellipsis.circle")
-                .font(ChromeStyle.controlSymbolFont)
-                .foregroundStyle(ChromeStyle.controlTextColor)
-                .frame(width: ChromeStyle.toolbarIconWidth, height: ChromeStyle.toolbarControlHeight)
-                .background(
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(isMoreMenuHovered ? ChromeStyle.toolbarHoverFill : Color.clear)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .stroke(
-                            isMoreMenuHovered ? ChromeStyle.toolbarHoverBorder : Color.clear,
-                            lineWidth: isMoreMenuHovered ? 1 : 0
-                        )
-                )
-                .contentShape(Rectangle())
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .onHover { isMoreMenuHovered = $0 }
-        .help("More Formatting")
-        .accessibilityLabel("More Formatting")
     }
 
-    private func menuItemLabel(_ title: String, isSelected: Bool) -> some View {
-        HStack {
+    private func menuIconItemLabel(_ title: String, symbol: String, isSelected: Bool) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: symbol)
+                .frame(width: 16, alignment: .center)
+
             Text(title)
+
             if isSelected {
                 Spacer()
                 Image(systemName: "checkmark")
@@ -340,39 +207,131 @@ struct EditorFormattingToolbarView: View {
         }
     }
 
-    private var paragraphAlignmentSection: some View {
-        ToolbarSection {
-            RibbonIconButton(
+    private var textToolsMenu: some View {
+        ToolbarMenuButton(title: "Text", symbol: "textformat", help: "Text Formatting") {
+            textToolMenuItems
+        }
+    }
+
+    private var paragraphToolsMenu: some View {
+        ToolbarMenuButton(title: "Paragraph", symbol: "text.alignleft", help: "Paragraph Formatting") {
+            paragraphToolMenuItems
+        }
+    }
+
+    private var listToolsMenu: some View {
+        ToolbarMenuButton(title: "Lists", symbol: "list.bullet", help: "List Formatting") {
+            listToolMenuItems
+        }
+    }
+
+    @ViewBuilder
+    private var textToolMenuItems: some View {
+        Button {
+            adjustSize(by: 1)
+        } label: {
+            menuIconItemLabel("Increase Size", symbol: "textformat.size.larger", isSelected: false)
+        }
+
+        Button {
+            adjustSize(by: -1)
+        } label: {
+            menuIconItemLabel("Decrease Size", symbol: "textformat.size.smaller", isSelected: false)
+        }
+
+        Button {
+            editor.toggleHighlight()
+        } label: {
+            menuIconItemLabel("Highlight", symbol: "paintbrush", isSelected: editor.formattingState.hasHighlight)
+        }
+
+        Button {
+            selectedFont = "System"
+            setSelectedSize(11)
+            textColor = .black
+            editor.clearFormatting()
+        } label: {
+            menuIconItemLabel("Clear Formatting", symbol: "eraser", isSelected: false)
+        }
+    }
+
+    @ViewBuilder
+    private var paragraphToolMenuItems: some View {
+        Button {
+            editor.setAlignment(.left)
+        } label: {
+            menuIconItemLabel(
+                "Left",
                 symbol: "text.alignleft",
-                help: "Align Left",
                 isSelected: editor.formattingState.alignment == .left
-            ) {
-                editor.setAlignment(.left)
-            }
+            )
+        }
 
-            RibbonIconButton(
+        Button {
+            editor.setAlignment(.center)
+        } label: {
+            menuIconItemLabel(
+                "Center",
                 symbol: "text.aligncenter",
-                help: "Align Center",
                 isSelected: editor.formattingState.alignment == .center
-            ) {
-                editor.setAlignment(.center)
-            }
+            )
+        }
 
-            RibbonIconButton(
+        Button {
+            editor.setAlignment(.right)
+        } label: {
+            menuIconItemLabel(
+                "Right",
                 symbol: "text.alignright",
-                help: "Align Right",
                 isSelected: editor.formattingState.alignment == .right
-            ) {
-                editor.setAlignment(.right)
-            }
+            )
+        }
 
-            RibbonIconButton(
+        Button {
+            editor.setAlignment(.justified)
+        } label: {
+            menuIconItemLabel(
+                "Justify",
                 symbol: "text.justify",
-                help: "Justify",
                 isSelected: editor.formattingState.alignment == .justified
-            ) {
-                editor.setAlignment(.justified)
-            }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var listToolMenuItems: some View {
+        Button {
+            editor.togglePlainList()
+        } label: {
+            menuIconItemLabel(
+                "Bulleted List",
+                symbol: "list.bullet",
+                isSelected: editor.formattingState.isBulletedList
+            )
+        }
+
+        Button {
+            editor.toggleNumberedList()
+        } label: {
+            menuIconItemLabel(
+                "Numbered List",
+                symbol: "list.number",
+                isSelected: editor.formattingState.isNumberedList
+            )
+        }
+
+        Divider()
+
+        Button {
+            editor.decreaseIndent()
+        } label: {
+            menuIconItemLabel("Decrease Indent", symbol: "decrease.indent", isSelected: false)
+        }
+
+        Button {
+            editor.increaseIndent()
+        } label: {
+            menuIconItemLabel("Increase Indent", symbol: "increase.indent", isSelected: false)
         }
     }
 
@@ -429,6 +388,7 @@ struct EditorFormattingToolbarView: View {
     private func formattedSize(_ size: Double) -> String {
         size.rounded() == size ? "\(Int(size))" : String(format: "%.1f", size)
     }
+
 }
 
 private enum InstalledFontProvider {

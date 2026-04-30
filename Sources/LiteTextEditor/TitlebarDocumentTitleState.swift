@@ -18,8 +18,12 @@ struct TitlebarDocumentTitleState: Equatable {
         draftTitle = documentTitle
     }
 
-    mutating func syncDocumentTitle(_ documentTitle: String, isFocused: Bool) {
-        guard !isFocused else { return }
+    mutating func prepareForEditing(documentTitle: String) {
+        draftTitle = documentTitle
+    }
+
+    mutating func syncDocumentTitle(_ documentTitle: String, isEditing: Bool) {
+        guard !isEditing else { return }
         draftTitle = documentTitle
     }
 }
