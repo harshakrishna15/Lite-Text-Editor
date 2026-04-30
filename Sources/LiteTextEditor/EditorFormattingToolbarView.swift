@@ -23,7 +23,7 @@ struct EditorFormattingToolbarView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            ZStack(alignment: .top) {
+            ZStack(alignment: .topLeading) {
                 if isCompactToolbar {
                     compactFormattingBar
                         .transition(.identity)
@@ -33,7 +33,7 @@ struct EditorFormattingToolbarView: View {
                 }
             }
             .clipped()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .onAppear {
                 updateToolbarMode(for: proxy.size.width, animated: false)
             }
@@ -41,10 +41,9 @@ struct EditorFormattingToolbarView: View {
                 updateToolbarMode(for: width, animated: true)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: isCompactToolbar ? ChromeStyle.compactToolbarHeight : ChromeStyle.regularToolbarHeight)
         .background(.regularMaterial)
-        .animation(ChromeStyle.toolbarModeAnimation, value: isCompactToolbar)
     }
 
     private func updateToolbarMode(for width: CGFloat, animated: Bool) {

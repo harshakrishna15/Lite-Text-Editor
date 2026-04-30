@@ -28,6 +28,7 @@ final class EditorController: ObservableObject {
     var pendingAutosaveWorkItem: DispatchWorkItem?
     var hasRestoredLastSession = false
     let documentFileStore = DocumentFileStore()
+    let autosavePolicy = AutosavePolicy()
     let minimumZoom: CGFloat = 0.5
     let maximumZoom: CGFloat = 2.0
 

@@ -8,13 +8,11 @@ extension EditorController {
             textView?.window?.isDocumentEdited = true
         }
 
-        if currentDocumentURL == nil {
-            setDocumentStatus("Unsaved changes")
-        } else if isAutosaveEnabled {
-            setDocumentStatus("Edited")
+        let decision = autosavePolicy.editedDocumentDecision(for: currentAutosaveState)
+        setDocumentStatus(decision.statusText)
+
+        if decision.shouldScheduleAutosave {
             scheduleAutosave()
-        } else {
-            setDocumentStatus("Edited")
         }
     }
 
@@ -24,21 +22,23 @@ extension EditorController {
         isAutosaveEnabled = isEnabled
         AutosaveSettingsStore.saveIsEnabled(isEnabled)
 
-        if isEnabled {
-            guard currentDocumentURL != nil, isDocumentEdited else { return }
-            setDocumentStatus("Edited")
+        let decision = autosavePolicy.toggledAutosaveDecision(for: currentAutosaveState)
+
+        if decision.shouldCancelPendingAutosave {
+            cancelPendingAutosave()
+        }
+
+        if let statusText = decision.statusText {
+            setDocumentStatus(statusText)
+        }
+
+        if decision.shouldScheduleAutosave {
             scheduleAutosave()
-        } else {
-            pendingAutosaveWorkItem?.cancel()
-            pendingAutosaveWorkItem = nil
-            guard currentDocumentURL != nil, isDocumentEdited else { return }
-            setDocumentStatus("Edited")
         }
     }
 
     func clearDocumentEdited() {
-        pendingAutosaveWorkItem?.cancel()
-        pendingAutosaveWorkItem = nil
+        cancelPendingAutosave()
 
         guard isDocumentEdited || textView?.window?.isDocumentEdited == true else { return }
         isDocumentEdited = false
@@ -66,9 +66,7 @@ extension EditorController {
     }
 
     func flushAutosave() {
-        pendingAutosaveWorkItem?.cancel()
-        pendingAutosaveWorkItem = nil
-        guard isAutosaveEnabled else { return }
+        cancelPendingAutosave()
         performAutosave()
     }
 
@@ -185,9 +183,8 @@ extension EditorController {
     }
 
     private func scheduleAutosave() {
-        guard isAutosaveEnabled else { return }
-        guard currentDocumentURL != nil else { return }
-        pendingAutosaveWorkItem?.cancel()
+        guard autosavePolicy.editedDocumentDecision(for: currentAutosaveState).shouldScheduleAutosave else { return }
+        cancelPendingAutosave()
 
         let workItem = DispatchWorkItem { [weak self] in
             self?.pendingAutosaveWorkItem = nil
@@ -200,12 +197,16 @@ extension EditorController {
 
     private func performAutosave() {
         guard let textView else { return }
-        guard isAutosaveEnabled else { return }
-        guard isDocumentEdited else { return }
-        guard let url = currentDocumentURL else {
-            setDocumentStatus("Unsaved changes")
+
+        let decision = autosavePolicy.runDecision(for: currentAutosaveState)
+        guard decision.shouldWriteDocument else {
+            if let statusText = decision.statusTextIfSkipped {
+                setDocumentStatus(statusText)
+            }
             return
         }
+
+        guard let url = currentDocumentURL else { return }
 
         do {
             try writeDocument(to: url)
@@ -217,6 +218,19 @@ extension EditorController {
         } catch {
             setDocumentStatus("Autosave failed")
         }
+    }
+
+    private var currentAutosaveState: AutosavePolicy.State {
+        AutosavePolicy.State(
+            isEnabled: isAutosaveEnabled,
+            hasSavedDocumentURL: currentDocumentURL != nil,
+            isDocumentEdited: isDocumentEdited
+        )
+    }
+
+    private func cancelPendingAutosave() {
+        pendingAutosaveWorkItem?.cancel()
+        pendingAutosaveWorkItem = nil
     }
 
     private func setDocumentStatus(_ text: String) {
