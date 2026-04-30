@@ -236,6 +236,9 @@ struct RichTextEditor: NSViewRepresentable {
             center.addObserver(self, selector: #selector(toggleBold), name: .liteTextEditorToggleBold, object: nil)
             center.addObserver(self, selector: #selector(toggleItalic), name: .liteTextEditorToggleItalic, object: nil)
             center.addObserver(self, selector: #selector(toggleUnderline), name: .liteTextEditorToggleUnderline, object: nil)
+            center.addObserver(self, selector: #selector(toggleHighlight), name: .liteTextEditorToggleHighlight, object: nil)
+            center.addObserver(self, selector: #selector(clearFormatting), name: .liteTextEditorClearFormatting, object: nil)
+            center.addObserver(self, selector: #selector(setTextPreset), name: .liteTextEditorSetTextPreset, object: nil)
             center.addObserver(self, selector: #selector(toggleBulletedList), name: .liteTextEditorToggleBulletedList, object: nil)
             center.addObserver(self, selector: #selector(toggleNumberedList), name: .liteTextEditorToggleNumberedList, object: nil)
             center.addObserver(self, selector: #selector(increaseIndent), name: .liteTextEditorIncreaseIndent, object: nil)
@@ -266,6 +269,21 @@ struct RichTextEditor: NSViewRepresentable {
 
         @objc private func toggleUnderline() {
             controller?.toggleUnderline()
+        }
+
+        @objc private func toggleHighlight() {
+            controller?.toggleHighlight()
+        }
+
+        @objc private func clearFormatting() {
+            controller?.clearFormatting()
+        }
+
+        @objc private func setTextPreset(_ notification: Notification) {
+            guard let rawValue = notification.object as? String,
+                  let preset = TextPreset(rawValue: rawValue) else { return }
+
+            controller?.applyPresetUsingCurrentFont(preset)
         }
 
         @objc private func toggleBulletedList() {

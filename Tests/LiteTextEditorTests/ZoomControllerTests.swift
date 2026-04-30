@@ -61,6 +61,21 @@ final class ZoomControllerTests: XCTestCase {
         XCTAssertEqual(fixture.textView.frame.size.height, frameBeforePreview.size.height, accuracy: 0.001)
     }
 
+    func testZoomRefreshesTextLayoutAndInsertionPointState() {
+        let fixture = makeControllerFixture()
+        let initialRefreshCount = fixture.textView.zoomLayoutRefreshCount
+
+        fixture.controller.setZoomMagnification(1.4)
+
+        XCTAssertGreaterThan(fixture.textView.zoomLayoutRefreshCount, initialRefreshCount)
+
+        let refreshCountAfterCommittedZoom = fixture.textView.zoomLayoutRefreshCount
+
+        fixture.controller.previewZoomMagnification(1.2)
+
+        XCTAssertGreaterThan(fixture.textView.zoomLayoutRefreshCount, refreshCountAfterCommittedZoom)
+    }
+
     func testTrackpadZoomPreviewsAroundStablePageAnchorWithoutSnappingWhenFinished() {
         let fixture = makeControllerFixture()
         let frameBeforePreview = fixture.textView.frame

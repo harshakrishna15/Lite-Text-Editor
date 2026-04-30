@@ -205,6 +205,18 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         NotificationCenter.default.post(name: .liteTextEditorToggleUnderline, object: nil)
     }
 
+    @objc private func toggleHighlight() {
+        NotificationCenter.default.post(name: .liteTextEditorToggleHighlight, object: nil)
+    }
+
+    @objc private func clearFormatting() {
+        NotificationCenter.default.post(name: .liteTextEditorClearFormatting, object: nil)
+    }
+
+    @objc private func setTextPreset(_ sender: NSMenuItem) {
+        NotificationCenter.default.post(name: .liteTextEditorSetTextPreset, object: sender.representedObject)
+    }
+
     @objc private func toggleBulletedList() {
         NotificationCenter.default.post(name: .liteTextEditorToggleBulletedList, object: nil)
     }
@@ -251,6 +263,10 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
 
     @objc private func actualSize() {
         NotificationCenter.default.post(name: .liteTextEditorZoomActualSize, object: nil)
+    }
+
+    @objc private func toggleOutline() {
+        NotificationCenter.default.post(name: .liteTextEditorToggleOutline, object: nil)
     }
 
     @objc private func setZoomPreset(_ sender: NSMenuItem) {
@@ -323,9 +339,27 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
 
         let homeMenuItem = NSMenuItem()
         let homeMenu = NSMenu(title: "Home")
+        let stylesMenuItem = NSMenuItem(title: "Styles", action: nil, keyEquivalent: "")
+        let stylesMenu = NSMenu(title: "Styles")
+        TextPreset.allCases.forEach { preset in
+            let item = NSMenuItem(title: preset.title, action: #selector(setTextPreset(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = preset.rawValue
+            stylesMenu.addItem(item)
+        }
+        stylesMenuItem.submenu = stylesMenu
+        homeMenu.addItem(stylesMenuItem)
+        homeMenu.addItem(NSMenuItem.separator())
+        homeMenu.addItem(NSMenuItem(title: "Show Fonts", action: NSSelectorFromString("orderFrontFontPanel:"), keyEquivalent: "t"))
+        homeMenu.items.last?.keyEquivalentModifierMask = [.command]
+        homeMenu.addItem(NSMenuItem(title: "Show Colors", action: NSSelectorFromString("orderFrontColorPanel:"), keyEquivalent: "c"))
+        homeMenu.items.last?.keyEquivalentModifierMask = [.command, .shift]
+        homeMenu.addItem(NSMenuItem.separator())
         homeMenu.addItem(commandItem("Bold", action: #selector(toggleBold), key: "b"))
         homeMenu.addItem(commandItem("Italic", action: #selector(toggleItalic), key: "i"))
         homeMenu.addItem(commandItem("Underline", action: #selector(toggleUnderline), key: "u"))
+        homeMenu.addItem(commandItem("Highlight", action: #selector(toggleHighlight), key: "h", modifiers: [.command, .shift]))
+        homeMenu.addItem(commandItem("Clear Formatting", action: #selector(clearFormatting), key: "\\", modifiers: [.command]))
         homeMenu.addItem(NSMenuItem.separator())
         homeMenu.addItem(commandItem("Bulleted List", action: #selector(toggleBulletedList), key: "8", modifiers: [.command, .shift]))
         homeMenu.addItem(commandItem("Numbered List", action: #selector(toggleNumberedList), key: "7", modifiers: [.command, .shift]))
@@ -364,6 +398,8 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
 
         let viewMenuItem = NSMenuItem()
         let viewMenu = NSMenu(title: "View")
+        viewMenu.addItem(commandItem("Toggle Outline", action: #selector(toggleOutline), key: "1", modifiers: [.command, .option]))
+        viewMenu.addItem(NSMenuItem.separator())
         viewMenu.addItem(commandItem("Zoom In", action: #selector(zoomIn), key: "+"))
         viewMenu.addItem(commandItem("Zoom Out", action: #selector(zoomOut), key: "-"))
         viewMenu.addItem(commandItem("Actual Size", action: #selector(actualSize), key: "0"))
@@ -494,6 +530,9 @@ extension Notification.Name {
     static let liteTextEditorToggleBold = Notification.Name("liteTextEditorToggleBold")
     static let liteTextEditorToggleItalic = Notification.Name("liteTextEditorToggleItalic")
     static let liteTextEditorToggleUnderline = Notification.Name("liteTextEditorToggleUnderline")
+    static let liteTextEditorToggleHighlight = Notification.Name("liteTextEditorToggleHighlight")
+    static let liteTextEditorClearFormatting = Notification.Name("liteTextEditorClearFormatting")
+    static let liteTextEditorSetTextPreset = Notification.Name("liteTextEditorSetTextPreset")
     static let liteTextEditorToggleBulletedList = Notification.Name("liteTextEditorToggleBulletedList")
     static let liteTextEditorToggleNumberedList = Notification.Name("liteTextEditorToggleNumberedList")
     static let liteTextEditorIncreaseIndent = Notification.Name("liteTextEditorIncreaseIndent")
@@ -507,5 +546,6 @@ extension Notification.Name {
     static let liteTextEditorZoomFitPage = Notification.Name("liteTextEditorZoomFitPage")
     static let liteTextEditorZoomActualSize = Notification.Name("liteTextEditorZoomActualSize")
     static let liteTextEditorSetZoomPreset = Notification.Name("liteTextEditorSetZoomPreset")
+    static let liteTextEditorToggleOutline = Notification.Name("liteTextEditorToggleOutline")
     static let liteTextEditorRecentDocumentsChanged = Notification.Name("liteTextEditorRecentDocumentsChanged")
 }

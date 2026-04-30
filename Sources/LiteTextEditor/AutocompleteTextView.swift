@@ -49,6 +49,7 @@ final class AutocompleteTextView: NSTextView {
     var lastPaperLayoutWidth: CGFloat = -1
     var cachedPageMeasurementKey: PageMeasurementKey?
     var cachedMeasuredPageCount = 1
+    private(set) var zoomLayoutRefreshCount = 0
     private var preservedVisibleOriginDuringChange: NSPoint?
     private var visibleOriginPreservationDepth = 0
 
@@ -201,6 +202,23 @@ final class AutocompleteTextView: NSTextView {
             self.updatePaperLayout()
             self.ensurePaperHeightFitsContent()
             self.needsDisplay = true
+        }
+    }
+
+    func refreshLayoutAfterZoomChange() {
+        zoomLayoutRefreshCount += 1
+
+        if let layoutManager, let textContainer {
+            layoutManager.ensureLayout(for: textContainer)
+        }
+
+        needsDisplay = true
+        updateInsertionPointStateAndRestartTimer(true)
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.needsDisplay = true
+            self.updateInsertionPointStateAndRestartTimer(true)
         }
     }
 

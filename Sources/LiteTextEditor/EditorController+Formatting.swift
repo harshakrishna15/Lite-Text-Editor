@@ -98,6 +98,10 @@ extension EditorController {
         refreshFormattingState()
     }
 
+    func applyPresetUsingCurrentFont(_ preset: TextPreset) {
+        applyPreset(preset, fontName: currentFontFamilyNameForFormatting())
+    }
+
     func applyFont(name: String, size: Double) {
         let font = makeFont(name: name, size: size, weight: .regular)
         applyFont(font)
@@ -394,6 +398,20 @@ extension EditorController {
         default:
             return 5
         }
+    }
+
+    private func currentFontFamilyNameForFormatting() -> String {
+        guard let textView else { return "System" }
+        let attributes = representativeFormattingAttributes(in: textView)
+        let font = attributes[.font] as? NSFont
+
+        guard let familyName = font?.familyName, !familyName.isEmpty else {
+            return "System"
+        }
+
+        return familyName == NSFont.systemFont(ofSize: font?.pointSize ?? 11).familyName
+            ? "System"
+            : familyName
     }
 }
 

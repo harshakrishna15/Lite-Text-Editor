@@ -136,6 +136,7 @@ extension EditorController {
         }
 
         keepPageVisible()
+        textView.refreshLayoutAfterZoomChange()
     }
 
     private func pageAnchoredZoomCenter() -> NSPoint {

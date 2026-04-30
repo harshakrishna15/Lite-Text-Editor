@@ -94,6 +94,11 @@ struct EditorView: View {
         .onReceive(NotificationCenter.default.publisher(for: .liteTextEditorShowSettings)) { _ in
             isSettingsPresented = true
         }
+        .onReceive(NotificationCenter.default.publisher(for: .liteTextEditorToggleOutline)) { _ in
+            withAnimation(ChromeStyle.outlinePanelAnimation) {
+                isOutlineVisible.toggle()
+            }
+        }
         .sheet(isPresented: $isSettingsPresented) {
             LiteTextEditorSettingsView(
                 isAutosaveEnabled: Binding(
