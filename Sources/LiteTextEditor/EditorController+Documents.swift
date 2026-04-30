@@ -140,11 +140,14 @@ extension EditorController {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.rtf, .plainText]
         panel.canCreateDirectories = true
-        panel.nameFieldStringValue = suggestedDocumentName(extension: "rtf")
+        panel.nameFieldStringValue = documentFileStore.suggestedDocumentName(
+            currentDocumentURL: currentDocumentURL,
+            fileExtension: "rtf"
+        )
 
         guard panel.runModal() == .OK, let selectedURL = panel.url else { return false }
 
-        let url = normalizedTextDocumentURL(selectedURL)
+        let url = documentFileStore.normalizedTextDocumentURL(selectedURL)
 
         do {
             try writeDocument(to: url)
@@ -165,26 +168,20 @@ extension EditorController {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.pdf]
         panel.canCreateDirectories = true
-        panel.nameFieldStringValue = suggestedDocumentName(extension: "pdf")
+        panel.nameFieldStringValue = documentFileStore.suggestedDocumentName(
+            currentDocumentURL: currentDocumentURL,
+            fileExtension: "pdf"
+        )
 
         guard panel.runModal() == .OK, let selectedURL = panel.url else { return }
 
-        let url = selectedURL.pathExtension.lowercased() == "pdf"
-            ? selectedURL
-            : selectedURL.appendingPathExtension("pdf")
+        let url = documentFileStore.normalizedPDFURL(selectedURL)
 
         do {
             try writePDF(to: url)
         } catch {
             showError(error, message: "The PDF could not be exported.")
         }
-    }
-
-    private var defaultTypingAttributes: [NSAttributedString.Key: Any] {
-        [
-            .font: NSFont.systemFont(ofSize: 11),
-            .foregroundColor: NSColor.black
-        ]
     }
 
     private func scheduleAutosave() {
@@ -228,36 +225,11 @@ extension EditorController {
         }
     }
 
-    private func readDocument(from url: URL) throws -> NSAttributedString {
-        switch url.pathExtension.lowercased() {
-        case "rtf":
-            let data = try Data(contentsOf: url)
-            return try NSAttributedString(
-                data: data,
-                options: [.documentType: NSAttributedString.DocumentType.rtf],
-                documentAttributes: nil
-            )
-        case "txt":
-            let string = try readPlainText(from: url)
-            return NSAttributedString(string: string, attributes: defaultTypingAttributes)
-        default:
-            throw DocumentError.unsupportedFileType(url.pathExtension)
-        }
-    }
-
-    private func readPlainText(from url: URL) throws -> String {
-        do {
-            return try String(contentsOf: url, encoding: .utf8)
-        } catch {
-            return try String(contentsOf: url, encoding: .macOSRoman)
-        }
-    }
-
     private func loadDocument(from url: URL, into textView: AutocompleteTextView) throws {
-        let attributedString = try readDocument(from: url)
+        let attributedString = try documentFileStore.readDocument(from: url)
 
         textView.textStorage?.setAttributedString(attributedString)
-        textView.typingAttributes = defaultTypingAttributes
+        textView.typingAttributes = documentFileStore.defaultTypingAttributes
         textView.resizeForCurrentPages()
         textView.moveInsertionPointToDocumentStartAndScrollToPageTop()
         textView.refreshSuggestion()
@@ -268,123 +240,13 @@ extension EditorController {
     }
 
     private func writeDocument(to url: URL) throws {
-        switch url.pathExtension.lowercased() {
-        case "rtf":
-            try writeRTF(to: url)
-        case "txt":
-            try textView?.string.write(to: url, atomically: true, encoding: .utf8)
-        default:
-            try writeRTF(to: url.appendingPathExtension("rtf"))
-        }
-    }
-
-    private func writeRTF(to url: URL) throws {
-        guard let textView, let textStorage = textView.textStorage else { return }
-        let range = NSRange(location: 0, length: textStorage.length)
-        let data = try textStorage.data(
-            from: range,
-            documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]
-        )
-        try data.write(to: url, options: .atomic)
+        guard let textStorage = textView?.textStorage else { return }
+        try documentFileStore.writeDocument(NSAttributedString(attributedString: textStorage), to: url)
     }
 
     private func writePDF(to url: URL) throws {
-        guard let textView, let textStorage = textView.textStorage else { return }
-
-        var mediaBox = CGRect(
-            x: 0,
-            y: 0,
-            width: AutocompleteTextView.paperWidth,
-            height: AutocompleteTextView.pageHeight
-        )
-
-        guard let consumer = CGDataConsumer(url: url as CFURL),
-              let context = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else {
-            throw DocumentError.couldNotCreatePDF
-        }
-
-        let exportStorage = NSTextStorage(attributedString: textStorage)
-        let layoutManager = NSLayoutManager()
-        exportStorage.addLayoutManager(layoutManager)
-
-        let pageContentSize = NSSize(
-            width: AutocompleteTextView.pageTextWidth,
-            height: AutocompleteTextView.pageContentHeight
-        )
-
-        guard exportStorage.length > 0 else {
-            context.beginPDFPage(nil)
-            context.setFillColor(NSColor.white.cgColor)
-            context.fill(mediaBox)
-            context.endPDFPage()
-            context.closePDF()
-            return
-        }
-
-        layoutManager.ensureGlyphs(forCharacterRange: NSRange(location: 0, length: exportStorage.length))
-        let glyphCount = layoutManager.numberOfGlyphs
-        var glyphLocation = 0
-        var pageRanges: [NSRange] = []
-
-        while glyphLocation < glyphCount {
-            let container = NSTextContainer(containerSize: pageContentSize)
-            container.lineFragmentPadding = 0
-            layoutManager.addTextContainer(container)
-            layoutManager.ensureLayout(for: container)
-
-            let glyphRange = layoutManager.glyphRange(for: container)
-            guard glyphRange.length > 0 else { break }
-
-            pageRanges.append(glyphRange)
-            glyphLocation = NSMaxRange(glyphRange)
-        }
-
-        if pageRanges.isEmpty {
-            pageRanges = [NSRange(location: 0, length: glyphCount)]
-        }
-
-        for glyphRange in pageRanges {
-            context.beginPDFPage(nil)
-            context.setFillColor(NSColor.white.cgColor)
-            context.fill(mediaBox)
-
-            context.saveGState()
-            context.translateBy(x: 0, y: mediaBox.height)
-            context.scaleBy(x: 1, y: -1)
-
-            NSGraphicsContext.saveGraphicsState()
-            NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
-            let contentOrigin = NSPoint(
-                x: AutocompleteTextView.pageMargin,
-                y: AutocompleteTextView.pageMargin
-            )
-            layoutManager.drawBackground(forGlyphRange: glyphRange, at: contentOrigin)
-            layoutManager.drawGlyphs(forGlyphRange: glyphRange, at: contentOrigin)
-            NSGraphicsContext.restoreGraphicsState()
-            context.restoreGState()
-
-            context.endPDFPage()
-        }
-
-        context.closePDF()
-    }
-
-    private func normalizedTextDocumentURL(_ url: URL) -> URL {
-        let fileExtension = url.pathExtension.lowercased()
-
-        if fileExtension == "rtf" || fileExtension == "txt" {
-            return url
-        }
-
-        return url.appendingPathExtension("rtf")
-    }
-
-    private func suggestedDocumentName(extension fileExtension: String) -> String {
-        if let currentDocumentURL {
-            return currentDocumentURL.deletingPathExtension().lastPathComponent + ".\(fileExtension)"
-        }
-
-        return "Untitled.\(fileExtension)"
+        guard let textStorage = textView?.textStorage else { return }
+        try documentFileStore.writePDF(NSAttributedString(attributedString: textStorage), to: url)
     }
 
     private func updateWindowTitle(for url: URL) {
@@ -398,19 +260,5 @@ extension EditorController {
         alert.messageText = message
         alert.informativeText = error.localizedDescription
         alert.runModal()
-    }
-}
-
-private enum DocumentError: LocalizedError {
-    case unsupportedFileType(String)
-    case couldNotCreatePDF
-
-    var errorDescription: String? {
-        switch self {
-        case .unsupportedFileType(let fileExtension):
-            return "Unsupported file type: .\(fileExtension)"
-        case .couldNotCreatePDF:
-            return "Lite Text Editor could not create the PDF file."
-        }
     }
 }

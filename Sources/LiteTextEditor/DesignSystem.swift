@@ -11,9 +11,9 @@ enum ChromeStyle {
     static let toolbarControlHeight: CGFloat = 26
     static let regularToolbarHeight: CGFloat = 40
     static let compactToolbarHeight: CGFloat = 40
-    static let toolbarCompactBreakpoint: CGFloat = 1_205
-    static let toolbarRegularBreakpoint: CGFloat = 1_255
-    static let toolbarModeInitialBreakpoint: CGFloat = 1_230
+    static let toolbarCompactBreakpoint: CGFloat = 1_325
+    static let toolbarRegularBreakpoint: CGFloat = 1_375
+    static let toolbarModeInitialBreakpoint: CGFloat = 1_350
     static let toolbarModeAnimation = Animation.easeInOut(duration: 0.32)
     static let toolbarIconWidth: CGFloat = 28
     static let toolbarItemSpacing: CGFloat = 7
