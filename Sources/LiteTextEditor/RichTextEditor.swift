@@ -142,7 +142,6 @@ struct RichTextEditor: NSViewRepresentable {
             controller.scrollView = nsView
         }
 
-        controller.refreshFormattingState()
         textView.usesRuler = false
         textView.isRulerVisible = false
         nsView.hasHorizontalRuler = false
@@ -169,7 +168,9 @@ struct RichTextEditor: NSViewRepresentable {
 
         func registerDocumentCommands() {
             let center = NotificationCenter.default
+            center.addObserver(self, selector: #selector(newDocument), name: .liteTextEditorNewDocument, object: nil)
             center.addObserver(self, selector: #selector(openDocument), name: .liteTextEditorOpenDocument, object: nil)
+            center.addObserver(self, selector: #selector(openRecentDocument), name: .liteTextEditorOpenRecentDocument, object: nil)
             center.addObserver(self, selector: #selector(saveDocument), name: .liteTextEditorSaveDocument, object: nil)
             center.addObserver(self, selector: #selector(saveDocumentAs), name: .liteTextEditorSaveDocumentAs, object: nil)
             center.addObserver(self, selector: #selector(exportPDF), name: .liteTextEditorExportPDF, object: nil)
@@ -177,8 +178,17 @@ struct RichTextEditor: NSViewRepresentable {
             center.addObserver(self, selector: #selector(flushAutosave), name: .liteTextEditorFlushAutosave, object: nil)
         }
 
+        @objc private func newDocument() {
+            controller?.newDocument()
+        }
+
         @objc private func openDocument() {
             controller?.openDocument()
+        }
+
+        @objc private func openRecentDocument(_ notification: Notification) {
+            guard let url = notification.object as? URL else { return }
+            controller?.openRecentDocument(url)
         }
 
         @objc private func saveDocument() {
@@ -299,15 +309,11 @@ struct RichTextEditor: NSViewRepresentable {
         }
 
         func textDidChange(_ notification: Notification) {
-            controller?.refreshFormattingState()
-            controller?.scrollView?.horizontalRulerView?.needsDisplay = true
-            controller?.scrollView?.verticalRulerView?.needsDisplay = true
+            controller?.scheduleFormattingStateRefresh()
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {
             controller?.refreshFormattingState()
-            controller?.scrollView?.horizontalRulerView?.needsDisplay = true
-            controller?.scrollView?.verticalRulerView?.needsDisplay = true
         }
 
         func layoutManager(

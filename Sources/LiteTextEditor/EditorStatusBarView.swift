@@ -3,19 +3,12 @@ import SwiftUI
 struct EditorStatusBarView: View {
     @ObservedObject var editor: EditorController
     @Binding var selectedCountMetric: DocumentCountMetric
+    @State private var isCountMenuHovered = false
+    @State private var isZoomMenuHovered = false
 
     var body: some View {
         HStack(spacing: 12) {
             documentCountMenu
-
-            StatusBarDivider()
-
-            Text(editor.documentStatusText)
-                .font(ChromeStyle.smallTextFont)
-                .foregroundStyle(ChromeStyle.secondaryTextColor)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(width: 120, alignment: .leading)
 
             if !editor.activeStructureText.isEmpty {
                 StatusBarDivider()
@@ -25,16 +18,39 @@ struct EditorStatusBarView: View {
                     .foregroundStyle(ChromeStyle.secondaryTextColor)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .frame(width: 180, alignment: .leading)
+                    .frame(width: 140, alignment: .leading)
+                    .layoutPriority(0)
             }
 
             Spacer()
+
+            autosaveStatusText
 
             zoomControls
         }
         .frame(height: 28)
         .padding(.horizontal, 12)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(.bar)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Color(nsColor: .separatorColor))
+                .frame(height: 1)
+        }
+    }
+
+    @ViewBuilder
+    private var autosaveStatusText: some View {
+        if let statusText = visibleAutosaveStatusText {
+            Text(statusText)
+                .font(ChromeStyle.smallTextFont)
+                .foregroundStyle(autosaveTint)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: 110, alignment: .trailing)
+                .help(statusText)
+
+            StatusBarDivider()
+        }
     }
 
     private var documentCountMenu: some View {
@@ -60,16 +76,30 @@ struct EditorStatusBarView: View {
                     .monospacedDigit()
                     .foregroundStyle(ChromeStyle.controlTextColor)
                     .lineLimit(1)
-                    .frame(width: 190, alignment: .leading)
+                    .frame(width: 180, alignment: .leading)
 
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(ChromeStyle.secondaryTextColor)
             }
-            .contentShape(Rectangle())
+            .padding(.horizontal, 6)
+            .frame(height: 22)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(isCountMenuHovered ? ChromeStyle.toolbarHoverFill : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(
+                        isCountMenuHovered ? ChromeStyle.toolbarHoverBorder : Color.clear,
+                        lineWidth: isCountMenuHovered ? 1 : 0
+                    )
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
+        .onHover { isCountMenuHovered = $0 }
         .fixedSize()
         .help("Document Counts")
     }
@@ -100,10 +130,24 @@ struct EditorStatusBarView: View {
                         .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(ChromeStyle.secondaryTextColor)
                 }
-                .contentShape(Rectangle())
+                .padding(.horizontal, 5)
+                .frame(height: 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(isZoomMenuHovered ? ChromeStyle.toolbarHoverFill : Color.clear)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .stroke(
+                            isZoomMenuHovered ? ChromeStyle.toolbarHoverBorder : Color.clear,
+                            lineWidth: isZoomMenuHovered ? 1 : 0
+                        )
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
+            .onHover { isZoomMenuHovered = $0 }
             .fixedSize()
             .help("Zoom Size")
 
@@ -118,13 +162,36 @@ struct EditorStatusBarView: View {
                 ),
                 in: editor.minimumZoomMagnification...editor.maximumZoomMagnification
             )
-            .frame(width: 150, height: 18)
+            .frame(width: 120, height: 18)
             .controlSize(.small)
+            .tint(Color.accentColor)
             .help("Zoom Slider")
 
             StatusBarIconButton(symbol: "plus", help: "Zoom In") {
                 editor.zoomIn()
             }
+        }
+        .frame(height: 22)
+        .layoutPriority(2)
+    }
+
+    private var visibleAutosaveStatusText: String? {
+        switch editor.autosaveStatus {
+        case .saving:
+            return "Saving..."
+        case .failed:
+            return "Autosave failed"
+        default:
+            return nil
+        }
+    }
+
+    private var autosaveTint: Color {
+        switch editor.autosaveStatus {
+        case .failed:
+            return Color.red
+        default:
+            return ChromeStyle.secondaryTextColor
         }
     }
 }

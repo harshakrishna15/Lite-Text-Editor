@@ -84,19 +84,10 @@ extension EditorController {
 
     private func fitPageMagnification() -> CGFloat {
         guard let scrollView else { return 1 }
-
-        let availableWidth = max(
-            scrollView.contentSize.width - (AutocompleteTextView.deskPadding * 2),
-            AutocompleteTextView.paperWidth * minimumZoom
+        return ZoomViewportCalculator.fitPageMagnification(
+            contentSize: scrollView.contentSize,
+            minimumZoom: minimumZoom
         )
-        let availableHeight = max(
-            scrollView.contentSize.height - (AutocompleteTextView.deskPadding * 2),
-            AutocompleteTextView.pageHeight * minimumZoom
-        )
-        let widthFit = availableWidth / AutocompleteTextView.paperWidth
-        let heightFit = availableHeight / AutocompleteTextView.pageHeight
-
-        return min(widthFit, heightFit)
     }
 
     private func applyZoom(_ magnification: CGFloat, shouldResizePages: Bool = true) {
@@ -126,7 +117,7 @@ extension EditorController {
             return NSPoint(x: pageFrame.midX, y: pageFrame.midY)
         }
 
-        return pageStableCenter(for: visibleRect, pageFrame: pageFrame)
+        return ZoomViewportCalculator.stableCenter(for: visibleRect, pageFrame: pageFrame)
     }
 
     private func keepPageVisible() {
@@ -136,10 +127,14 @@ extension EditorController {
         let visibleRect = clipView.documentVisibleRect
         let pageFrame = textView.currentPageStackFrame
         let targetCenter = pageFrame.intersects(visibleRect)
-            ? pageStableCenter(for: visibleRect, pageFrame: pageFrame)
+            ? ZoomViewportCalculator.stableCenter(for: visibleRect, pageFrame: pageFrame)
             : NSPoint(x: pageFrame.midX, y: pageFrame.midY)
 
-        let targetOrigin = clampedVisibleOrigin(centeredAt: targetCenter, visibleSize: visibleRect.size, documentBounds: textView.bounds)
+        let targetOrigin = ZoomViewportCalculator.clampedVisibleOrigin(
+            centeredAt: targetCenter,
+            visibleSize: visibleRect.size,
+            documentBounds: textView.bounds
+        )
 
         guard abs(clipView.bounds.origin.x - targetOrigin.x) > 0.5
             || abs(clipView.bounds.origin.y - targetOrigin.y) > 0.5 else {
@@ -148,33 +143,6 @@ extension EditorController {
 
         clipView.scroll(to: targetOrigin)
         scrollView.reflectScrolledClipView(clipView)
-    }
-
-    private func pageStableCenter(for visibleRect: NSRect, pageFrame: NSRect) -> NSPoint {
-        NSPoint(
-            x: visibleRect.width >= pageFrame.width
-                ? pageFrame.midX
-                : min(max(visibleRect.midX, pageFrame.minX), pageFrame.maxX),
-            y: visibleRect.height >= pageFrame.height
-                ? pageFrame.midY
-                : min(max(visibleRect.midY, pageFrame.minY), pageFrame.maxY)
-        )
-    }
-
-    private func clampedVisibleOrigin(centeredAt center: NSPoint, visibleSize: NSSize, documentBounds: NSRect) -> NSPoint {
-        let proposedOrigin = NSPoint(
-            x: center.x - (visibleSize.width / 2),
-            y: center.y - (visibleSize.height / 2)
-        )
-        let maxOrigin = NSPoint(
-            x: max(documentBounds.minX, documentBounds.maxX - visibleSize.width),
-            y: max(documentBounds.minY, documentBounds.maxY - visibleSize.height)
-        )
-
-        return NSPoint(
-            x: min(max(proposedOrigin.x, documentBounds.minX), maxOrigin.x),
-            y: min(max(proposedOrigin.y, documentBounds.minY), maxOrigin.y)
-        )
     }
 
     private func updateZoomDisplayText(for magnification: CGFloat) {

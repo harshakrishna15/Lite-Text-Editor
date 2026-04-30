@@ -2,7 +2,22 @@ import AppKit
 import SwiftUI
 
 extension EditorController {
+    func scheduleFormattingStateRefresh() {
+        pendingFormattingStateRefresh?.cancel()
+
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.pendingFormattingStateRefresh = nil
+            self?.refreshFormattingState()
+        }
+
+        pendingFormattingStateRefresh = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.04, execute: workItem)
+    }
+
     func refreshFormattingState() {
+        pendingFormattingStateRefresh?.cancel()
+        pendingFormattingStateRefresh = nil
+
         guard let textView else {
             if formattingState != FormattingState() {
                 formattingState = FormattingState()

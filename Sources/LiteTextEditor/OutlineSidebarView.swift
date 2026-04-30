@@ -4,6 +4,7 @@ struct OutlineSidebarView: View {
     let items: [DocumentOutlineItem]
     let activeItemID: String?
     let summaryText: String
+    let metadata: DocumentStructureMetadata
     let height: CGFloat
     let onSelect: (DocumentOutlineItem) -> Void
     let onClose: () -> Void
@@ -11,15 +12,17 @@ struct OutlineSidebarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
+            Divider()
+            metadataHeader
             outlineContent
         }
         .frame(width: ChromeStyle.outlinePanelWidth, height: height, alignment: .top)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                .stroke(ChromeStyle.outlinePanelStroke, lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.16), radius: 16, x: 0, y: 8)
+        .shadow(color: Color.black.opacity(0.14), radius: 18, x: 0, y: 10)
     }
 
     private var header: some View {
@@ -46,20 +49,36 @@ struct OutlineSidebarView: View {
 
             Spacer()
 
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(ChromeStyle.secondaryTextColor)
-                    .frame(width: 20, height: 20)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel("Hide Outline")
-            .help("Hide Outline")
+            OutlineCloseButton(action: onClose)
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 14)
-        .padding(.bottom, 10)
+        .padding(.horizontal, 14)
+        .padding(.top, 12)
+        .padding(.bottom, 9)
+    }
+
+    @ViewBuilder
+    private var metadataHeader: some View {
+        if metadata.hasStructure {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(metadata.displayTitle)
+                    .font(ChromeStyle.smallTextFont.weight(.semibold))
+                    .foregroundStyle(ChromeStyle.controlTextColor)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                Text(metadata.summaryText)
+                    .font(ChromeStyle.smallTextFont)
+                    .foregroundStyle(ChromeStyle.secondaryTextColor)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color(nsColor: .controlColor).opacity(0.22))
+
+            Divider()
+        }
     }
 
     private var outlineContent: some View {
@@ -78,7 +97,7 @@ struct OutlineSidebarView: View {
                     }
                 }
             }
-            .padding(.bottom, 8)
+            .padding(.vertical, 8)
         }
     }
 
@@ -93,8 +112,8 @@ struct OutlineSidebarView: View {
                 .foregroundStyle(ChromeStyle.secondaryTextColor)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
     }
 }
 
@@ -136,10 +155,15 @@ private struct OutlineRow: View {
                         .font(.system(size: 9, weight: .regular))
                         .foregroundStyle(ChromeStyle.secondaryTextColor)
                         .lineLimit(1)
+
+                    Text(item.metadataText)
+                        .font(.system(size: 9, weight: .regular))
+                        .foregroundStyle(ChromeStyle.secondaryTextColor.opacity(0.82))
+                        .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, minHeight: 34, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             .padding(.leading, 6 + CGFloat(max(0, item.level - 1) * 12))
             .padding(.trailing, 9)
             .contentShape(Rectangle())
@@ -148,6 +172,10 @@ private struct OutlineRow: View {
         .background(
             RoundedRectangle(cornerRadius: 5, style: .continuous)
                 .fill(rowBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .stroke(isActive ? ChromeStyle.toolbarSelectedBorder : Color.clear, lineWidth: isActive ? 1 : 0)
         )
         .padding(.horizontal, 6)
         .onHover { isHovered = $0 }
@@ -172,5 +200,33 @@ private struct OutlineRow: View {
         default:
             return ChromeStyle.smallTextFont
         }
+    }
+}
+
+private struct OutlineCloseButton: View {
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "xmark")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(isHovered ? ChromeStyle.controlTextColor : ChromeStyle.secondaryTextColor)
+                .frame(width: 22, height: 22)
+                .background(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(isHovered ? ChromeStyle.toolbarHoverFill : Color.clear)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .stroke(isHovered ? ChromeStyle.toolbarHoverBorder : Color.clear, lineWidth: isHovered ? 1 : 0)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        }
+        .buttonStyle(.borderless)
+        .onHover { isHovered = $0 }
+        .accessibilityLabel("Hide Outline")
+        .help("Hide Outline")
     }
 }

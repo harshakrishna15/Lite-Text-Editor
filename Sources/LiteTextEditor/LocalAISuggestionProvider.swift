@@ -15,6 +15,7 @@ final class LocalAISuggestionProvider: LocalModelSuggestionProviding {
     }
 
     func suggestion(for request: SuggestionRequest) -> String? {
+        guard isReady else { return nil }
         _ = prompt(for: request)
         return nil
     }

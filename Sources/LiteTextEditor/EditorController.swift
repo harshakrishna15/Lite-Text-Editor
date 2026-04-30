@@ -14,20 +14,24 @@ final class EditorController: ObservableObject {
     @Published var zoomMagnification = 1.0
     @Published var documentStatistics = DocumentTextStatistics.empty
     @Published var outlineItems: [DocumentOutlineItem] = []
+    @Published var documentStructureMetadata = DocumentStructureMetadata.empty
     @Published var activeOutlineItemID: String?
     @Published var spellCorrectionState = SpellCorrectionState.inactive
     @Published var formattingState = FormattingState()
     @Published var documentStatusText = "Ready"
     @Published var isAutosaveEnabled = AutosaveSettingsStore.loadIsEnabled()
+    @Published var autosaveStatus: AutosaveStatus = AutosaveSettingsStore.loadIsEnabled() ? .unavailable : .off
     var isDocumentEdited = false
 
     var currentDocumentURL: URL?
     let spellingDocumentTag = NSSpellChecker.uniqueSpellDocumentTag()
     var ignoredSpellingRanges: [NSRange] = []
     var pendingDocumentStatisticsRefresh: DispatchWorkItem?
+    var pendingFormattingStateRefresh: DispatchWorkItem?
     var pendingAutosaveWorkItem: DispatchWorkItem?
     var hasRestoredLastSession = false
     let documentFileStore = DocumentFileStore()
+    let recentDocumentStore = RecentDocumentStore()
     let autosavePolicy = AutosavePolicy()
     let minimumZoom: CGFloat = 0.5
     let maximumZoom: CGFloat = 2.0

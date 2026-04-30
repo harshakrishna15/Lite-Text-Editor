@@ -2,15 +2,28 @@ import AppKit
 import Foundation
 
 struct DocumentOutlineExtractor {
+    struct StructureSnapshot: Equatable {
+        let items: [DocumentOutlineItem]
+        let metadata: DocumentStructureMetadata
+    }
+
     func makeOutlineItems(from attributedString: NSAttributedString) -> [DocumentOutlineItem] {
+        makeStructureSnapshot(from: attributedString).items
+    }
+
+    func makeStructureSnapshot(from attributedString: NSAttributedString) -> StructureSnapshot {
         let string = attributedString.string as NSString
-        guard string.length > 0 else { return [] }
+        guard string.length > 0 else {
+            return StructureSnapshot(items: [], metadata: .empty)
+        }
 
         let candidates = outlineCandidates(from: attributedString, string: string)
-        guard !candidates.isEmpty else { return [] }
+        guard !candidates.isEmpty else {
+            return StructureSnapshot(items: [], metadata: .empty)
+        }
 
         var items: [DocumentOutlineItem] = []
-        var sectionCounters = (headings: 0, subheadings: 0)
+        var sectionCounters: [Int] = []
 
         for (index, candidate) in candidates.enumerated() {
             let sectionNumber = nextSectionNumber(for: candidate.level, counters: &sectionCounters)
@@ -18,8 +31,8 @@ struct DocumentOutlineExtractor {
                 nextCandidate.level <= candidate.level
             }?.location ?? string.length
             let sectionLength = max(0, sectionEnd - candidate.location)
-            let sectionRange = NSRange(location: candidate.location, length: sectionLength)
-            let sectionText = string.substring(with: sectionRange)
+            let sectionBodyRange = bodyRange(for: candidate, sectionEnd: sectionEnd, stringLength: string.length)
+            let sectionBodyText = sectionBodyRange.length > 0 ? string.substring(with: sectionBodyRange) : ""
             let childCount = candidates[(index + 1)...].prefix { nextCandidate in
                 nextCandidate.level > candidate.level
             }
@@ -30,16 +43,20 @@ struct DocumentOutlineExtractor {
                     title: candidate.title,
                     level: candidate.level,
                     location: candidate.location,
+                    headingLength: candidate.headingLength,
+                    sectionEndLocation: sectionEnd,
                     sectionNumber: sectionNumber,
                     sectionLength: sectionLength,
-                    wordCount: wordCount(in: sectionText),
-                    paragraphCount: paragraphCount(in: sectionText),
+                    headingWordCount: wordCount(in: candidate.title),
+                    wordCount: wordCount(in: sectionBodyText),
+                    characterCount: characterCount(in: sectionBodyText),
+                    paragraphCount: paragraphCount(in: sectionBodyText),
                     childCount: childCount
                 )
             )
         }
 
-        return items
+        return StructureSnapshot(items: items, metadata: makeMetadata(from: items))
     }
 
     private func outlineCandidates(from attributedString: NSAttributedString, string: NSString) -> [DocumentOutlineCandidate] {
@@ -70,7 +87,8 @@ struct DocumentOutlineExtractor {
                 DocumentOutlineCandidate(
                     title: paragraphText,
                     level: level,
-                    location: headingLocation
+                    location: headingLocation,
+                    headingLength: (paragraphText as NSString).length
                 )
             )
         }
@@ -78,21 +96,33 @@ struct DocumentOutlineExtractor {
         return candidates
     }
 
-    private func nextSectionNumber(for level: Int, counters: inout (headings: Int, subheadings: Int)) -> String {
-        switch level {
-        case 0:
+    private func nextSectionNumber(for level: Int, counters: inout [Int]) -> String {
+        guard level > 0 else {
+            counters.removeAll(keepingCapacity: true)
             return ""
-        case 1:
-            counters.headings += 1
-            counters.subheadings = 0
-            return "\(counters.headings)"
-        default:
-            if counters.headings == 0 {
-                counters.headings = 1
-            }
-            counters.subheadings += 1
-            return "\(counters.headings).\(counters.subheadings)"
         }
+
+        while counters.count < level {
+            counters.append(0)
+        }
+
+        for parentIndex in 0..<(level - 1) where counters[parentIndex] == 0 {
+            counters[parentIndex] = 1
+        }
+
+        counters[level - 1] += 1
+
+        if counters.count > level {
+            counters.removeSubrange(level..<counters.count)
+        }
+
+        return counters.prefix(level).map(String.init).joined(separator: ".")
+    }
+
+    private func bodyRange(for candidate: DocumentOutlineCandidate, sectionEnd: Int, stringLength: Int) -> NSRange {
+        let bodyStart = min(candidate.location + candidate.headingLength, stringLength)
+        let bodyEnd = min(sectionEnd, stringLength)
+        return NSRange(location: bodyStart, length: max(0, bodyEnd - bodyStart))
     }
 
     private func wordCount(in text: String) -> Int {
@@ -113,6 +143,28 @@ struct DocumentOutlineExtractor {
             .components(separatedBy: .newlines)
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .count
+    }
+
+    private func characterCount(in text: String) -> Int {
+        text.reduce(0) { count, character in
+            character.isDocumentStructureWhitespace ? count : count + 1
+        }
+    }
+
+    private func makeMetadata(from items: [DocumentOutlineItem]) -> DocumentStructureMetadata {
+        let titleItems = items.filter { $0.level == 0 }
+        let sectionItems = items.filter { $0.level == 1 }
+        let nestedItems = items.filter { $0.level > 1 }
+
+        return DocumentStructureMetadata(
+            title: titleItems.first?.title,
+            titleCount: titleItems.count,
+            sectionCount: sectionItems.count,
+            subsectionCount: nestedItems.count,
+            deepestLevel: items.map(\.level).max() ?? 0,
+            totalHeadingWords: items.reduce(0) { $0 + $1.headingWordCount },
+            totalSectionWords: items.reduce(0) { $0 + $1.wordCount }
+        )
     }
 
     private func firstNonWhitespaceLocation(in range: NSRange, string: NSString) -> Int? {
@@ -152,4 +204,11 @@ private struct DocumentOutlineCandidate {
     let title: String
     let level: Int
     let location: Int
+    let headingLength: Int
+}
+
+private extension Character {
+    var isDocumentStructureWhitespace: Bool {
+        unicodeScalars.allSatisfy { CharacterSet.whitespacesAndNewlines.contains($0) }
+    }
 }

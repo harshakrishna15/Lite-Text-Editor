@@ -38,6 +38,14 @@ struct ToolbarIconButtonStyle: ButtonStyle {
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .fill(backgroundColor(isPressed: configuration.isPressed))
             )
+            .overlay(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .stroke(
+                        borderColor(isPressed: configuration.isPressed),
+                        lineWidth: borderWidth(isPressed: configuration.isPressed)
+                    )
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
             .animation(.easeOut(duration: 0.12), value: isHovered)
@@ -58,6 +66,18 @@ struct ToolbarIconButtonStyle: ButtonStyle {
         }
 
         return .clear
+    }
+
+    private func borderColor(isPressed: Bool) -> Color {
+        if isPressed || isSelected {
+            return ChromeStyle.toolbarSelectedBorder
+        }
+
+        return isHovered ? ChromeStyle.toolbarHoverBorder : .clear
+    }
+
+    private func borderWidth(isPressed: Bool) -> CGFloat {
+        isPressed || isSelected || isHovered ? 1 : 0
     }
 }
 

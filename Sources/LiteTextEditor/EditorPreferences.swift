@@ -34,6 +34,55 @@ enum AutosaveSettingsStore {
     }
 }
 
+struct RecentDocumentStore {
+    static let maximumDocumentCount = 10
+
+    private static let recentDocumentURLsKey = "LiteTextEditor.recentDocumentURLs"
+
+    private let userDefaults: UserDefaults
+    private let maximumCount: Int
+
+    init(userDefaults: UserDefaults = .standard, maximumCount: Int = Self.maximumDocumentCount) {
+        self.userDefaults = userDefaults
+        self.maximumCount = maximumCount
+    }
+
+    func load() -> [URL] {
+        guard let paths = userDefaults.array(forKey: Self.recentDocumentURLsKey) as? [String] else {
+            return []
+        }
+
+        var seenPaths = Set<String>()
+        return paths.compactMap { path in
+            let trimmedPath = path.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedPath.isEmpty else { return nil }
+
+            let url = URL(fileURLWithPath: trimmedPath).standardizedFileURL
+            guard seenPaths.insert(url.path).inserted else { return nil }
+            return url
+        }
+    }
+
+    func note(_ url: URL) {
+        let standardizedURL = url.standardizedFileURL
+        let remainingURLs = load().filter { $0.path != standardizedURL.path }
+        save(Array(([standardizedURL] + remainingURLs).prefix(maximumCount)))
+    }
+
+    func remove(_ url: URL) {
+        let standardizedURL = url.standardizedFileURL
+        save(load().filter { $0.path != standardizedURL.path })
+    }
+
+    func clear() {
+        userDefaults.removeObject(forKey: Self.recentDocumentURLsKey)
+    }
+
+    private func save(_ urls: [URL]) {
+        userDefaults.set(urls.map(\.path), forKey: Self.recentDocumentURLsKey)
+    }
+}
+
 struct PaletteColor: Codable, Equatable, Identifiable {
     let red: Double
     let green: Double

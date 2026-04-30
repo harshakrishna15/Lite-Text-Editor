@@ -2,14 +2,7 @@ import AppKit
 
 extension EditorController {
     var outlineSummaryText: String {
-        let sectionCount = outlineItems.filter { $0.level > 0 }.count
-
-        if sectionCount > 0 {
-            return "\(sectionCount) \(sectionCount == 1 ? "section" : "sections")"
-        }
-
-        guard !outlineItems.isEmpty else { return "No headings" }
-        return "\(outlineItems.count) \(outlineItems.count == 1 ? "heading" : "headings")"
+        documentStructureMetadata.summaryText
     }
 
     var activeStructureText: String {
@@ -17,7 +10,7 @@ extension EditorController {
             return ""
         }
 
-        return activeOutlineItem.displayTitle
+        return "\(activeOutlineItem.displayTitle) - \(activeOutlineItem.metadataText)"
     }
 
     func refreshDocumentStatistics() {
@@ -41,16 +34,24 @@ extension EditorController {
             if !outlineItems.isEmpty {
                 outlineItems = []
             }
+            if documentStructureMetadata != .empty {
+                documentStructureMetadata = .empty
+            }
             if activeOutlineItemID != nil {
                 activeOutlineItemID = nil
             }
             return
         }
 
-        let nextItems = DocumentOutlineExtractor().makeOutlineItems(from: attributedString)
+        let snapshot = DocumentOutlineExtractor().makeStructureSnapshot(from: attributedString)
+        let nextItems = snapshot.items
 
         if nextItems != outlineItems {
             outlineItems = nextItems
+        }
+
+        if snapshot.metadata != documentStructureMetadata {
+            documentStructureMetadata = snapshot.metadata
         }
 
         refreshActiveOutlineItem()
@@ -59,8 +60,17 @@ extension EditorController {
     func scheduleDocumentStatisticsRefresh() {
         pendingDocumentStatisticsRefresh?.cancel()
 
+        let textGeneration = textView?.contentGeneration
+        let pageCount = textView?.currentPageCount
         let workItem = DispatchWorkItem { [weak self] in
-            self?.refreshDocumentStatistics()
+            guard let self else { return }
+            guard self.textView?.contentGeneration == textGeneration,
+                  self.textView?.currentPageCount == pageCount else {
+                self.scheduleDocumentStatisticsRefresh()
+                return
+            }
+
+            self.refreshDocumentStatistics()
         }
 
         pendingDocumentStatisticsRefresh = workItem
@@ -94,7 +104,11 @@ extension EditorController {
         let location = min(max(item.location, 0), textLength)
         textView.window?.makeFirstResponder(textView)
         textView.setSelectedRange(NSRange(location: location, length: 0))
-        textView.scrollRangeToVisible(NSRange(location: location, length: 0))
+        let headingRange = NSRange(location: location, length: min(item.headingLength, textLength - location))
+        textView.scrollRangeToVisible(headingRange)
+        textView.showFindIndicator(for: headingRange)
+        activeOutlineItemID = item.id
+        documentStatusText = "Outline: \(item.displayTitle)"
     }
 
 }

@@ -34,6 +34,7 @@ extension AutocompleteTextView {
     }
 
     func resizeForCurrentPages() {
+        invalidatePageMeasurementCache()
         ensurePaperHeightFitsContent()
     }
 
@@ -81,41 +82,19 @@ extension AutocompleteTextView {
     }
 
     func updatePagesAfterTextChange() {
-        guard let layoutManager, let textContainer else { return }
-
-        if layoutManager.numberOfGlyphs > 0 {
-            layoutManager.ensureLayout(forGlyphRange: NSRange(location: layoutManager.numberOfGlyphs - 1, length: 1))
-        } else {
-            layoutManager.ensureLayout(for: textContainer)
-        }
-
-        let pageCount = Self.pageCount(forVisualContentHeight: layoutManager.usedRect(for: textContainer).maxY)
+        guard let pageCount = measuredPageCount() else { return }
         guard pageCount != renderedPageCount else { return }
 
-        let oldRenderedPageCount = renderedPageCount
         renderedPageCount = pageCount
 
         applyFrameSizeIfNeeded(
             targetFrameSize(forPageCount: pageCount),
             pageCountChanged: true
         )
-
-        if oldRenderedPageCount != renderedPageCount {
-            onDocumentMetricsChanged?()
-        }
     }
 
     func ensurePaperHeightFitsContent() {
-        guard let layoutManager, let textContainer else { return }
-
-        if layoutManager.numberOfGlyphs > 0 {
-            layoutManager.ensureLayout(forGlyphRange: NSRange(location: layoutManager.numberOfGlyphs - 1, length: 1))
-        } else {
-            layoutManager.ensureLayout(for: textContainer)
-        }
-
-        let usedHeight = layoutManager.usedRect(for: textContainer).maxY
-        let pageCount = Self.pageCount(forVisualContentHeight: usedHeight)
+        guard let pageCount = measuredPageCount() else { return }
         let oldRenderedPageCount = renderedPageCount
         renderedPageCount = pageCount
 
@@ -123,10 +102,6 @@ extension AutocompleteTextView {
             targetFrameSize(forPageCount: pageCount),
             pageCountChanged: oldRenderedPageCount != renderedPageCount
         )
-
-        if oldRenderedPageCount != renderedPageCount {
-            onDocumentMetricsChanged?()
-        }
     }
 
     func restoreVisibleOrigin(_ origin: NSPoint) {
@@ -240,6 +215,34 @@ extension AutocompleteTextView {
         let targetWidth = max(viewportWidth, Self.paperWidth + (Self.deskPadding * 2))
 
         return NSSize(width: targetWidth, height: targetHeight)
+    }
+
+    func invalidatePageMeasurementCache() {
+        cachedPageMeasurementKey = nil
+    }
+
+    private func measuredPageCount() -> Int? {
+        guard let layoutManager, let textContainer else { return nil }
+
+        let measurementKey = PageMeasurementKey(
+            contentGeneration: contentGeneration,
+            stringLength: (string as NSString).length
+        )
+
+        if cachedPageMeasurementKey == measurementKey {
+            return cachedMeasuredPageCount
+        }
+
+        if layoutManager.numberOfGlyphs > 0 {
+            layoutManager.ensureLayout(forGlyphRange: NSRange(location: layoutManager.numberOfGlyphs - 1, length: 1))
+        } else {
+            layoutManager.ensureLayout(for: textContainer)
+        }
+
+        let pageCount = Self.pageCount(forVisualContentHeight: layoutManager.usedRect(for: textContainer).maxY)
+        cachedPageMeasurementKey = measurementKey
+        cachedMeasuredPageCount = pageCount
+        return pageCount
     }
 
     private func applyFrameSizeIfNeeded(_ targetSize: NSSize, pageCountChanged: Bool = false) {

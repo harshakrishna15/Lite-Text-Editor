@@ -13,7 +13,7 @@ extension AutocompleteTextView {
 
         let request = makeSuggestionRequest()
         let suggestion = suggestionEngine.suggestion(for: request)
-            ?? localAIProvider.suggestion(for: request)
+            ?? (localAIProvider.isReady ? localAIProvider.suggestion(for: request) : nil)
 
         guard let suggestion else {
             clearSuggestion()
@@ -81,6 +81,10 @@ extension AutocompleteTextView {
     }
 
     func clearSuggestion() {
+        guard currentSuggestion != nil || !suggestionLabel.isHidden || !suggestionLabel.stringValue.isEmpty else {
+            return
+        }
+
         currentSuggestion = nil
         suggestionLabel.stringValue = ""
         suggestionLabel.isHidden = true
@@ -99,12 +103,23 @@ extension AutocompleteTextView {
     }
 
     private func showSuggestion(_ suggestion: String) {
+        let previousSuggestion = currentSuggestion
+        let previousFont = suggestionLabel.font
+        let nextFont = typingAttributes[.font] as? NSFont
+
         currentSuggestion = suggestion
-        suggestionLabel.stringValue = suggestion
-        if let typingFont = typingAttributes[.font] as? NSFont {
+        if suggestionLabel.stringValue != suggestion {
+            suggestionLabel.stringValue = suggestion
+        }
+
+        if let typingFont = nextFont, previousFont != typingFont {
             suggestionLabel.font = typingFont
         }
-        suggestionLabel.sizeToFit()
+
+        if previousSuggestion != suggestion || previousFont != suggestionLabel.font {
+            suggestionLabel.sizeToFit()
+        }
+
         suggestionLabel.isHidden = false
         positionSuggestionLabel()
     }

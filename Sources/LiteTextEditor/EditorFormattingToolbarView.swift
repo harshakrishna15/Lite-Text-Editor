@@ -12,6 +12,7 @@ struct EditorFormattingToolbarView: View {
     @Binding var isOutlineVisible: Bool
 
     @State private var isCompactToolbar = false
+    @State private var isMoreMenuHovered = false
     @Namespace private var toolbarNamespace
 
     private let fonts = InstalledFontProvider.fontFamilies
@@ -136,7 +137,7 @@ struct EditorFormattingToolbarView: View {
                 autofillsCompletion: true,
                 onCommit: applyFontName
             )
-            .frame(width: 260, height: ChromeStyle.toolbarControlHeight)
+            .frame(width: fontControlWidth, height: ChromeStyle.toolbarControlHeight)
             .help("Font")
 
             EditableComboBox(
@@ -145,7 +146,7 @@ struct EditorFormattingToolbarView: View {
                 visibleItemCount: sizeOptions.count,
                 onCommit: applyFontSizeText
             )
-            .frame(width: 70, height: ChromeStyle.toolbarControlHeight)
+            .frame(width: ChromeStyle.toolbarSizeControlWidth, height: ChromeStyle.toolbarControlHeight)
             .help("Font Size")
         }
     }
@@ -308,10 +309,22 @@ struct EditorFormattingToolbarView: View {
                 .font(ChromeStyle.controlSymbolFont)
                 .foregroundStyle(ChromeStyle.controlTextColor)
                 .frame(width: ChromeStyle.toolbarIconWidth, height: ChromeStyle.toolbarControlHeight)
+                .background(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(isMoreMenuHovered ? ChromeStyle.toolbarHoverFill : Color.clear)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .stroke(
+                            isMoreMenuHovered ? ChromeStyle.toolbarHoverBorder : Color.clear,
+                            lineWidth: isMoreMenuHovered ? 1 : 0
+                        )
+                )
                 .contentShape(Rectangle())
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
+        .onHover { isMoreMenuHovered = $0 }
         .help("More Formatting")
         .accessibilityLabel("More Formatting")
     }
@@ -368,8 +381,16 @@ struct EditorFormattingToolbarView: View {
                 setSelectedSize(preset.size)
                 editor.applyPreset(preset, fontName: selectedFont)
             }
-            .frame(width: 170, height: ChromeStyle.toolbarControlHeight)
+            .frame(width: styleControlWidth, height: ChromeStyle.toolbarControlHeight)
         }
+    }
+
+    private var fontControlWidth: CGFloat {
+        isCompactToolbar ? ChromeStyle.compactToolbarFontControlWidth : ChromeStyle.toolbarFontControlWidth
+    }
+
+    private var styleControlWidth: CGFloat {
+        isCompactToolbar ? ChromeStyle.compactToolbarStyleControlWidth : ChromeStyle.toolbarStyleControlWidth
     }
 
     private func adjustSize(by delta: Double) {

@@ -62,6 +62,7 @@ struct EditorView: View {
                                 items: editor.outlineItems,
                                 activeItemID: editor.activeOutlineItemID,
                                 summaryText: editor.outlineSummaryText,
+                                metadata: editor.documentStructureMetadata,
                                 height: panelHeight,
                                 onSelect: editor.selectOutlineItem
                             ) {

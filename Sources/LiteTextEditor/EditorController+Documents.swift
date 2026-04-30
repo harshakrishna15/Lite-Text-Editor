@@ -13,6 +13,8 @@ extension EditorController {
 
         if decision.shouldScheduleAutosave {
             scheduleAutosave()
+        } else {
+            updateAutosaveStatusForCurrentState()
         }
     }
 
@@ -34,15 +36,17 @@ extension EditorController {
 
         if decision.shouldScheduleAutosave {
             scheduleAutosave()
+        } else {
+            updateAutosaveStatusForCurrentState()
         }
     }
 
     func clearDocumentEdited() {
         cancelPendingAutosave()
 
-        guard isDocumentEdited || textView?.window?.isDocumentEdited == true else { return }
         isDocumentEdited = false
         textView?.window?.isDocumentEdited = false
+        updateAutosaveStatusForCurrentState(cleanStatus: .clean)
     }
 
     func restoreLastSessionIfNeeded() {
@@ -54,14 +58,17 @@ extension EditorController {
                 try loadDocument(from: url, into: textView)
                 currentDocumentURL = url
                 AutosaveStore.saveLastDocumentURL(url)
+                noteRecentDocument(url)
                 clearDocumentEdited()
                 setDocumentStatus("Opened last document")
                 return
             }
 
             setDocumentStatus("Ready")
+            updateAutosaveStatusForCurrentState()
         } catch {
             setDocumentStatus("Could not restore last document")
+            updateAutosaveStatusForCurrentState()
         }
     }
 
@@ -71,28 +78,23 @@ extension EditorController {
     }
 
     func confirmQuit() -> NSApplication.TerminateReply {
-        guard isDocumentEdited else { return .terminateNow }
-
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = "Do you want to save changes before quitting?"
-        alert.informativeText = "If you do not save, your changes will be lost."
-        alert.addButton(withTitle: "Save")
-        alert.addButton(withTitle: "Don't Save")
-        alert.addButton(withTitle: "Cancel")
-
-        switch alert.runModal() {
-        case .alertFirstButtonReturn:
-            return saveDocument() ? .terminateNow : .terminateCancel
-        case .alertSecondButtonReturn:
+        guard isDocumentEdited else {
+            flushAutosave()
             return .terminateNow
-        default:
-            return .terminateCancel
         }
+
+        return confirmUnsavedChanges(messageText: "Do you want to save changes before quitting?") ? .terminateNow : .terminateCancel
+    }
+
+    func newDocument() {
+        guard confirmUnsavedChanges(messageText: "Do you want to save changes before creating a new document?") else { return }
+        resetToBlankDocument()
+        setDocumentStatus("New document")
     }
 
     func openDocument() {
         guard let textView else { return }
+        guard confirmUnsavedChanges(messageText: "Do you want to save changes before opening another document?") else { return }
 
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.rtf, .plainText]
@@ -106,10 +108,29 @@ extension EditorController {
             try loadDocument(from: url, into: textView)
             currentDocumentURL = url
             AutosaveStore.saveLastDocumentURL(url)
+            noteRecentDocument(url)
             clearDocumentEdited()
             setDocumentStatus("Opened")
         } catch {
             showError(error, message: "The document could not be opened.")
+        }
+    }
+
+    func openRecentDocument(_ url: URL) {
+        guard let textView else { return }
+        guard confirmUnsavedChanges(messageText: "Do you want to save changes before opening \(url.lastPathComponent)?") else { return }
+
+        do {
+            try loadDocument(from: url, into: textView)
+            currentDocumentURL = url
+            AutosaveStore.saveLastDocumentURL(url)
+            noteRecentDocument(url)
+            clearDocumentEdited()
+            setDocumentStatus("Opened")
+        } catch {
+            recentDocumentStore.remove(url)
+            postRecentDocumentsChanged()
+            showError(error, message: "The recent document could not be opened.")
         }
     }
 
@@ -122,13 +143,15 @@ extension EditorController {
         do {
             try writeDocument(to: url)
             AutosaveStore.saveLastDocumentURL(url)
+            noteRecentDocument(url)
             updateWindowTitle(for: url)
-            clearDocumentEdited()
+            clearDocumentEdited(cleanStatus: .saved)
             setDocumentStatus("Saved")
             return true
         } catch {
             showError(error, message: "The document could not be saved.")
             setDocumentStatus("Save failed")
+            autosaveStatus = .failed
             return false
         }
     }
@@ -151,13 +174,15 @@ extension EditorController {
             try writeDocument(to: url)
             currentDocumentURL = url
             AutosaveStore.saveLastDocumentURL(url)
+            noteRecentDocument(url)
             updateWindowTitle(for: url)
-            clearDocumentEdited()
+            clearDocumentEdited(cleanStatus: .saved)
             setDocumentStatus("Saved")
             return true
         } catch {
             showError(error, message: "The document could not be saved.")
             setDocumentStatus("Save failed")
+            autosaveStatus = .failed
             return false
         }
     }
@@ -177,14 +202,17 @@ extension EditorController {
 
         do {
             try writePDF(to: url)
+            setDocumentStatus("Exported PDF")
         } catch {
             showError(error, message: "The PDF could not be exported.")
+            setDocumentStatus("Export failed")
         }
     }
 
     private func scheduleAutosave() {
         guard autosavePolicy.editedDocumentDecision(for: currentAutosaveState).shouldScheduleAutosave else { return }
         cancelPendingAutosave()
+        autosaveStatus = .pending
 
         let workItem = DispatchWorkItem { [weak self] in
             self?.pendingAutosaveWorkItem = nil
@@ -203,19 +231,24 @@ extension EditorController {
             if let statusText = decision.statusTextIfSkipped {
                 setDocumentStatus(statusText)
             }
+            updateAutosaveStatusForCurrentState()
             return
         }
 
         guard let url = currentDocumentURL else { return }
 
         do {
+            autosaveStatus = .saving
             try writeDocument(to: url)
             AutosaveStore.saveLastDocumentURL(url)
+            noteRecentDocument(url)
             updateWindowTitle(for: url)
             isDocumentEdited = false
             textView.window?.isDocumentEdited = false
+            autosaveStatus = .saved
             setDocumentStatus("Autosaved")
         } catch {
+            autosaveStatus = .failed
             setDocumentStatus("Autosave failed")
         }
     }
@@ -233,16 +266,77 @@ extension EditorController {
         pendingAutosaveWorkItem = nil
     }
 
+    private func clearDocumentEdited(cleanStatus: AutosaveStatus) {
+        cancelPendingAutosave()
+        isDocumentEdited = false
+        textView?.window?.isDocumentEdited = false
+        updateAutosaveStatusForCurrentState(cleanStatus: cleanStatus)
+    }
+
+    private func updateAutosaveStatusForCurrentState(cleanStatus: AutosaveStatus = .clean) {
+        if !isAutosaveEnabled {
+            autosaveStatus = .off
+        } else if currentDocumentURL == nil {
+            autosaveStatus = .unavailable
+        } else if isDocumentEdited {
+            autosaveStatus = .pending
+        } else {
+            autosaveStatus = cleanStatus
+        }
+    }
+
     private func setDocumentStatus(_ text: String) {
         if documentStatusText != text {
             documentStatusText = text
         }
     }
 
+    private func confirmUnsavedChanges(messageText: String) -> Bool {
+        guard isDocumentEdited else { return true }
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = messageText
+        alert.informativeText = "If you do not save, your changes will be lost."
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Don't Save")
+        alert.addButton(withTitle: "Cancel")
+
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            return saveDocument()
+        case .alertSecondButtonReturn:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func resetToBlankDocument() {
+        guard let textView else { return }
+
+        textView.textStorage?.setAttributedString(NSAttributedString(string: "", attributes: documentFileStore.defaultTypingAttributes))
+        textView.contentGeneration &+= 1
+        textView.invalidatePageMeasurementCache()
+        textView.typingAttributes = documentFileStore.defaultTypingAttributes
+        currentDocumentURL = nil
+        textView.window?.title = "Untitled"
+        textView.window?.representedURL = nil
+        textView.resizeForCurrentPages()
+        textView.moveInsertionPointToDocumentStartAndScrollToPageTop()
+        textView.refreshSuggestion()
+        textView.undoManager?.removeAllActions()
+        refreshDocumentStatistics()
+        refreshFormattingState()
+        clearDocumentEdited()
+    }
+
     private func loadDocument(from url: URL, into textView: AutocompleteTextView) throws {
         let attributedString = try documentFileStore.readDocument(from: url)
 
         textView.textStorage?.setAttributedString(attributedString)
+        textView.contentGeneration &+= 1
+        textView.invalidatePageMeasurementCache()
         textView.typingAttributes = documentFileStore.defaultTypingAttributes
         textView.resizeForCurrentPages()
         textView.moveInsertionPointToDocumentStartAndScrollToPageTop()
@@ -266,6 +360,15 @@ extension EditorController {
     private func updateWindowTitle(for url: URL) {
         textView?.window?.title = url.lastPathComponent
         textView?.window?.representedURL = url
+    }
+
+    private func noteRecentDocument(_ url: URL) {
+        recentDocumentStore.note(url)
+        postRecentDocumentsChanged()
+    }
+
+    private func postRecentDocumentsChanged() {
+        NotificationCenter.default.post(name: .liteTextEditorRecentDocumentsChanged, object: nil)
     }
 
     private func showError(_ error: Error, message: String) {

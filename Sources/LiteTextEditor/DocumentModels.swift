@@ -182,13 +182,64 @@ struct SpellCorrectionState: Equatable {
     }
 }
 
+struct DocumentStructureMetadata: Equatable {
+    let title: String?
+    let titleCount: Int
+    let sectionCount: Int
+    let subsectionCount: Int
+    let deepestLevel: Int
+    let totalHeadingWords: Int
+    let totalSectionWords: Int
+
+    static let empty = DocumentStructureMetadata(
+        title: nil,
+        titleCount: 0,
+        sectionCount: 0,
+        subsectionCount: 0,
+        deepestLevel: 0,
+        totalHeadingWords: 0,
+        totalSectionWords: 0
+    )
+
+    var hasStructure: Bool {
+        titleCount > 0 || sectionCount > 0 || subsectionCount > 0
+    }
+
+    var displayTitle: String {
+        title ?? "Untitled document"
+    }
+
+    var summaryText: String {
+        guard hasStructure else { return "No headings" }
+
+        var parts: [String] = []
+        if sectionCount > 0 {
+            parts.append("\(sectionCount) \(sectionCount == 1 ? "section" : "sections")")
+        }
+
+        if subsectionCount > 0 {
+            parts.append("\(subsectionCount) nested")
+        }
+
+        if totalSectionWords > 0 {
+            parts.append("\(DocumentTextStatistics.formatted(totalSectionWords)) words")
+        }
+
+        return parts.isEmpty ? "\(titleCount) \(titleCount == 1 ? "title" : "titles")" : parts.joined(separator: " - ")
+    }
+}
+
 struct DocumentOutlineItem: Identifiable, Equatable {
     let title: String
     let level: Int
     let location: Int
+    let headingLength: Int
+    let sectionEndLocation: Int
     let sectionNumber: String
     let sectionLength: Int
+    let headingWordCount: Int
     let wordCount: Int
+    let characterCount: Int
     let paragraphCount: Int
     let childCount: Int
 
@@ -225,6 +276,20 @@ struct DocumentOutlineItem: Identifiable, Equatable {
         }
 
         return parts.joined(separator: " - ")
+    }
+
+    var range: NSRange {
+        NSRange(location: location, length: headingLength)
+    }
+
+    var sectionRange: NSRange {
+        NSRange(location: location, length: sectionLength)
+    }
+
+    var metadataText: String {
+        let words = wordCount > 0 ? "\(DocumentTextStatistics.formatted(wordCount)) words" : "No body text"
+        let characters = characterCount > 0 ? "\(DocumentTextStatistics.formatted(characterCount)) chars" : nil
+        return [words, characters].compactMap { $0 }.joined(separator: " - ")
     }
 }
 

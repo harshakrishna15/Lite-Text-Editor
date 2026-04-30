@@ -15,6 +15,9 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
 
     private var window: NSWindow?
     private var appDelegateRetainer: LiteTextEditorApplication?
+    private let recentDocumentStore = RecentDocumentStore()
+    private weak var openRecentMenu: NSMenu?
+    private var didConfirmWindowClose = false
 
     static func main() {
         let app = NSApplication.shared
@@ -24,6 +27,12 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         app.setActivationPolicy(.regular)
         delegate.appDelegateRetainer = delegate
         delegate.configureMainMenu()
+        NotificationCenter.default.addObserver(
+            delegate,
+            selector: #selector(recentDocumentsChanged),
+            name: .liteTextEditorRecentDocumentsChanged,
+            object: nil
+        )
         app.run()
     }
 
@@ -70,8 +79,11 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        NotificationCenter.default.post(name: .liteTextEditorFlushAutosave, object: nil)
-        return .terminateNow
+        if didConfirmWindowClose {
+            return .terminateNow
+        }
+
+        return requestQuitConfirmation()
     }
 
     private func clampedContentSize(for window: NSWindow, minimumSize: NSSize) -> NSSize {
@@ -85,6 +97,27 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
 
     @objc private func openDocument() {
         NotificationCenter.default.post(name: .liteTextEditorOpenDocument, object: nil)
+    }
+
+    @objc private func newDocument() {
+        NotificationCenter.default.post(name: .liteTextEditorNewDocument, object: nil)
+    }
+
+    @objc private func openRecentDocument(_ sender: NSMenuItem) {
+        guard let path = sender.representedObject as? String else { return }
+        NotificationCenter.default.post(
+            name: .liteTextEditorOpenRecentDocument,
+            object: URL(fileURLWithPath: path)
+        )
+    }
+
+    @objc private func clearRecentDocuments() {
+        recentDocumentStore.clear()
+        updateOpenRecentMenu()
+    }
+
+    @objc private func recentDocumentsChanged() {
+        updateOpenRecentMenu()
     }
 
     @objc private func saveDocument() {
@@ -202,7 +235,17 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
 
         let fileMenuItem = NSMenuItem()
         let fileMenu = NSMenu(title: "File")
+        fileMenu.addItem(commandItem("New", action: #selector(newDocument), key: "n"))
         fileMenu.addItem(commandItem("Open...", action: #selector(openDocument), key: "o"))
+
+        let openRecentMenuItem = NSMenuItem(title: "Open Recent", action: nil, keyEquivalent: "")
+        let openRecentMenu = NSMenu(title: "Open Recent")
+        openRecentMenu.delegate = self
+        openRecentMenuItem.submenu = openRecentMenu
+        fileMenu.addItem(openRecentMenuItem)
+        self.openRecentMenu = openRecentMenu
+
+        fileMenu.addItem(NSMenuItem.separator())
         fileMenu.addItem(commandItem("Save", action: #selector(saveDocument), key: "s"))
         fileMenu.addItem(commandItem("Save As...", action: #selector(saveDocumentAs), key: "S"))
         fileMenu.addItem(NSMenuItem.separator())
@@ -306,6 +349,33 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         mainMenu.addItem(helpMenuItem)
 
         NSApplication.shared.mainMenu = mainMenu
+        updateOpenRecentMenu()
+    }
+
+    private func updateOpenRecentMenu() {
+        guard let openRecentMenu else { return }
+
+        openRecentMenu.removeAllItems()
+
+        let recentURLs = recentDocumentStore.load()
+        guard !recentURLs.isEmpty else {
+            let emptyItem = NSMenuItem(title: "No Recent Documents", action: nil, keyEquivalent: "")
+            emptyItem.isEnabled = false
+            openRecentMenu.addItem(emptyItem)
+            return
+        }
+
+        recentURLs.forEach { url in
+            let item = NSMenuItem(title: url.lastPathComponent, action: #selector(openRecentDocument(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = url.path
+            item.toolTip = url.path
+            openRecentMenu.addItem(item)
+        }
+
+        openRecentMenu.addItem(NSMenuItem.separator())
+        openRecentMenu.addItem(NSMenuItem(title: "Clear Menu", action: #selector(clearRecentDocuments), keyEquivalent: ""))
+        openRecentMenu.items.last?.target = self
     }
 
     private func commandItem(
@@ -329,13 +399,24 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
 
 extension LiteTextEditorApplication: NSWindowDelegate {
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        NotificationCenter.default.post(name: .liteTextEditorFlushAutosave, object: nil)
-        return true
+        let response = requestQuitConfirmation()
+        didConfirmWindowClose = response == .terminateNow
+        return didConfirmWindowClose
+    }
+}
+
+extension LiteTextEditorApplication: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        if menu === openRecentMenu {
+            updateOpenRecentMenu()
+        }
     }
 }
 
 extension Notification.Name {
+    static let liteTextEditorNewDocument = Notification.Name("liteTextEditorNewDocument")
     static let liteTextEditorOpenDocument = Notification.Name("liteTextEditorOpenDocument")
+    static let liteTextEditorOpenRecentDocument = Notification.Name("liteTextEditorOpenRecentDocument")
     static let liteTextEditorSaveDocument = Notification.Name("liteTextEditorSaveDocument")
     static let liteTextEditorSaveDocumentAs = Notification.Name("liteTextEditorSaveDocumentAs")
     static let liteTextEditorConfirmQuit = Notification.Name("liteTextEditorConfirmQuit")
@@ -360,4 +441,5 @@ extension Notification.Name {
     static let liteTextEditorZoomFitPage = Notification.Name("liteTextEditorZoomFitPage")
     static let liteTextEditorZoomActualSize = Notification.Name("liteTextEditorZoomActualSize")
     static let liteTextEditorSetZoomPreset = Notification.Name("liteTextEditorSetZoomPreset")
+    static let liteTextEditorRecentDocumentsChanged = Notification.Name("liteTextEditorRecentDocumentsChanged")
 }

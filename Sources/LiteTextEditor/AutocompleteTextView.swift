@@ -19,6 +19,11 @@ final class AutocompleteTextView: NSTextView {
         let maxSuggestionWords: Int
     }
 
+    struct PageMeasurementKey: Equatable {
+        let contentGeneration: Int
+        let stringLength: Int
+    }
+
     var maxSuggestionWords = 4
     var onDocumentMetricsChanged: (() -> Void)?
     var onAcceptSpellingCorrection: (() -> Void)?
@@ -42,6 +47,8 @@ final class AutocompleteTextView: NSTextView {
     var lastSuggestionRefreshKey: SuggestionRefreshKey?
     var renderedPageCount = 1
     var lastPaperLayoutWidth: CGFloat = -1
+    var cachedPageMeasurementKey: PageMeasurementKey?
+    var cachedMeasuredPageCount = 1
     private var preservedVisibleOriginDuringChange: NSPoint?
     private var visibleOriginPreservationDepth = 0
 
@@ -101,8 +108,8 @@ final class AutocompleteTextView: NSTextView {
         let preservedVisibleOrigin = preservedVisibleOriginDuringChange
         super.didChangeText()
         contentGeneration &+= 1
-        onDocumentMetricsChanged?()
         updatePagesAfterTextChange()
+        onDocumentMetricsChanged?()
         if let preservedVisibleOrigin {
             restoreVisibleOrigin(preservedVisibleOrigin)
         } else {
@@ -429,6 +436,7 @@ final class AutocompleteTextView: NSTextView {
         guard didUpdate else { return false }
         didChangeText()
         undoManager?.setActionName("Alignment")
+        breakUndoCoalescing()
         enclosingScrollView?.horizontalRulerView?.needsDisplay = true
         return true
     }
