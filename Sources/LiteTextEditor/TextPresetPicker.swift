@@ -3,7 +3,9 @@ import SwiftUI
 
 struct TextPresetPicker: NSViewRepresentable {
     @Binding var selection: TextPreset
+    let fontName: String
     let onChange: (TextPreset) -> Void
+    private let previewResolver = TextPresetPreviewResolver()
 
     func makeNSView(context: Context) -> ToolbarPopUpButton {
         let button = ToolbarPopUpButton()
@@ -14,6 +16,7 @@ struct TextPresetPicker: NSViewRepresentable {
         button.isBordered = true
         button.font = NSFont.systemFont(ofSize: NSFont.systemFontSize(for: .regular))
         button.autoenablesItems = false
+        button.previewFontName = fontName
         updateItems(for: button)
         select(selection, in: button)
         return button
@@ -22,7 +25,9 @@ struct TextPresetPicker: NSViewRepresentable {
     func updateNSView(_ button: ToolbarPopUpButton, context: Context) {
         context.coordinator.parent = self
 
-        if button.itemValues != TextPreset.allCases.map(\.rawValue) {
+        if button.itemValues != TextPreset.allCases.map(\.rawValue)
+            || button.previewFontName != fontName {
+            button.previewFontName = fontName
             updateItems(for: button)
         }
 
@@ -41,6 +46,7 @@ struct TextPresetPicker: NSViewRepresentable {
         TextPreset.allCases.forEach { preset in
             button.addItem(withTitle: preset.title)
             button.lastItem?.representedObject = preset.rawValue
+            button.lastItem?.attributedTitle = previewResolver.menuTitle(for: preset, fontName: fontName)
         }
 
         button.itemValues = TextPreset.allCases.map(\.rawValue)
@@ -49,6 +55,7 @@ struct TextPresetPicker: NSViewRepresentable {
     private func select(_ preset: TextPreset, in button: ToolbarPopUpButton) {
         guard let index = TextPreset.allCases.firstIndex(of: preset) else { return }
         button.selectItem(at: index)
+        button.selectedItem?.attributedTitle = previewResolver.buttonTitle(for: preset, fontName: fontName)
     }
 
     final class Coordinator: NSObject {
@@ -72,6 +79,7 @@ struct TextPresetPicker: NSViewRepresentable {
 
 final class ToolbarPopUpButton: NSPopUpButton {
     var itemValues: [String] = []
+    var previewFontName = "System"
     private var hoverTrackingArea: NSTrackingArea?
     private var isHovered = false {
         didSet {

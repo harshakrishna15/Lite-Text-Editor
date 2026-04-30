@@ -6,6 +6,7 @@ struct EditableComboBox: NSViewRepresentable {
     let items: [String]
     let visibleItemCount: Int
     var autofillsCompletion = false
+    var previewsFontFamilies = false
     let onCommit: (String) -> Void
 
     func makeNSView(context: Context) -> EditableComboBoxView {
@@ -28,7 +29,9 @@ struct EditableComboBox: NSViewRepresentable {
         comboBox.cell?.usesSingleLineMode = true
         comboBox.focusRingType = .default
         comboBox.stringValue = text
+        comboBox.previewsFontFamilies = previewsFontFamilies
         updateItems(for: comboBox)
+        updateDisplayFont(for: comboBox)
         return comboBox
     }
 
@@ -36,6 +39,7 @@ struct EditableComboBox: NSViewRepresentable {
         context.coordinator.parent = self
         comboBox.numberOfVisibleItems = visibleItemCount
         comboBox.completes = false
+        comboBox.previewsFontFamilies = previewsFontFamilies
 
         if comboBox.itemValues != items {
             updateItems(for: comboBox)
@@ -45,6 +49,10 @@ struct EditableComboBox: NSViewRepresentable {
            comboBox.currentEditor() == nil,
            comboBox.stringValue != text {
             comboBox.stringValue = text
+        }
+
+        if comboBox.currentEditor() == nil {
+            updateDisplayFont(for: comboBox)
         }
     }
 
@@ -56,6 +64,10 @@ struct EditableComboBox: NSViewRepresentable {
         comboBox.removeAllItems()
         comboBox.addItems(withObjectValues: items)
         comboBox.itemValues = items
+    }
+
+    private func updateDisplayFont(for comboBox: EditableComboBoxView) {
+        comboBox.font = comboBox.displayFont(for: text)
     }
 
     final class Coordinator: NSObject, NSComboBoxDelegate {
@@ -188,9 +200,11 @@ struct EditableComboBox: NSViewRepresentable {
 
 final class EditableComboBoxView: NSComboBox {
     var itemValues: [String] = []
+    var previewsFontFamilies = false
     var shouldSkipCompletionForCurrentEdit = false
     var previousEditorText = ""
     var previousSelectionRange = NSRange(location: 0, length: 0)
+    private let fontPreviewResolver = FontPreviewResolver()
 
     override var intrinsicContentSize: NSSize {
         NSSize(width: NSView.noIntrinsicMetric, height: ChromeStyle.toolbarControlHeight)
@@ -237,6 +251,9 @@ final class EditableComboBoxView: NSComboBox {
             let menuItem = NSMenuItem(title: item, action: #selector(selectHighlightedMenuItem(_:)), keyEquivalent: "")
             menuItem.target = self
             menuItem.representedObject = item
+            if previewsFontFamilies {
+                menuItem.attributedTitle = fontPreviewResolver.attributedTitle(for: item)
+            }
             menuItem.state = item == stringValue ? .on : .off
             menu.addItem(menuItem)
         }
@@ -248,6 +265,15 @@ final class EditableComboBoxView: NSComboBox {
     @objc private func selectHighlightedMenuItem(_ sender: NSMenuItem) {
         guard let value = sender.representedObject as? String else { return }
         stringValue = value
+        font = displayFont(for: value)
         _ = sendAction(action, to: target)
+    }
+
+    func displayFont(for value: String) -> NSFont {
+        guard previewsFontFamilies else {
+            return NSFont.systemFont(ofSize: NSFont.systemFontSize(for: .regular))
+        }
+
+        return fontPreviewResolver.font(for: value)
     }
 }

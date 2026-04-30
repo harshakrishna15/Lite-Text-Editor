@@ -135,6 +135,7 @@ struct EditorFormattingToolbarView: View {
                 items: fonts,
                 visibleItemCount: 14,
                 autofillsCompletion: true,
+                previewsFontFamilies: true,
                 onCommit: applyFontName
             )
             .frame(width: fontControlWidth, height: ChromeStyle.toolbarControlHeight)
@@ -377,7 +378,7 @@ struct EditorFormattingToolbarView: View {
 
     private var stylePresetSection: some View {
         ToolbarSection {
-            TextPresetPicker(selection: $selectedStyle) { preset in
+            TextPresetPicker(selection: $selectedStyle, fontName: selectedFont) { preset in
                 setSelectedSize(preset.size)
                 editor.applyPreset(preset, fontName: selectedFont)
             }
