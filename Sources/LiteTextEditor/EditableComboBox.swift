@@ -14,7 +14,7 @@ struct EditableComboBox: NSViewRepresentable {
         comboBox.target = context.coordinator
         comboBox.action = #selector(Coordinator.commitSelection(_:))
         comboBox.isEditable = true
-        comboBox.completes = autofillsCompletion
+        comboBox.completes = false
         comboBox.usesDataSource = false
         comboBox.numberOfVisibleItems = visibleItemCount
         comboBox.controlSize = .regular
@@ -35,7 +35,7 @@ struct EditableComboBox: NSViewRepresentable {
     func updateNSView(_ comboBox: EditableComboBoxView, context: Context) {
         context.coordinator.parent = self
         comboBox.numberOfVisibleItems = visibleItemCount
-        comboBox.completes = autofillsCompletion
+        comboBox.completes = false
 
         if comboBox.itemValues != items {
             updateItems(for: comboBox)
@@ -62,6 +62,7 @@ struct EditableComboBox: NSViewRepresentable {
         var parent: EditableComboBox
         var isPopupOpen = false
         private var isApplyingCompletion = false
+        private let completionResolver = ComboBoxCompletionResolver()
 
         init(parent: EditableComboBox) {
             self.parent = parent
@@ -100,9 +101,32 @@ struct EditableComboBox: NSViewRepresentable {
             parent.text = comboBox.stringValue
         }
 
+        func controlTextDidBeginEditing(_ notification: Notification) {
+            guard let comboBox = notification.object as? EditableComboBoxView else { return }
+            let editor = comboBox.currentEditor()
+            comboBox.previousEditorText = editor?.string ?? comboBox.stringValue
+            comboBox.previousSelectionRange = editor?.selectedRange ?? NSRange(
+                location: (comboBox.previousEditorText as NSString).length,
+                length: 0
+            )
+            comboBox.shouldSkipCompletionForCurrentEdit = false
+        }
+
         func controlTextDidEndEditing(_ notification: Notification) {
             guard let comboBox = notification.object as? NSComboBox else { return }
             commit(comboBox.stringValue)
+        }
+
+        func control(
+            _ control: NSControl,
+            textView: NSTextView,
+            doCommandBy commandSelector: Selector
+        ) -> Bool {
+            guard let comboBox = control as? EditableComboBoxView else { return false }
+            comboBox.previousEditorText = textView.string
+            comboBox.previousSelectionRange = textView.selectedRange()
+            comboBox.shouldSkipCompletionForCurrentEdit = isDeletionCommand(commandSelector)
+            return false
         }
 
         private func commit(_ value: String) {
@@ -119,48 +143,45 @@ struct EditableComboBox: NSViewRepresentable {
 
             defer {
                 comboBox.shouldSkipCompletionForCurrentEdit = false
+                comboBox.previousEditorText = editor.string
+                comboBox.previousSelectionRange = editor.selectedRange
             }
 
             let typedText = editor.string
+            let decision = completionResolver.decision(
+                typedText: typedText,
+                previousText: comboBox.previousEditorText,
+                previousSelectionRange: comboBox.previousSelectionRange,
+                shouldSkipCompletion: comboBox.shouldSkipCompletionForCurrentEdit,
+                items: parent.items
+            )
 
-            guard !comboBox.shouldSkipCompletionForCurrentEdit else {
-                parent.text = typedText
-                return true
-            }
-
-            guard !typedText.isEmpty else {
-                parent.text = typedText
-                return true
-            }
-
-            guard let completion = parent.items.first(where: { item in
-                item.range(
-                    of: typedText,
-                    options: [.caseInsensitive, .diacriticInsensitive, .anchored]
-                ) != nil
-            }) else {
-                parent.text = typedText
-                return true
-            }
-
-            let typedLength = (typedText as NSString).length
-            let completionLength = (completion as NSString).length
-
-            guard completionLength > typedLength else {
-                parent.text = typedText
+            guard decision.completed else {
+                parent.text = decision.text
                 return true
             }
 
             isApplyingCompletion = true
-            comboBox.stringValue = completion
-            editor.string = completion
-            editor.selectedRange = NSRange(
-                location: typedLength,
-                length: completionLength - typedLength
-            )
+            comboBox.stringValue = decision.text
+            editor.string = decision.text
+            editor.selectedRange = decision.selectedRange
             isApplyingCompletion = false
-            parent.text = completion
+            parent.text = decision.text
             return true
+        }
+
+        private func isDeletionCommand(_ commandSelector: Selector) -> Bool {
+            let commandName = NSStringFromSelector(commandSelector)
+            return [
+                "deleteBackward:",
+                "deleteForward:",
+                "deleteWordBackward:",
+                "deleteWordForward:",
+                "deleteToBeginningOfLine:",
+                "deleteToEndOfLine:",
+                "deleteToBeginningOfParagraph:",
+                "deleteToEndOfParagraph:"
+            ].contains(commandName)
         }
     }
 }
@@ -168,12 +189,20 @@ struct EditableComboBox: NSViewRepresentable {
 final class EditableComboBoxView: NSComboBox {
     var itemValues: [String] = []
     var shouldSkipCompletionForCurrentEdit = false
+    var previousEditorText = ""
+    var previousSelectionRange = NSRange(location: 0, length: 0)
 
     override var intrinsicContentSize: NSSize {
         NSSize(width: NSView.noIntrinsicMetric, height: ChromeStyle.toolbarControlHeight)
     }
 
     override func keyDown(with event: NSEvent) {
+        let editor = currentEditor()
+        previousEditorText = editor?.string ?? stringValue
+        previousSelectionRange = editor?.selectedRange ?? NSRange(
+            location: (previousEditorText as NSString).length,
+            length: 0
+        )
         shouldSkipCompletionForCurrentEdit = event.keyCode == 51 || event.keyCode == 117
         super.keyDown(with: event)
     }

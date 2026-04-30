@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 struct EditorView: View {
-    @StateObject private var editor = EditorController()
+    @StateObject private var editor: EditorController
     @State private var selectedFont = "System"
     @State private var selectedSize = 11.0
     @State private var selectedSizeText = "11"
@@ -15,6 +15,10 @@ struct EditorView: View {
     @State private var selectedCountMetric = DocumentCountMetric.words
     @State private var isOutlineVisible = false
     private let suggestionWordOptions = ["2", "3", "4", "5"]
+
+    init(editor: EditorController = EditorController()) {
+        _editor = StateObject(wrappedValue: editor)
+    }
 
     var body: some View {
         VStack(spacing: 0) {

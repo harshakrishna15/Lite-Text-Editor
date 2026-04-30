@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 enum ChromeStyle {
+    static let windowTitle = "Lite Text Editor"
     static let controlFontSize = NSFont.systemFontSize(for: .regular)
     static let smallFontSize = NSFont.systemFontSize(for: .small)
     static let controlTextFont = Font.system(size: controlFontSize, weight: .regular)

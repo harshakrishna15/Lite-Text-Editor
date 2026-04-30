@@ -14,6 +14,7 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
     private static let minimumWindowSize = NSSize(width: 960, height: 600)
 
     private var window: NSWindow?
+    private var titlebarTitleView: NSHostingView<TitlebarDocumentTitleView>?
     private var appDelegateRetainer: LiteTextEditorApplication?
     private let recentDocumentStore = RecentDocumentStore()
     private weak var openRecentMenu: NSMenu?
@@ -44,8 +45,10 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
             height: min(760, max(minimumWindowSize.height, visibleFrame.height * 0.86))
         )
 
+        let editor = EditorController()
+        editor.prepareTitleForLastRestorableDocument()
         let hostingView = NSHostingView(
-            rootView: EditorView()
+            rootView: EditorView(editor: editor)
                 .frame(
                     minWidth: minimumWindowSize.width,
                     minHeight: minimumWindowSize.height,
@@ -60,7 +63,8 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
             defer: false
         )
 
-        window.title = "Lite Text Editor"
+        window.title = ChromeStyle.windowTitle
+        window.titleVisibility = .hidden
         window.contentMinSize = minimumWindowSize
         window.minSize = window.frameRect(forContentRect: NSRect(origin: .zero, size: minimumWindowSize)).size
         window.setFrameAutosaveName("LiteTextEditorMainWindow")
@@ -68,6 +72,7 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         window.center()
         window.contentView = hostingView
         window.delegate = self
+        installLeadingTitlebarTitle(for: window, editor: editor)
         window.makeKeyAndOrderFront(nil)
 
         self.window = window
@@ -93,6 +98,34 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
             width: max(currentContentSize.width, minimumSize.width),
             height: max(currentContentSize.height, minimumSize.height)
         )
+    }
+
+    private func installLeadingTitlebarTitle(for window: NSWindow, editor: EditorController) {
+        guard let titlebarView = window.standardWindowButton(.closeButton)?.superview else { return }
+        let leadingAnchor = window.standardWindowButton(.zoomButton)?.trailingAnchor ?? titlebarView.leadingAnchor
+
+        let titleView = NSHostingView(rootView: TitlebarDocumentTitleView(editor: editor))
+        titleView.translatesAutoresizingMaskIntoConstraints = false
+        titleView.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        titleView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        titleView.wantsLayer = false
+
+        titlebarView.addSubview(titleView)
+        NSLayoutConstraint.activate([
+            titleView.leadingAnchor.constraint(
+                equalTo: leadingAnchor,
+                constant: TitlebarDocumentTitleLayout.leadingGapAfterTrafficButtons
+            ),
+            titleView.trailingAnchor.constraint(
+                lessThanOrEqualTo: titlebarView.trailingAnchor,
+                constant: -TitlebarDocumentTitleLayout.trailingInset
+            ),
+            titleView.centerYAnchor.constraint(equalTo: titlebarView.centerYAnchor),
+            titleView.widthAnchor.constraint(greaterThanOrEqualToConstant: TitlebarDocumentTitleLayout.minimumWidth),
+            titleView.heightAnchor.constraint(equalToConstant: TitlebarDocumentTitleLayout.height)
+        ])
+
+        titlebarTitleView = titleView
     }
 
     @objc private func openDocument() {

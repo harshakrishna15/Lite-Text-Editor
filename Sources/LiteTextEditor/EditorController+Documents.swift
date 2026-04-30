@@ -72,6 +72,15 @@ extension EditorController {
         }
     }
 
+    func prepareTitleForLastRestorableDocument() {
+        guard let url = AutosaveStore.lastDocumentURL,
+              FileManager.default.fileExists(atPath: url.path) else {
+            return
+        }
+
+        documentTitle = title(from: url)
+    }
+
     func flushAutosave() {
         cancelPendingAutosave()
         performAutosave()
@@ -134,6 +143,46 @@ extension EditorController {
         }
     }
 
+    func commitDocumentTitle(_ title: String) {
+        let nextTitle = sanitizedDocumentTitle(title)
+        guard nextTitle != documentTitle else { return }
+
+        guard let currentDocumentURL else {
+            documentTitle = nextTitle
+            setDocumentStatus("Title updated")
+            return
+        }
+
+        let fileExtension = currentDocumentURL.pathExtension.isEmpty ? "rtf" : currentDocumentURL.pathExtension
+        let newURL = currentDocumentURL
+            .deletingLastPathComponent()
+            .appendingPathComponent(nextTitle)
+            .appendingPathExtension(fileExtension)
+
+        guard newURL.standardizedFileURL.path != currentDocumentURL.standardizedFileURL.path else {
+            documentTitle = nextTitle
+            return
+        }
+
+        guard !FileManager.default.fileExists(atPath: newURL.path) else {
+            showMessage("The document could not be renamed.", informativeText: "A file named \(newURL.lastPathComponent) already exists.")
+            return
+        }
+
+        do {
+            try FileManager.default.moveItem(at: currentDocumentURL, to: newURL)
+            recentDocumentStore.remove(currentDocumentURL)
+            self.currentDocumentURL = newURL
+            documentTitle = nextTitle
+            AutosaveStore.saveLastDocumentURL(newURL)
+            noteRecentDocument(newURL)
+            updateWindowTitle(for: newURL)
+            setDocumentStatus("Renamed")
+        } catch {
+            showError(error, message: "The document could not be renamed.")
+        }
+    }
+
     @discardableResult
     func saveDocument() -> Bool {
         guard let url = currentDocumentURL else {
@@ -161,10 +210,7 @@ extension EditorController {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.rtf, .plainText]
         panel.canCreateDirectories = true
-        panel.nameFieldStringValue = documentFileStore.suggestedDocumentName(
-            currentDocumentURL: currentDocumentURL,
-            fileExtension: "rtf"
-        )
+        panel.nameFieldStringValue = suggestedDocumentName(fileExtension: "rtf")
 
         guard panel.runModal() == .OK, let selectedURL = panel.url else { return false }
 
@@ -173,6 +219,7 @@ extension EditorController {
         do {
             try writeDocument(to: url)
             currentDocumentURL = url
+            documentTitle = title(from: url)
             AutosaveStore.saveLastDocumentURL(url)
             noteRecentDocument(url)
             updateWindowTitle(for: url)
@@ -191,10 +238,7 @@ extension EditorController {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.pdf]
         panel.canCreateDirectories = true
-        panel.nameFieldStringValue = documentFileStore.suggestedDocumentName(
-            currentDocumentURL: currentDocumentURL,
-            fileExtension: "pdf"
-        )
+        panel.nameFieldStringValue = suggestedDocumentName(fileExtension: "pdf")
 
         guard panel.runModal() == .OK, let selectedURL = panel.url else { return }
 
@@ -320,7 +364,8 @@ extension EditorController {
         textView.invalidatePageMeasurementCache()
         textView.typingAttributes = documentFileStore.defaultTypingAttributes
         currentDocumentURL = nil
-        textView.window?.title = "Untitled"
+        documentTitle = "Untitled"
+        textView.window?.title = ChromeStyle.windowTitle
         textView.window?.representedURL = nil
         textView.resizeForCurrentPages()
         textView.moveInsertionPointToDocumentStartAndScrollToPageTop()
@@ -343,6 +388,7 @@ extension EditorController {
         textView.refreshSuggestion()
         textView.undoManager?.removeAllActions()
         updateWindowTitle(for: url)
+        documentTitle = title(from: url)
         refreshDocumentStatistics()
         refreshFormattingState()
     }
@@ -358,8 +404,34 @@ extension EditorController {
     }
 
     private func updateWindowTitle(for url: URL) {
-        textView?.window?.title = url.lastPathComponent
+        textView?.window?.title = ChromeStyle.windowTitle
         textView?.window?.representedURL = url
+    }
+
+    private func suggestedDocumentName(fileExtension: String) -> String {
+        if let currentDocumentURL {
+            return documentFileStore.suggestedDocumentName(
+                currentDocumentURL: currentDocumentURL,
+                fileExtension: fileExtension
+            )
+        }
+
+        return sanitizedDocumentTitle(documentTitle) + ".\(fileExtension)"
+    }
+
+    private func sanitizedDocumentTitle(_ title: String) -> String {
+        let invalidCharacters = CharacterSet(charactersIn: "/:")
+        let sanitizedTitle = title
+            .components(separatedBy: invalidCharacters)
+            .joined(separator: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return sanitizedTitle.isEmpty ? "Untitled" : sanitizedTitle
+    }
+
+    private func title(from url: URL) -> String {
+        let title = url.deletingPathExtension().lastPathComponent
+        return title.isEmpty ? "Untitled" : title
     }
 
     private func noteRecentDocument(_ url: URL) {
@@ -376,6 +448,14 @@ extension EditorController {
         alert.alertStyle = .warning
         alert.messageText = message
         alert.informativeText = error.localizedDescription
+        alert.runModal()
+    }
+
+    private func showMessage(_ message: String, informativeText: String) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = message
+        alert.informativeText = informativeText
         alert.runModal()
     }
 }

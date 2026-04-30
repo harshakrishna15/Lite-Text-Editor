@@ -19,6 +19,7 @@ final class EditorController: ObservableObject {
     @Published var spellCorrectionState = SpellCorrectionState.inactive
     @Published var formattingState = FormattingState()
     @Published var documentStatusText = "Ready"
+    @Published var documentTitle = "Untitled"
     @Published var isAutosaveEnabled = AutosaveSettingsStore.loadIsEnabled()
     @Published var autosaveStatus: AutosaveStatus = AutosaveSettingsStore.loadIsEnabled() ? .unavailable : .off
     var isDocumentEdited = false
