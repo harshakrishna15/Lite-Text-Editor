@@ -1,0 +1,304 @@
+import AppKit
+import Foundation
+
+enum DocumentCountMetric: String, CaseIterable, Identifiable {
+    case words
+    case characters
+    case charactersNoSpaces
+    case sentences
+    case paragraphs
+    case lines
+    case pages
+    case readingTime
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .words:
+            return "Words"
+        case .characters:
+            return "Characters"
+        case .charactersNoSpaces:
+            return "Characters No Spaces"
+        case .sentences:
+            return "Sentences"
+        case .paragraphs:
+            return "Paragraphs"
+        case .lines:
+            return "Lines"
+        case .pages:
+            return "Pages"
+        case .readingTime:
+            return "Reading Time"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .characters:
+            return "Chars"
+        case .charactersNoSpaces:
+            return "Chars No Spaces"
+        case .readingTime:
+            return "Reading"
+        default:
+            return title
+        }
+    }
+
+    func statusText(for statistics: DocumentTextStatistics) -> String {
+        "\(shortTitle): \(valueText(for: statistics))"
+    }
+
+    func menuText(for statistics: DocumentTextStatistics) -> String {
+        "\(title): \(valueText(for: statistics))"
+    }
+
+    private func valueText(for statistics: DocumentTextStatistics) -> String {
+        switch self {
+        case .words:
+            return DocumentTextStatistics.formatted(statistics.words)
+        case .characters:
+            return DocumentTextStatistics.formatted(statistics.characters)
+        case .charactersNoSpaces:
+            return DocumentTextStatistics.formatted(statistics.charactersNoSpaces)
+        case .sentences:
+            return DocumentTextStatistics.formatted(statistics.sentences)
+        case .paragraphs:
+            return DocumentTextStatistics.formatted(statistics.paragraphs)
+        case .lines:
+            return DocumentTextStatistics.formatted(statistics.lines)
+        case .pages:
+            return DocumentTextStatistics.formatted(statistics.pages)
+        case .readingTime:
+            return statistics.readingTimeText
+        }
+    }
+}
+
+struct DocumentTextStatistics: Equatable {
+    let words: Int
+    let characters: Int
+    let charactersNoSpaces: Int
+    let sentences: Int
+    let paragraphs: Int
+    let lines: Int
+    let pages: Int
+    let estimatedReadingMinutes: Int
+
+    static let empty = DocumentTextStatistics(
+        words: 0,
+        characters: 0,
+        charactersNoSpaces: 0,
+        sentences: 0,
+        paragraphs: 0,
+        lines: 0,
+        pages: 1,
+        estimatedReadingMinutes: 0
+    )
+
+    var readingTimeText: String {
+        guard words > 0 else { return "0 min" }
+        return words < 225 ? "<1 min" : "\(estimatedReadingMinutes) min"
+    }
+
+    static func make(from text: String, pages: Int) -> DocumentTextStatistics {
+        let words = countSubstrings(in: text, by: .byWords)
+        let sentences = countSubstrings(in: text, by: .bySentences)
+        let paragraphs = text
+            .components(separatedBy: .newlines)
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .count
+        let lines = text.isEmpty ? 0 : text.components(separatedBy: .newlines).count
+        let charactersNoSpaces = text.reduce(0) { count, character in
+            character.isDocumentWhitespace ? count : count + 1
+        }
+        let readingMinutes = words == 0 ? 0 : max(1, Int(ceil(Double(words) / 225.0)))
+
+        return DocumentTextStatistics(
+            words: words,
+            characters: text.count,
+            charactersNoSpaces: charactersNoSpaces,
+            sentences: sentences,
+            paragraphs: paragraphs,
+            lines: lines,
+            pages: max(1, pages),
+            estimatedReadingMinutes: readingMinutes
+        )
+    }
+
+    static func formatted(_ value: Int) -> String {
+        NumberFormatter.localizedString(from: NSNumber(value: value), number: .decimal)
+    }
+
+    private static func countSubstrings(in text: String, by granularity: String.EnumerationOptions) -> Int {
+        var count = 0
+        text.enumerateSubstrings(
+            in: text.startIndex..<text.endIndex,
+            options: [granularity, .localized]
+        ) { substring, _, _, _ in
+            if let substring, !substring.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                count += 1
+            }
+        }
+        return count
+    }
+}
+
+struct SpellCorrectionState: Equatable {
+    var isPresented: Bool
+    var issueRange: NSRange?
+    var originalWord: String
+    var suggestions: [String]
+    var selectedSuggestionIndex: Int
+    var statusText: String
+
+    static let inactive = SpellCorrectionState(
+        isPresented: false,
+        issueRange: nil,
+        originalWord: "",
+        suggestions: [],
+        selectedSuggestionIndex: 0,
+        statusText: ""
+    )
+
+    static let complete = SpellCorrectionState(
+        isPresented: true,
+        issueRange: nil,
+        originalWord: "",
+        suggestions: [],
+        selectedSuggestionIndex: 0,
+        statusText: "No spelling issues found."
+    )
+
+    var selectedSuggestion: String? {
+        guard suggestions.indices.contains(selectedSuggestionIndex) else { return nil }
+        return suggestions[selectedSuggestionIndex]
+    }
+
+    var hasIssue: Bool {
+        issueRange != nil
+    }
+}
+
+struct DocumentOutlineItem: Identifiable, Equatable {
+    let title: String
+    let level: Int
+    let location: Int
+    let sectionNumber: String
+    let sectionLength: Int
+    let wordCount: Int
+    let paragraphCount: Int
+    let childCount: Int
+
+    var id: String {
+        "\(location)-\(level)-\(sectionNumber)-\(title)"
+    }
+
+    var levelTitle: String {
+        switch level {
+        case 0:
+            return "Title"
+        case 1:
+            return "Heading"
+        default:
+            return "Subheading"
+        }
+    }
+
+    var displayTitle: String {
+        sectionNumber.isEmpty ? title : "\(sectionNumber) \(title)"
+    }
+
+    var detailText: String {
+        var parts = [levelTitle]
+
+        if wordCount > 0 {
+            parts.append("\(wordCount) \(wordCount == 1 ? "word" : "words")")
+        }
+
+        if childCount > 0 {
+            parts.append("\(childCount) nested")
+        } else if paragraphCount > 1 {
+            parts.append("\(paragraphCount) paragraphs")
+        }
+
+        return parts.joined(separator: " - ")
+    }
+}
+
+struct FormattingState: Equatable {
+    var isBold = false
+    var isItalic = false
+    var isUnderline = false
+    var hasHighlight = false
+    var isBulletedList = false
+    var isNumberedList = false
+    var alignment: NSTextAlignment = .left
+}
+
+enum DocumentZoomPreset: String, CaseIterable, Identifiable {
+    case fitPage
+    case percent50
+    case percent75
+    case actualSize
+    case percent125
+    case percent150
+    case percent200
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .fitPage:
+            return "Fit Page"
+        case .percent50:
+            return "50%"
+        case .percent75:
+            return "75%"
+        case .actualSize:
+            return "100%"
+        case .percent125:
+            return "125%"
+        case .percent150:
+            return "150%"
+        case .percent200:
+            return "200%"
+        }
+    }
+
+    var magnification: CGFloat? {
+        switch self {
+        case .fitPage:
+            return nil
+        case .percent50:
+            return 0.5
+        case .percent75:
+            return 0.75
+        case .actualSize:
+            return 1.0
+        case .percent125:
+            return 1.25
+        case .percent150:
+            return 1.5
+        case .percent200:
+            return 2.0
+        }
+    }
+
+    static let fixedPresets: [DocumentZoomPreset] = [
+        .percent50,
+        .percent75,
+        .actualSize,
+        .percent125,
+        .percent150,
+        .percent200
+    ]
+}
+
+private extension Character {
+    var isDocumentWhitespace: Bool {
+        unicodeScalars.allSatisfy { CharacterSet.whitespacesAndNewlines.contains($0) }
+    }
+}
