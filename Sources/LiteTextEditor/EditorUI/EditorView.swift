@@ -39,7 +39,8 @@ struct EditorView: View {
                 ZStack(alignment: .topTrailing) {
                     RichTextEditor(
                         controller: editor,
-                        maxSuggestionWords: Int(suggestionWords)
+                        maxSuggestionWords: Int(suggestionWords),
+                        isAutomaticTextReplacementEnabled: editor.isAutomaticTextReplacementEnabled
                     )
 
                     if editor.spellCorrectionState.isPresented {
@@ -99,11 +100,18 @@ struct EditorView: View {
                 isOutlineVisible.toggle()
             }
         }
+        .onChange(of: editor.formattingState) { formattingState in
+            syncFormattingControls(with: formattingState)
+        }
         .sheet(isPresented: $isSettingsPresented) {
             LiteTextEditorSettingsView(
                 isAutosaveEnabled: Binding(
                     get: { editor.isAutosaveEnabled },
                     set: { editor.setAutosaveEnabled($0) }
+                ),
+                isAutomaticTextReplacementEnabled: Binding(
+                    get: { editor.isAutomaticTextReplacementEnabled },
+                    set: { editor.setAutomaticTextReplacementEnabled($0) }
                 ),
                 suggestionWordsText: $suggestionWordsText,
                 suggestionWordOptions: suggestionWordOptions,
@@ -127,5 +135,16 @@ struct EditorView: View {
         let clampedValue = min(max(Int(rawValue.rounded()), 2), 5)
         suggestionWords = Double(clampedValue)
         suggestionWordsText = "\(clampedValue)"
+    }
+
+    private func syncFormattingControls(with formattingState: FormattingState) {
+        selectedFont = formattingState.fontFamilyName
+        selectedSize = formattingState.fontSize
+        selectedSizeText = formattedSize(formattingState.fontSize)
+        textColor = Color(nsColor: formattingState.textColor)
+    }
+
+    private func formattedSize(_ size: Double) -> String {
+        size.rounded() == size ? "\(Int(size))" : String(format: "%.1f", size)
     }
 }

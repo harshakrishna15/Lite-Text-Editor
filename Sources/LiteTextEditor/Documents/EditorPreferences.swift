@@ -34,6 +34,22 @@ enum AutosaveSettingsStore {
     }
 }
 
+enum TextCorrectionSettingsStore {
+    private static let isAutomaticReplacementEnabledKey = "LiteTextEditor.automaticTextReplacementEnabled"
+
+    static func loadIsAutomaticReplacementEnabled() -> Bool {
+        guard UserDefaults.standard.object(forKey: isAutomaticReplacementEnabledKey) != nil else {
+            return false
+        }
+
+        return UserDefaults.standard.bool(forKey: isAutomaticReplacementEnabledKey)
+    }
+
+    static func saveIsAutomaticReplacementEnabled(_ isEnabled: Bool) {
+        UserDefaults.standard.set(isEnabled, forKey: isAutomaticReplacementEnabledKey)
+    }
+}
+
 struct RecentDocumentStore {
     static let maximumDocumentCount = 10
 

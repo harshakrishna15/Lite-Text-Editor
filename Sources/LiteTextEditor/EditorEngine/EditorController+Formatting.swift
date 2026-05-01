@@ -282,6 +282,9 @@ extension EditorController {
         let listState = currentListState(in: textView)
 
         return FormattingState(
+            fontFamilyName: displayFontFamilyName(for: font),
+            fontSize: Double(font.pointSize),
+            textColor: attributes[.foregroundColor] as? NSColor ?? NSColor.black,
             isBold: traits.contains(.bold),
             isItalic: traits.contains(.italic),
             isUnderline: attributes[.underlineStyle] != nil,
@@ -295,20 +298,38 @@ extension EditorController {
     private func representativeFormattingAttributes(in textView: AutocompleteTextView) -> [NSAttributedString.Key: Any] {
         let selection = textView.selectedRange()
 
-        guard selection.length > 0,
-              let textStorage = textView.textStorage,
+        guard let textStorage = textView.textStorage,
               textStorage.length > 0 else {
             return textView.typingAttributes
         }
 
-        let location = min(max(selection.location, 0), textStorage.length - 1)
+        let sampleLocation: Int
+        if selection.length > 0 {
+            sampleLocation = selection.location
+        } else if let formattingSampleLocation = textView.formattingSampleLocation {
+            sampleLocation = formattingSampleLocation
+        } else if selection.location >= textStorage.length {
+            sampleLocation = textStorage.length - 1
+        } else {
+            sampleLocation = selection.location
+        }
+
+        let location = min(max(sampleLocation, 0), textStorage.length - 1)
         return textStorage.attributes(at: location, effectiveRange: nil)
     }
 
     private func currentParagraphStyle(in textView: AutocompleteTextView) -> NSParagraphStyle {
         if let textStorage = textView.textStorage, textStorage.length > 0 {
             let selection = textView.selectedRange()
-            let location = min(max(selection.location, 0), textStorage.length - 1)
+            let sampleLocation: Int
+            if selection.length > 0 {
+                sampleLocation = selection.location
+            } else if let formattingSampleLocation = textView.formattingSampleLocation {
+                sampleLocation = formattingSampleLocation
+            } else {
+                sampleLocation = selection.location >= textStorage.length ? textStorage.length - 1 : selection.location
+            }
+            let location = min(max(sampleLocation, 0), textStorage.length - 1)
 
             if let paragraphStyle = textStorage.attribute(.paragraphStyle, at: location, effectiveRange: nil) as? NSParagraphStyle {
                 return paragraphStyle
@@ -358,6 +379,16 @@ extension EditorController {
 
     private func normalizedAlignment(_ alignment: NSTextAlignment) -> NSTextAlignment {
         alignment == .natural ? .left : alignment
+    }
+
+    private func displayFontFamilyName(for font: NSFont) -> String {
+        let systemFontFamily = NSFont.systemFont(ofSize: font.pointSize).familyName
+
+        if font.familyName == systemFontFamily || font.fontName.hasPrefix(".AppleSystem") {
+            return "System"
+        }
+
+        return font.familyName ?? font.displayName ?? font.fontName
     }
 
     private func makeFont(name: String, size: Double, weight: NSFont.Weight) -> NSFont {

@@ -124,6 +124,37 @@ final class PageLayoutTests: XCTestCase {
         XCTAssertEqual(fixture.scrollView.contentView.documentVisibleRect.minY, 0, accuracy: 1)
     }
 
+    func testCenteringAfterViewportResizeKeepsPageHorizontallyCentered() {
+        let fixture = makeZoomFixture()
+        fixture.scrollView.setFrameSize(NSSize(width: 700, height: 320))
+        fixture.textView.resizeForCachedPages(at: 1)
+        fixture.textView.restoreVisibleOrigin(NSPoint(x: fixture.textView.bounds.maxX, y: 0))
+
+        fixture.scrollView.setFrameSize(NSSize(width: 1_000, height: 320))
+        fixture.textView.resizeForCachedPages()
+        fixture.textView.centerPageHorizontallyPreservingVerticalPosition()
+
+        XCTAssertEqual(
+            fixture.scrollView.contentView.documentVisibleRect.midX,
+            fixture.textView.currentPageStackFrame.midX,
+            accuracy: 1
+        )
+    }
+
+    func testDocumentWidthMatchesViewportWhilePageFitsHorizontally() {
+        XCTAssertEqual(
+            AutocompleteTextView.documentWidth(forViewportWidth: AutocompleteTextView.paperWidth + 38),
+            AutocompleteTextView.paperWidth + 38
+        )
+    }
+
+    func testDocumentWidthExceedsViewportOnlyWhenPageNoLongerFitsHorizontally() {
+        XCTAssertEqual(
+            AutocompleteTextView.documentWidth(forViewportWidth: AutocompleteTextView.paperWidth - 12),
+            AutocompleteTextView.paperWidth
+        )
+    }
+
     func testTypingAcrossPageBoundaryReportsOneDocumentMetricsChange() {
         let fixture = makeZoomFixture()
         fixture.textView.textStorage?.setAttributedString(

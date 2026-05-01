@@ -41,6 +41,15 @@ extension EditorController {
         }
     }
 
+    func setAutomaticTextReplacementEnabled(_ isEnabled: Bool) {
+        guard isAutomaticTextReplacementEnabled != isEnabled else { return }
+
+        isAutomaticTextReplacementEnabled = isEnabled
+        TextCorrectionSettingsStore.saveIsAutomaticReplacementEnabled(isEnabled)
+        textView?.isAutomaticSpellingCorrectionEnabled = isEnabled
+        textView?.isAutomaticTextReplacementEnabled = isEnabled
+    }
+
     func clearDocumentEdited() {
         cancelPendingAutosave()
 

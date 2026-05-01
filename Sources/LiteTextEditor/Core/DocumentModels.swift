@@ -294,6 +294,9 @@ struct DocumentOutlineItem: Identifiable, Equatable {
 }
 
 struct FormattingState: Equatable {
+    var fontFamilyName = "System"
+    var fontSize = 11.0
+    var textColor = NSColor.black
     var isBold = false
     var isItalic = false
     var isUnderline = false

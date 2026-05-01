@@ -6,18 +6,30 @@ protocol LocalModelSuggestionProviding: SuggestionProviding {
 }
 
 final class LocalAISuggestionProvider: LocalModelSuggestionProviding {
-    private(set) var isReady = false
+    private let generator: LocalModelTextGenerating
+    private let postProcessor: LocalModelSuggestionPostProcessor
+
+    var isReady: Bool {
+        generator.isLoaded
+    }
+
+    init(
+        generator: LocalModelTextGenerating = UnavailableLocalModelTextGenerator(),
+        postProcessor: LocalModelSuggestionPostProcessor = LocalModelSuggestionPostProcessor()
+    ) {
+        self.generator = generator
+        self.postProcessor = postProcessor
+    }
 
     func load() async throws {
-        // MLX Swift LM will be wired here after the editor interaction is stable.
-        // Keeping this boundary now prevents the UI from depending on a specific model.
-        isReady = false
+        try await generator.load()
     }
 
     func suggestion(for request: SuggestionRequest) -> String? {
         guard isReady else { return nil }
-        _ = prompt(for: request)
-        return nil
+        let prompt = prompt(for: request)
+        guard let completion = generator.completion(for: prompt) else { return nil }
+        return postProcessor.suggestion(from: completion, request: request)
     }
 
     func prompt(for request: SuggestionRequest) -> String {

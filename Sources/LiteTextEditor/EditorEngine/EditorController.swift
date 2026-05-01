@@ -2,6 +2,8 @@ import AppKit
 import Combine
 
 final class EditorController: ObservableObject {
+    let suggestionProvider: SuggestionProviding
+
     weak var textView: AutocompleteTextView?
     weak var scrollView: NSScrollView? {
         didSet {
@@ -23,12 +25,11 @@ final class EditorController: ObservableObject {
     @Published var documentTitle = "Untitled"
     @Published var pendingDocumentDirectoryURL: URL?
     @Published var isAutosaveEnabled = AutosaveSettingsStore.loadIsEnabled()
+    @Published var isAutomaticTextReplacementEnabled = TextCorrectionSettingsStore.loadIsAutomaticReplacementEnabled()
     @Published var autosaveStatus: AutosaveStatus = AutosaveSettingsStore.loadIsEnabled() ? .unavailable : .off
     var isDocumentEdited = false
 
     var currentDocumentURL: URL?
-    let spellingDocumentTag = NSSpellChecker.uniqueSpellDocumentTag()
-    var ignoredSpellingRanges: [NSRange] = []
     var pendingDocumentStatisticsRefresh: DispatchWorkItem?
     var pendingFormattingStateRefresh: DispatchWorkItem?
     var pendingAutosaveWorkItem: DispatchWorkItem?
@@ -36,11 +37,23 @@ final class EditorController: ObservableObject {
     let documentFileStore = DocumentFileStore()
     let recentDocumentStore = RecentDocumentStore()
     let autosavePolicy = AutosavePolicy()
+    let spellingReviewController = SpellingReviewController()
     let minimumZoom: CGFloat = 0.5
     let maximumZoom: CGFloat = 2.0
 
     func cut() {
         textView?.cut(nil)
+    }
+
+    init(
+        suggestionProvider: SuggestionProviding = SuggestionPipeline(
+            providers: [
+                PhraseSuggestionEngine(),
+                LocalAISuggestionProvider()
+            ]
+        )
+    ) {
+        self.suggestionProvider = suggestionProvider
     }
 
     func copy() {

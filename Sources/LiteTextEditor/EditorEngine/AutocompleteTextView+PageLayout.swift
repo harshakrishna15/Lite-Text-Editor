@@ -33,6 +33,10 @@ extension AutocompleteTextView {
         return (CGFloat(clampedPageCount) * pageHeight) + (CGFloat(clampedPageCount - 1) * pageGap)
     }
 
+    static func documentWidth(forViewportWidth viewportWidth: CGFloat) -> CGFloat {
+        max(viewportWidth, paperWidth)
+    }
+
     func resizeForCurrentPages() {
         invalidatePageMeasurementCache()
         ensurePaperHeightFitsContent()
@@ -70,7 +74,7 @@ extension AutocompleteTextView {
     }
 
     func updatePaperLayout() {
-        let pageX = max(Self.deskPadding, (bounds.width - Self.paperWidth) / 2)
+        let pageX = pageHorizontalOrigin(forBoundsWidth: bounds.width)
         let pageY = pageOriginY(forPageCount: renderedPageCount, boundsHeight: bounds.height)
         let containerSize = NSSize(width: Self.pageTextWidth, height: Self.textLayoutDimensionLimit)
         let inset = NSSize(
@@ -139,15 +143,39 @@ extension AutocompleteTextView {
             x: clampedOrigin.x * documentLayoutScale,
             y: clampedOrigin.y * documentLayoutScale
         )
-        clipView.scroll(to: physicalOrigin)
-        scrollView.reflectScrolledClipView(clipView)
+        if let paperScrollView = scrollView as? PaperScrollView {
+            paperScrollView.performProgrammaticHorizontalScroll {
+                clipView.scroll(to: physicalOrigin)
+                scrollView.reflectScrolledClipView(clipView)
+            }
+        } else {
+            clipView.scroll(to: physicalOrigin)
+            scrollView.reflectScrolledClipView(clipView)
+        }
+    }
+
+    func centerPageHorizontallyPreservingVerticalPosition() {
+        guard let scrollView = enclosingScrollView else { return }
+
+        let visibleRect = scrollView.contentView.documentVisibleRect
+        let pageFrame = currentPageStackFrame
+        let proposedX = pageFrame.midX - (visibleRect.width / 2)
+        let maxX = max(bounds.minX, bounds.maxX - visibleRect.width)
+        let targetX = min(max(proposedX, bounds.minX), maxX)
+
+        restoreVisibleOrigin(
+            NSPoint(
+                x: targetX,
+                y: visibleRect.origin.y
+            )
+        )
     }
 
     func drawPaperBackground(in dirtyRect: NSRect) {
         NSColor.liteTextEditorDesk.setFill()
         dirtyRect.fill()
 
-        let pageX = max(Self.deskPadding, (bounds.width - Self.paperWidth) / 2)
+        let pageX = pageHorizontalOrigin(forBoundsWidth: bounds.width)
         let pageY = pageOriginY(forPageCount: renderedPageCount, boundsHeight: bounds.height)
         let pageStride = Self.pageHeight + Self.pageGap
         let visibleMinY = max(dirtyRect.minY - pageY, 0)
@@ -196,7 +224,7 @@ extension AutocompleteTextView {
 
     func pageStackFrame(forPageCount pageCount: Int, boundsSize: NSSize) -> NSRect {
         NSRect(
-            x: max(Self.deskPadding, (boundsSize.width - Self.paperWidth) / 2),
+            x: pageHorizontalOrigin(forBoundsWidth: boundsSize.width),
             y: pageOriginY(forPageCount: pageCount, boundsHeight: boundsSize.height),
             width: Self.paperWidth,
             height: Self.pageStackHeight(forPageCount: pageCount)
@@ -228,11 +256,10 @@ extension AutocompleteTextView {
         )
         let viewportWidth = max(
             (enclosingScrollView?.contentSize.width ?? 0) / scale,
-            (enclosingScrollView?.contentView.bounds.width ?? 0) / scale,
-            frame.width / max(documentLayoutScale, 0.01)
+            (enclosingScrollView?.contentView.bounds.width ?? 0) / scale
         )
         let targetHeight = max(contentHeight, viewportHeight)
-        let targetWidth = max(viewportWidth, Self.paperWidth + (Self.deskPadding * 2))
+        let targetWidth = Self.documentWidth(forViewportWidth: viewportWidth)
 
         return NSSize(width: targetWidth, height: targetHeight)
     }
@@ -301,11 +328,14 @@ extension AutocompleteTextView {
         Self.deskPadding
     }
 
+    private func pageHorizontalOrigin(forBoundsWidth boundsWidth: CGFloat) -> CGFloat {
+        max(0, (boundsWidth - Self.paperWidth) / 2)
+    }
+
     private func scrollToPageTopCenteredHorizontally() {
         guard let scrollView = enclosingScrollView else { return }
 
-        let clipView = scrollView.contentView
-        let visibleRect = clipView.documentVisibleRect
+        let visibleRect = scrollView.contentView.documentVisibleRect
         let pageFrame = currentPageStackFrame
         let proposedX = pageFrame.midX - (visibleRect.width / 2)
         let maxX = max(bounds.minX, bounds.maxX - visibleRect.width)

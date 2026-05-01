@@ -20,6 +20,20 @@ protocol SuggestionProviding {
     func suggestion(for request: SuggestionRequest) -> String?
 }
 
+struct SuggestionPipeline: SuggestionProviding {
+    let providers: [SuggestionProviding]
+
+    func suggestion(for request: SuggestionRequest) -> String? {
+        for provider in providers {
+            if let suggestion = provider.suggestion(for: request) {
+                return suggestion
+            }
+        }
+
+        return nil
+    }
+}
+
 struct PhraseSuggestionEngine: SuggestionProviding {
     private let phraseMap: [(trigger: String, completion: String)] = [
         ("on the", "other hand"),

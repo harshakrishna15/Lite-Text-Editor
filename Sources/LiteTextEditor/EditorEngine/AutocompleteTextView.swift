@@ -30,14 +30,19 @@ final class AutocompleteTextView: NSTextView {
     var onAcceptSpellingCorrection: (() -> Void)?
     var onCloseSpellingCorrection: (() -> Void)?
     var onMoveSpellingCorrectionSelection: ((Int) -> Void)?
+    var onFormattingSampleLocationChanged: (() -> Void)?
     var isSpellingCorrectionReviewActive = false
+    var formattingSampleLocation: Int?
     var currentPageCount: Int { renderedPageCount }
     var currentPageStackFrame: NSRect {
         pageStackFrame(forPageCount: renderedPageCount, boundsSize: bounds.size)
     }
 
-    let suggestionEngine: SuggestionProviding = PhraseSuggestionEngine()
-    let localAIProvider = LocalAISuggestionProvider()
+    var suggestionProvider: SuggestionProviding = SuggestionPipeline(
+        providers: [
+            PhraseSuggestionEngine()
+        ]
+    )
     let suggestionLabel = NSTextField(labelWithString: "")
     var currentSuggestion: String?
     var didRequestInitialFocus = false
@@ -54,6 +59,7 @@ final class AutocompleteTextView: NSTextView {
     private(set) var zoomLayoutRefreshCount = 0
     private var preservedVisibleOriginDuringChange: NSPoint?
     private var visibleOriginPreservationDepth = 0
+    private var formattingTrackingArea: NSTrackingArea?
 
     override init(frame frameRect: NSRect, textContainer container: NSTextContainer?) {
         super.init(frame: frameRect, textContainer: container)
@@ -127,9 +133,37 @@ final class AutocompleteTextView: NSTextView {
         let oldRange = selectedRange()
         super.setSelectedRange(charRange)
         guard !NSEqualRanges(oldRange, selectedRange()) else { return }
+        updateFormattingSampleLocation(nil)
         if !isAcceptingSuggestionWord {
             scheduleSuggestionRefresh()
         }
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+
+        if let formattingTrackingArea {
+            removeTrackingArea(formattingTrackingArea)
+        }
+
+        let trackingArea = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        formattingTrackingArea = trackingArea
+        addTrackingArea(trackingArea)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        updateFormattingSampleLocation(characterIndexForFormattingSample(from: event))
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        updateFormattingSampleLocation(nil)
     }
 
     override func viewDidMoveToWindow() {
@@ -172,6 +206,45 @@ final class AutocompleteTextView: NSTextView {
         let safeLocation = min(selection.location, nsString.length - 1)
         let baseRange = selection.length > 0 ? selection : NSRange(location: safeLocation, length: 0)
         return nsString.paragraphRange(for: baseRange)
+    }
+
+    func updateFormattingSampleLocation(_ location: Int?) {
+        let textLength = (string as NSString).length
+        let clampedLocation = location.map { min(max($0, 0), max(textLength - 1, 0)) }
+
+        guard formattingSampleLocation != clampedLocation else { return }
+        formattingSampleLocation = clampedLocation
+        onFormattingSampleLocationChanged?()
+    }
+
+    private func characterIndexForFormattingSample(from event: NSEvent) -> Int? {
+        guard let layoutManager, let textContainer else { return nil }
+
+        let textLength = (string as NSString).length
+        guard textLength > 0 else { return nil }
+
+        let point = convert(event.locationInWindow, from: nil)
+        let containerPoint = NSPoint(
+            x: point.x - textContainerOrigin.x,
+            y: point.y - textContainerOrigin.y
+        )
+
+        guard containerPoint.x >= 0,
+              containerPoint.y >= 0,
+              containerPoint.x <= textContainer.containerSize.width,
+              containerPoint.y <= textContainer.containerSize.height else {
+            return nil
+        }
+
+        let glyphIndex = layoutManager.glyphIndex(
+            for: containerPoint,
+            in: textContainer,
+            fractionOfDistanceThroughGlyph: nil
+        )
+        let characterIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
+
+        guard characterIndex < textLength else { return textLength - 1 }
+        return characterIndex
     }
 
     func preservingVisibleOrigin(_ changes: () -> Void) {

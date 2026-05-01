@@ -4,13 +4,17 @@ import SwiftUI
 struct RichTextEditor: NSViewRepresentable {
     let controller: EditorController
     let maxSuggestionWords: Int
+    let isAutomaticTextReplacementEnabled: Bool
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = PaperScrollView()
+        scrollView.contentView = PaperClipView()
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .overlay
         scrollView.verticalScrollElasticity = .allowed
+        scrollView.horizontalScrollElasticity = .none
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = true
         scrollView.backgroundColor = .liteTextEditorDesk
@@ -20,7 +24,7 @@ struct RichTextEditor: NSViewRepresentable {
         scrollView.rulersVisible = false
 
         let contentSize = NSSize(
-            width: max(scrollView.contentSize.width, AutocompleteTextView.paperWidth + (AutocompleteTextView.deskPadding * 2)),
+            width: max(scrollView.contentSize.width, AutocompleteTextView.paperWidth),
             height: max(
                 scrollView.contentSize.height,
                 AutocompleteTextView.pageHeight + (AutocompleteTextView.deskPadding * 2)
@@ -70,12 +74,13 @@ struct RichTextEditor: NSViewRepresentable {
         textView.usesRuler = false
         textView.isRulerVisible = false
         textView.isContinuousSpellCheckingEnabled = true
-        textView.isAutomaticSpellingCorrectionEnabled = true
+        textView.isAutomaticSpellingCorrectionEnabled = isAutomaticTextReplacementEnabled
         textView.isGrammarCheckingEnabled = true
         textView.isAutomaticQuoteSubstitutionEnabled = true
         textView.isAutomaticDashSubstitutionEnabled = true
-        textView.isAutomaticTextReplacementEnabled = true
+        textView.isAutomaticTextReplacementEnabled = isAutomaticTextReplacementEnabled
         textView.maxSuggestionWords = maxSuggestionWords
+        textView.suggestionProvider = controller.suggestionProvider
         textView.delegate = context.coordinator
         textView.onDocumentMetricsChanged = { [weak controller] in
             controller?.markDocumentEdited()
@@ -89,6 +94,9 @@ struct RichTextEditor: NSViewRepresentable {
         }
         textView.onMoveSpellingCorrectionSelection = { [weak controller] delta in
             controller?.moveSpellingSuggestionSelection(by: delta)
+        }
+        textView.onFormattingSampleLocationChanged = { [weak controller] in
+            controller?.refreshFormattingState()
         }
         textView.typingAttributes = [
             .font: NSFont.systemFont(ofSize: 11),
@@ -121,6 +129,9 @@ struct RichTextEditor: NSViewRepresentable {
     func updateNSView(_ nsView: NSScrollView, context: Context) {
         guard let textView = nsView.documentView as? AutocompleteTextView else { return }
         textView.maxSuggestionWords = maxSuggestionWords
+        textView.suggestionProvider = controller.suggestionProvider
+        textView.isAutomaticSpellingCorrectionEnabled = isAutomaticTextReplacementEnabled
+        textView.isAutomaticTextReplacementEnabled = isAutomaticTextReplacementEnabled
         textView.onDocumentMetricsChanged = { [weak controller] in
             controller?.markDocumentEdited()
             controller?.scheduleDocumentStatisticsRefresh()

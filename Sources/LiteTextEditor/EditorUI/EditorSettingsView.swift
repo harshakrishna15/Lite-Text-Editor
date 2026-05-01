@@ -3,6 +3,7 @@ import SwiftUI
 struct LiteTextEditorSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var isAutosaveEnabled: Bool
+    @Binding var isAutomaticTextReplacementEnabled: Bool
     @Binding var suggestionWordsText: String
 
     let suggestionWordOptions: [String]
@@ -24,6 +25,24 @@ struct LiteTextEditorSettingsView: View {
                     .help("Autosave runs only after a document has been opened or saved somewhere.")
 
                 Text("Unsaved documents still require manual Save or Save As.")
+                    .font(ChromeStyle.smallTextFont)
+                    .foregroundStyle(ChromeStyle.secondaryTextColor)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Writing")
+                    .font(ChromeStyle.controlTextFont)
+                    .foregroundStyle(ChromeStyle.controlTextColor)
+
+                Toggle("Automatically replace misspellings", isOn: $isAutomaticTextReplacementEnabled)
+                    .font(ChromeStyle.controlTextFont)
+                    .toggleStyle(.checkbox)
+                    .help("Automatically replace misspelled words while typing.")
+
+                Text("Spellcheck and spelling review stay available when automatic replacement is off.")
                     .font(ChromeStyle.smallTextFont)
                     .foregroundStyle(ChromeStyle.secondaryTextColor)
                     .fixedSize(horizontal: false, vertical: true)

@@ -58,6 +58,7 @@ extension EditorController {
             applyZoom(fitPageMagnification(), shouldResizePages: false)
         } else {
             updateZoomDisplayText(for: CGFloat(zoomMagnification))
+            centerPageForCurrentLayout()
         }
     }
 
@@ -119,30 +120,17 @@ extension EditorController {
     }
 
     private func keepPageCentered() {
-        guard let scrollView, let textView else { return }
+        centerPageForCurrentLayout()
+    }
 
-        let clipView = scrollView.contentView
-        let visibleRect = clipView.documentVisibleRect
-        let pageFrame = textView.currentPageStackFrame
-        let proposedX = pageFrame.midX - (visibleRect.width / 2)
-        let maxX = max(textView.bounds.minX, textView.bounds.maxX - visibleRect.width)
-        let targetOrigin = NSPoint(
-            x: min(max(proposedX, textView.bounds.minX), maxX),
-            y: visibleRect.origin.y
-        )
+    private func centerPageForCurrentLayout() {
+        guard let textView else { return }
 
-        guard abs(clipView.bounds.origin.x - targetOrigin.x) > 0.5
-            || abs(clipView.bounds.origin.y - targetOrigin.y) > 0.5 else {
-            return
+        textView.centerPageHorizontallyPreservingVerticalPosition()
+
+        DispatchQueue.main.async { [weak self] in
+            self?.textView?.centerPageHorizontallyPreservingVerticalPosition()
         }
-
-        clipView.scroll(
-            to: NSPoint(
-                x: targetOrigin.x * textView.documentLayoutScale,
-                y: targetOrigin.y * textView.documentLayoutScale
-            )
-        )
-        scrollView.reflectScrolledClipView(clipView)
     }
 
     private func updateZoomDisplayText(for magnification: CGFloat) {

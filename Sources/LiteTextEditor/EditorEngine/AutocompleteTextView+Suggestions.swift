@@ -12,8 +12,7 @@ extension AutocompleteTextView {
         }
 
         let request = makeSuggestionRequest()
-        let suggestion = suggestionEngine.suggestion(for: request)
-            ?? (localAIProvider.isReady ? localAIProvider.suggestion(for: request) : nil)
+        let suggestion = suggestionProvider.suggestion(for: request)
 
         guard let suggestion else {
             clearSuggestion()
@@ -133,55 +132,11 @@ extension AutocompleteTextView {
     }
 
     private func makeSuggestionRequest() -> SuggestionRequest {
-        let nsString = string as NSString
-        let cursorLocation = selectedRange().location
-        let safeCursor = min(max(cursorLocation, 0), nsString.length)
-        let prefixLength = min(safeCursor, 900)
-        let suffixLength = min(nsString.length - safeCursor, 500)
-        let prefixStart = safeCursor - prefixLength
-
-        let paragraphRange = paragraphRange(around: safeCursor, in: nsString)
-        let documentContext = compactDocumentContext(from: nsString, cursorLocation: safeCursor)
-
-        return SuggestionRequest(
-            documentText: documentContext,
-            cursorLocation: safeCursor,
-            prefixContext: nsString.substring(with: NSRange(location: prefixStart, length: prefixLength)),
-            suffixContext: nsString.substring(with: NSRange(location: safeCursor, length: suffixLength)),
-            currentParagraph: nsString.substring(with: paragraphRange),
-            documentContext: documentContext,
-            maxWords: max(2, min(maxSuggestionWords, 5))
+        SuggestionContextBuilder().request(
+            documentText: string,
+            selectedRange: selectedRange(),
+            maxSuggestionWords: maxSuggestionWords
         )
-    }
-
-    private func paragraphRange(around location: Int, in nsString: NSString) -> NSRange {
-        guard nsString.length > 0 else {
-            return NSRange(location: 0, length: 0)
-        }
-
-        let safeLocation = min(max(location, 0), nsString.length - 1)
-        return nsString.paragraphRange(for: NSRange(location: safeLocation, length: 0))
-    }
-
-    private func compactDocumentContext(from nsString: NSString, cursorLocation: Int) -> String {
-        let maxLeadingCharacters = 2_400
-        let maxTrailingCharacters = 900
-        let leadingLength = min(cursorLocation, maxLeadingCharacters)
-        let trailingLength = min(nsString.length - cursorLocation, maxTrailingCharacters)
-        let leadingStart = cursorLocation - leadingLength
-
-        let leading = nsString.substring(with: NSRange(location: leadingStart, length: leadingLength))
-        let trailing = nsString.substring(with: NSRange(location: cursorLocation, length: trailingLength))
-
-        if trailing.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return leading
-        }
-
-        return """
-        \(leading)
-        [CURSOR]
-        \(trailing)
-        """
     }
 
     private func textToInsert(for suggestion: String) -> String {
