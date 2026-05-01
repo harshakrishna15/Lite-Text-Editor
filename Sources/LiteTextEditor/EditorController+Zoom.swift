@@ -31,6 +31,15 @@ extension EditorController {
         applyZoom(CGFloat(clampedMagnification))
     }
 
+    func applyTrackpadZoom(delta: CGFloat, phase: NSEvent.Phase) {
+        guard !phase.contains(.ended), !phase.contains(.cancelled) else { return }
+        guard abs(delta) > 0.0001 else { return }
+
+        let boundedDelta = min(max(delta, -0.2), 0.2)
+        let nextMagnification = zoomMagnification * Double(1 + boundedDelta)
+        setZoomMagnification(nextMagnification)
+    }
+
     func setZoomPreset(_ preset: DocumentZoomPreset) {
         if selectedZoomPreset != preset {
             selectedZoomPreset = preset
@@ -59,6 +68,9 @@ extension EditorController {
         scrollView.minMagnification = minimumZoom
         scrollView.maxMagnification = maximumZoom
         scrollView.magnification = 1
+        (scrollView as? PaperScrollView)?.onMagnifyGesture = { [weak self] delta, phase in
+            self?.applyTrackpadZoom(delta: delta, phase: phase)
+        }
 
         setZoomPreset(selectedZoomPreset)
     }

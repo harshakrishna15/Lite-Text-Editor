@@ -5,6 +5,7 @@ final class EditorController: ObservableObject {
     weak var textView: AutocompleteTextView?
     weak var scrollView: NSScrollView? {
         didSet {
+            (oldValue as? PaperScrollView)?.onMagnifyGesture = nil
             configureZoomForCurrentScrollView()
         }
     }

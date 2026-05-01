@@ -109,12 +109,50 @@ final class ZoomControllerTests: XCTestCase {
         XCTAssertEqual(fixture.scrollView.magnification, 1.0, accuracy: 0.001)
         XCTAssertEqual(fixture.scrollView.minMagnification, 0.5, accuracy: 0.001)
         XCTAssertEqual(fixture.scrollView.maxMagnification, 2.0, accuracy: 0.001)
+        XCTAssertNotNil(fixture.scrollView.onMagnifyGesture)
+    }
+
+    func testTrackpadZoomUsesDocumentLayoutScaleWithoutScrollViewMagnification() {
+        let fixture = makeControllerFixture()
+
+        fixture.controller.applyTrackpadZoom(delta: 0.1, phase: .changed)
+
+        XCTAssertEqual(fixture.controller.zoomMagnification, 1.1, accuracy: 0.001)
+        XCTAssertEqual(fixture.controller.zoomDisplayText, "110%")
+        XCTAssertEqual(fixture.scrollView.magnification, 1.0, accuracy: 0.001)
+        XCTAssertEqual(fixture.textView.documentLayoutScale, 1.1, accuracy: 0.001)
+
+        fixture.controller.applyTrackpadZoom(delta: -0.1, phase: .changed)
+
+        XCTAssertEqual(fixture.controller.zoomMagnification, 0.99, accuracy: 0.001)
+        XCTAssertEqual(fixture.scrollView.magnification, 1.0, accuracy: 0.001)
+        XCTAssertEqual(fixture.textView.documentLayoutScale, 0.99, accuracy: 0.001)
+    }
+
+    func testTrackpadZoomIgnoresEndedAndCancelledEvents() {
+        let fixture = makeControllerFixture()
+
+        fixture.controller.applyTrackpadZoom(delta: 0.2, phase: .ended)
+        fixture.controller.applyTrackpadZoom(delta: 0.2, phase: .cancelled)
+
+        XCTAssertEqual(fixture.controller.zoomMagnification, 1.0, accuracy: 0.001)
+        XCTAssertEqual(fixture.textView.documentLayoutScale, 1.0, accuracy: 0.001)
+    }
+
+    func testReplacingScrollViewClearsOldTrackpadZoomHandler() {
+        let fixture = makeControllerFixture()
+        let replacementScrollView = PaperScrollView(frame: fixture.scrollView.frame)
+
+        fixture.controller.scrollView = replacementScrollView
+
+        XCTAssertNil(fixture.scrollView.onMagnifyGesture)
+        XCTAssertNotNil(replacementScrollView.onMagnifyGesture)
     }
 
     private struct ControllerFixture {
         let window: NSWindow
         let controller: EditorController
-        let scrollView: NSScrollView
+        let scrollView: PaperScrollView
         let textView: AutocompleteTextView
     }
 
