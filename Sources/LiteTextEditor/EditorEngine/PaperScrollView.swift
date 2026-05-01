@@ -12,6 +12,19 @@ final class PaperClipView: NSClipView {
 
         return constrainedBounds
     }
+
+    override func setBoundsOrigin(_ newOrigin: NSPoint) {
+        super.setBoundsOrigin(horizontalLockAdjustedOrigin(newOrigin))
+    }
+
+    override func scroll(to newOrigin: NSPoint) {
+        super.scroll(to: horizontalLockAdjustedOrigin(newOrigin))
+    }
+
+    private func horizontalLockAdjustedOrigin(_ proposedOrigin: NSPoint) -> NSPoint {
+        guard !allowsProgrammaticHorizontalScroll else { return proposedOrigin }
+        return NSPoint(x: bounds.origin.x, y: proposedOrigin.y)
+    }
 }
 
 final class PaperScrollView: NSScrollView {
@@ -146,8 +159,11 @@ final class PaperScrollView: NSScrollView {
     func performProgrammaticHorizontalScroll(_ changes: () -> Void) {
         let paperClipView = contentView as? PaperClipView
         paperClipView?.allowsProgrammaticHorizontalScroll = true
+        defer {
+            paperClipView?.allowsProgrammaticHorizontalScroll = false
+        }
+
         changes()
-        paperClipView?.allowsProgrammaticHorizontalScroll = false
     }
 
     private func revealScrollersForEdgeHover() {
