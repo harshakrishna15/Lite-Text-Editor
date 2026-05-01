@@ -16,7 +16,7 @@ struct TextColorPaletteButton: View {
             VStack(spacing: 1) {
                 Image(systemName: "textformat")
                     .font(ChromeStyle.controlSymbolFont)
-                    .foregroundStyle(ChromeStyle.controlTextColor)
+                    .foregroundStyle(ChromeStyle.glassControlTextColor)
                     .frame(width: 18, height: 14)
 
                 RoundedRectangle(cornerRadius: 1)

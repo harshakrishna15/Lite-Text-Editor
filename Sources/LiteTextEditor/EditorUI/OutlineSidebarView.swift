@@ -17,12 +17,12 @@ struct OutlineSidebarView: View {
             outlineContent
         }
         .frame(width: ChromeStyle.outlinePanelWidth, height: height, alignment: .top)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .chromeGlassBackground(.panel, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(ChromeStyle.outlinePanelStroke, lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.14), radius: 18, x: 0, y: 10)
+        .shadow(color: Color.black.opacity(0.20), radius: 24, x: 0, y: 14)
     }
 
     private var header: some View {
@@ -169,9 +169,11 @@ private struct OutlineRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background(
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .fill(rowBackground)
+        .chromeGlassControlBackground(
+            isActive: isActive || isHovered,
+            isSelected: isActive,
+            fallbackColor: rowBackground,
+            in: RoundedRectangle(cornerRadius: 5, style: .continuous)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 5, style: .continuous)
@@ -214,9 +216,10 @@ private struct OutlineCloseButton: View {
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(isHovered ? ChromeStyle.controlTextColor : ChromeStyle.secondaryTextColor)
                 .frame(width: 22, height: 22)
-                .background(
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(isHovered ? ChromeStyle.toolbarHoverFill : Color.clear)
+                .chromeGlassControlBackground(
+                    isActive: isHovered,
+                    fallbackColor: isHovered ? ChromeStyle.toolbarHoverFill : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 5, style: .continuous)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 5, style: .continuous)

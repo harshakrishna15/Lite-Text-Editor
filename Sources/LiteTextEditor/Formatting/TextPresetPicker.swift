@@ -13,9 +13,10 @@ struct TextPresetPicker: NSViewRepresentable {
         button.action = #selector(Coordinator.selectPreset(_:))
         button.controlSize = .regular
         button.bezelStyle = .rounded
-        button.isBordered = true
+        button.isBordered = false
         button.font = NSFont.systemFont(ofSize: NSFont.systemFontSize(for: .regular))
         button.autoenablesItems = false
+        button.focusRingType = .none
         button.previewFontName = fontName
         updateItems(for: button)
         select(selection, in: button)
@@ -24,6 +25,8 @@ struct TextPresetPicker: NSViewRepresentable {
 
     func updateNSView(_ button: ToolbarPopUpButton, context: Context) {
         context.coordinator.parent = self
+        button.isBordered = false
+        button.focusRingType = .none
 
         if button.itemValues != TextPreset.allCases.map(\.rawValue)
             || button.previewFontName != fontName {

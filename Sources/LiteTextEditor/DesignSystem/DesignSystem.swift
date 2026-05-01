@@ -3,6 +3,8 @@ import SwiftUI
 
 enum ChromeStyle {
     static let windowTitle = "Lite Text Editor"
+    static let appearanceName: NSAppearance.Name = .aqua
+    static let preferredColorScheme = ColorScheme.light
     static let controlFontSize = NSFont.systemFontSize(for: .regular)
     static let smallFontSize = NSFont.systemFontSize(for: .small)
     static let controlTextFont = Font.system(size: controlFontSize, weight: .regular)
@@ -34,12 +36,19 @@ enum ChromeStyle {
     static let outlinePanelTopInset: CGFloat = 16
     static let outlinePanelBottomInset: CGFloat = 16
     static let outlinePanelAnimation = Animation.easeInOut(duration: 0.22)
-    static let controlTextColor = Color(nsColor: .controlTextColor)
-    static let secondaryTextColor = Color(nsColor: .secondaryLabelColor)
-    static let toolbarHoverFill = Color(nsColor: .controlColor).opacity(0.72)
-    static let toolbarPressedFill = Color(nsColor: .selectedControlColor).opacity(0.28)
+    static let controlTextColor = Color.black.opacity(0.86)
+    static let secondaryTextColor = Color.black.opacity(0.58)
+    static let glassControlTextColor = Color.black.opacity(0.82)
+    static let glassSecondaryTextColor = Color.black.opacity(0.58)
+    static let nsGlassControlTextColor = NSColor(calibratedWhite: 0.12, alpha: 0.92)
+    static let toolbarHoverFill = Color.white.opacity(0.10)
+    static let toolbarPressedFill = Color.accentColor.opacity(0.22)
     static let toolbarSelectedFill = Color.accentColor.opacity(0.18)
-    static let toolbarSelectedBorder = Color.accentColor.opacity(0.58)
-    static let toolbarHoverBorder = Color(nsColor: .separatorColor).opacity(0.68)
-    static let outlinePanelStroke = Color(nsColor: .separatorColor).opacity(0.72)
+    static let toolbarSelectedBorder = Color.accentColor.opacity(0.62)
+    static let toolbarHoverBorder = Color.white.opacity(0.22)
+    static let outlinePanelStroke = Color.white.opacity(0.20)
+
+    static var appearance: NSAppearance? {
+        NSAppearance(named: appearanceName)
+    }
 }

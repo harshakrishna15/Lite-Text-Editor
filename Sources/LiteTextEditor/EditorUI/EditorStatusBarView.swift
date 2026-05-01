@@ -7,33 +7,34 @@ struct EditorStatusBarView: View {
     @State private var isZoomMenuHovered = false
 
     var body: some View {
-        HStack(spacing: 12) {
-            documentCountMenu
+        ChromeGlassContainer(spacing: 8) {
+            HStack(spacing: 12) {
+                documentCountMenu
 
-            if !editor.activeStructureText.isEmpty {
-                StatusBarDivider()
+                if !editor.activeStructureText.isEmpty {
+                    StatusBarDivider()
 
-                Text(editor.activeStructureText)
-                    .font(ChromeStyle.smallTextFont)
-                    .foregroundStyle(ChromeStyle.secondaryTextColor)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .frame(width: 140, alignment: .leading)
-                    .layoutPriority(0)
+                    Text(editor.activeStructureText)
+                        .font(ChromeStyle.smallTextFont)
+                        .foregroundStyle(ChromeStyle.secondaryTextColor)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(width: 140, alignment: .leading)
+                        .layoutPriority(0)
+                }
+
+                Spacer()
+
+                autosaveStatusText
+
+                zoomControls
             }
-
-            Spacer()
-
-            autosaveStatusText
-
-            zoomControls
+            .padding(.horizontal, 12)
         }
         .frame(height: 28)
-        .padding(.horizontal, 12)
-        .background(.bar)
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(Color(nsColor: .separatorColor))
+                .fill(Color.white.opacity(0.22))
                 .frame(height: 1)
         }
     }
@@ -74,19 +75,20 @@ struct EditorStatusBarView: View {
                 Text(selectedCountMetric.statusText(for: editor.documentStatistics))
                     .font(ChromeStyle.smallTextFont)
                     .monospacedDigit()
-                    .foregroundStyle(ChromeStyle.controlTextColor)
+                    .foregroundStyle(ChromeStyle.glassControlTextColor)
                     .lineLimit(1)
                     .frame(width: 180, alignment: .leading)
 
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(ChromeStyle.secondaryTextColor)
+                    .foregroundStyle(ChromeStyle.glassSecondaryTextColor)
             }
             .padding(.horizontal, 6)
             .frame(height: 22)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(isCountMenuHovered ? ChromeStyle.toolbarHoverFill : Color.clear)
+            .chromeGlassControlBackground(
+                isActive: isCountMenuHovered,
+                fallbackColor: isCountMenuHovered ? ChromeStyle.toolbarHoverFill : Color.clear,
+                in: RoundedRectangle(cornerRadius: 6, style: .continuous)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
@@ -123,18 +125,19 @@ struct EditorStatusBarView: View {
                     Text(editor.zoomDisplayText)
                         .font(ChromeStyle.smallTextFont)
                         .monospacedDigit()
-                        .foregroundStyle(ChromeStyle.controlTextColor)
+                        .foregroundStyle(ChromeStyle.glassControlTextColor)
                         .frame(width: 42, alignment: .trailing)
 
                     Image(systemName: "chevron.up.chevron.down")
                         .font(.system(size: 9, weight: .medium))
-                        .foregroundStyle(ChromeStyle.secondaryTextColor)
+                        .foregroundStyle(ChromeStyle.glassSecondaryTextColor)
                 }
                 .padding(.horizontal, 5)
                 .frame(height: 20)
-                .background(
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(isZoomMenuHovered ? ChromeStyle.toolbarHoverFill : Color.clear)
+                .chromeGlassControlBackground(
+                    isActive: isZoomMenuHovered,
+                    fallbackColor: isZoomMenuHovered ? ChromeStyle.toolbarHoverFill : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 5, style: .continuous)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 5, style: .continuous)

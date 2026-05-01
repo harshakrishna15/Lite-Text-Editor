@@ -9,7 +9,8 @@ struct TextPresetPreviewResolver {
             attributes: attributes(
                 for: preset,
                 fontName: fontName,
-                size: menuPreviewSize(for: preset)
+                size: menuPreviewSize(for: preset),
+                foregroundColor: .labelColor
             )
         )
     }
@@ -20,7 +21,8 @@ struct TextPresetPreviewResolver {
             attributes: attributes(
                 for: preset,
                 fontName: fontName,
-                size: buttonPreviewSize(for: preset)
+                size: buttonPreviewSize(for: preset),
+                foregroundColor: ChromeStyle.nsGlassControlTextColor
             )
         )
     }
@@ -56,11 +58,12 @@ struct TextPresetPreviewResolver {
     private func attributes(
         for preset: TextPreset,
         fontName: String,
-        size: CGFloat
+        size: CGFloat,
+        foregroundColor: NSColor
     ) -> [NSAttributedString.Key: Any] {
         [
             .font: previewFont(for: preset, fontName: fontName, size: size),
-            .foregroundColor: NSColor.labelColor
+            .foregroundColor: foregroundColor
         ]
     }
 

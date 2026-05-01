@@ -68,8 +68,12 @@ struct TitlebarDocumentTitleView: View {
     @ViewBuilder
     private var titleBackground: some View {
         if isPopoverPresented || isHovered {
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor).opacity(isPopoverPresented ? 0.9 : 0.55))
+            Color.clear
+                .chromeGlassBackground(.titlebarControl, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        .stroke(Color(nsColor: .separatorColor).opacity(isPopoverPresented ? 0.62 : 0.34), lineWidth: 1)
+                )
         }
     }
 
@@ -126,9 +130,10 @@ private struct TitlebarDocumentTitlePopover: View {
                     }
                     .padding(.horizontal, 8)
                     .frame(height: 28)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(Color(nsColor: .controlBackgroundColor))
+                    .chromeGlassControlBackground(
+                        isActive: true,
+                        fallbackColor: Color(nsColor: .controlBackgroundColor),
+                        in: RoundedRectangle(cornerRadius: 6, style: .continuous)
                     )
                 }
                 .buttonStyle(.plain)

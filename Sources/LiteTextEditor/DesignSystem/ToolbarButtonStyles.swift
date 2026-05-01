@@ -3,7 +3,7 @@ import SwiftUI
 struct ToolbarDivider: View {
     var body: some View {
         Rectangle()
-            .fill(Color(nsColor: .separatorColor))
+            .fill(Color.white.opacity(0.22))
             .frame(width: 1, height: ChromeStyle.toolbarControlHeight)
             .padding(.horizontal, 2)
     }
@@ -23,7 +23,7 @@ struct ToolbarSection<Content: View>: View {
 struct StatusBarDivider: View {
     var body: some View {
         Rectangle()
-            .fill(Color(nsColor: .separatorColor))
+            .fill(Color.white.opacity(0.20))
             .frame(width: 1, height: 16)
     }
 }
@@ -33,19 +33,24 @@ struct ToolbarIconButtonStyle: ButtonStyle {
     let isHovered: Bool
 
     func makeBody(configuration: Configuration) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 5, style: .continuous)
+
         configuration.label
-            .background(
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(backgroundColor(isPressed: configuration.isPressed))
+            .chromeGlassControlBackground(
+                isActive: true,
+                isSelected: isSelected,
+                isPressed: configuration.isPressed,
+                fallbackColor: backgroundColor(isPressed: configuration.isPressed),
+                in: shape
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                shape
                     .stroke(
                         borderColor(isPressed: configuration.isPressed),
                         lineWidth: borderWidth(isPressed: configuration.isPressed)
                     )
             )
-            .contentShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+            .contentShape(shape)
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
             .animation(.easeOut(duration: 0.12), value: isHovered)
@@ -93,7 +98,7 @@ struct RibbonIconButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(ChromeStyle.controlSymbolFont)
-                .foregroundStyle(isSelected ? Color.accentColor : ChromeStyle.controlTextColor)
+                .foregroundStyle(isSelected ? Color.accentColor : ChromeStyle.glassControlTextColor)
                 .frame(width: ChromeStyle.toolbarIconWidth, height: ChromeStyle.toolbarControlHeight)
                 .contentShape(Rectangle())
         }
@@ -115,7 +120,7 @@ struct StatusBarIconButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(ChromeStyle.controlSymbolFont)
-                .foregroundStyle(ChromeStyle.controlTextColor)
+                .foregroundStyle(ChromeStyle.glassControlTextColor)
                 .frame(width: 18, height: 18)
                 .contentShape(Rectangle())
         }
@@ -135,6 +140,8 @@ struct ToolbarMenuButton<Content: View>: View {
     @State private var isHovered = false
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 5, style: .continuous)
+
         Menu {
             content()
         } label: {
@@ -144,22 +151,23 @@ struct ToolbarMenuButton<Content: View>: View {
 
                 Image(systemName: "chevron.down")
                     .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(ChromeStyle.secondaryTextColor)
+                    .foregroundStyle(ChromeStyle.glassSecondaryTextColor)
             }
-            .foregroundStyle(ChromeStyle.controlTextColor)
+            .foregroundStyle(ChromeStyle.glassControlTextColor)
             .frame(width: ChromeStyle.toolbarIconWidth + 8, height: ChromeStyle.toolbarControlHeight)
-            .background(
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(isHovered ? ChromeStyle.toolbarHoverFill : Color.clear)
+            .chromeGlassControlBackground(
+                isActive: true,
+                fallbackColor: isHovered ? ChromeStyle.toolbarHoverFill : Color.clear,
+                in: shape
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                shape
                     .stroke(
                         isHovered ? ChromeStyle.toolbarHoverBorder : Color.clear,
                         lineWidth: isHovered ? 1 : 0
                     )
             )
-            .contentShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+            .contentShape(shape)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)

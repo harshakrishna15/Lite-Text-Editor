@@ -23,17 +23,19 @@ struct EditorFormattingToolbarView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            ZStack(alignment: .topLeading) {
-                if isCompactToolbar {
-                    compactFormattingBar
-                        .transition(.identity)
-                } else {
-                    regularFormattingBar
-                        .transition(.identity)
+            ChromeGlassContainer(spacing: ChromeStyle.toolbarSectionSpacing) {
+                ZStack(alignment: .topLeading) {
+                    if isCompactToolbar {
+                        compactFormattingBar
+                            .transition(.identity)
+                    } else {
+                        regularFormattingBar
+                            .transition(.identity)
+                    }
                 }
+                .clipped()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .clipped()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .onAppear {
                 updateToolbarMode(for: proxy.size.width, animated: false)
             }
@@ -43,7 +45,6 @@ struct EditorFormattingToolbarView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: isCompactToolbar ? ChromeStyle.compactToolbarHeight : ChromeStyle.regularToolbarHeight)
-        .background(.regularMaterial)
     }
 
     private func updateToolbarMode(for width: CGFloat, animated: Bool) {
@@ -133,6 +134,11 @@ struct EditorFormattingToolbarView: View {
                 onCommit: applyFontName
             )
             .frame(width: fontControlWidth, height: ChromeStyle.toolbarControlHeight)
+            .chromeGlassControlBackground(
+                isActive: true,
+                fallbackColor: ChromeStyle.toolbarHoverFill.opacity(0.76),
+                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+            )
             .help("Font")
 
             EditableComboBox(
@@ -142,6 +148,11 @@ struct EditorFormattingToolbarView: View {
                 onCommit: applyFontSizeText
             )
             .frame(width: ChromeStyle.toolbarSizeControlWidth, height: ChromeStyle.toolbarControlHeight)
+            .chromeGlassControlBackground(
+                isActive: true,
+                fallbackColor: ChromeStyle.toolbarHoverFill.opacity(0.76),
+                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+            )
             .help("Font Size")
         }
     }
@@ -342,6 +353,11 @@ struct EditorFormattingToolbarView: View {
                 editor.applyPreset(preset, fontName: selectedFont)
             }
             .frame(width: styleControlWidth, height: ChromeStyle.toolbarControlHeight)
+            .chromeGlassControlBackground(
+                isActive: true,
+                fallbackColor: ChromeStyle.toolbarHoverFill.opacity(0.76),
+                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+            )
         }
     }
 

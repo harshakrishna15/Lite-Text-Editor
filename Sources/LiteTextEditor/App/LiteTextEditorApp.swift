@@ -25,6 +25,7 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         let delegate = LiteTextEditorApplication()
 
         app.delegate = delegate
+        app.appearance = ChromeStyle.appearance
         app.setActivationPolicy(.regular)
         delegate.appDelegateRetainer = delegate
         delegate.configureMainMenu()
@@ -55,6 +56,7 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
                     alignment: .topLeading
                 )
         )
+        hostingView.appearance = ChromeStyle.appearance
 
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: initialWindowSize),
@@ -65,6 +67,8 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
 
         window.title = ChromeStyle.windowTitle
         window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.appearance = ChromeStyle.appearance
         window.contentMinSize = minimumWindowSize
         window.minSize = window.frameRect(forContentRect: NSRect(origin: .zero, size: minimumWindowSize)).size
         window.setFrameAutosaveName("LiteTextEditorMainWindow")
