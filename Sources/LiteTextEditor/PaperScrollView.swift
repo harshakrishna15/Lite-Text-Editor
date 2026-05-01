@@ -2,7 +2,6 @@ import AppKit
 
 final class PaperScrollView: NSScrollView {
     var didLayout: (() -> Void)?
-    var onMagnifyGesture: ((CGFloat, NSEvent.Phase) -> Void)?
     private var pendingDocumentResize = false
     private var resizeGeneration = 0
     private var hasPreparedFirstScroll = false
@@ -30,14 +29,6 @@ final class PaperScrollView: NSScrollView {
     override func scrollWheel(with event: NSEvent) {
         prepareDocumentForFirstScrollIfNeeded()
         super.scrollWheel(with: event)
-    }
-
-    override func magnify(with event: NSEvent) {
-        if let onMagnifyGesture {
-            onMagnifyGesture(event.magnification, event.phase)
-        } else {
-            super.magnify(with: event)
-        }
     }
 
     private func scheduleDocumentResize() {

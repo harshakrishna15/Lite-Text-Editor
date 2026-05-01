@@ -107,6 +107,23 @@ final class PageLayoutTests: XCTestCase {
         }
     }
 
+    func testMovingToDocumentStartCentersPageHorizontally() {
+        let fixture = makeZoomFixture()
+        fixture.scrollView.allowsMagnification = false
+        fixture.scrollView.magnification = 1
+        fixture.textView.resizeForCachedPages(at: 1)
+        fixture.textView.restoreVisibleOrigin(NSPoint(x: fixture.textView.bounds.maxX, y: 200))
+
+        fixture.textView.moveInsertionPointToDocumentStartAndScrollToPageTop()
+
+        XCTAssertEqual(
+            fixture.scrollView.contentView.documentVisibleRect.midX,
+            fixture.textView.currentPageStackFrame.midX,
+            accuracy: 1
+        )
+        XCTAssertEqual(fixture.scrollView.contentView.documentVisibleRect.minY, 0, accuracy: 1)
+    }
+
     func testTypingAcrossPageBoundaryReportsOneDocumentMetricsChange() {
         let fixture = makeZoomFixture()
         fixture.textView.textStorage?.setAttributedString(

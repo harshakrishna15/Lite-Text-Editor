@@ -9,6 +9,7 @@ final class AutocompleteTextView: NSTextView {
     static let pageTextWidth = paperWidth - (pageMargin * 2)
     static let pageContentHeight = pageHeight - (pageMargin * 2)
     static let textLayoutDimensionLimit: CGFloat = 100_000
+    static let minimumStableCanvasMagnification: CGFloat = 0.5
     static let suggestionRefreshDelay: TimeInterval = 0.12
 
     struct SuggestionRefreshKey: Equatable {
@@ -49,6 +50,7 @@ final class AutocompleteTextView: NSTextView {
     var lastPaperLayoutWidth: CGFloat = -1
     var cachedPageMeasurementKey: PageMeasurementKey?
     var cachedMeasuredPageCount = 1
+    var documentLayoutScale: CGFloat = 1
     private(set) var zoomLayoutRefreshCount = 0
     private var preservedVisibleOriginDuringChange: NSPoint?
     private var visibleOriginPreservationDepth = 0

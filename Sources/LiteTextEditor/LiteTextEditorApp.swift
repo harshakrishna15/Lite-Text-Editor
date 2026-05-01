@@ -269,10 +269,6 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         NotificationCenter.default.post(name: .liteTextEditorToggleOutline, object: nil)
     }
 
-    @objc private func setZoomPreset(_ sender: NSMenuItem) {
-        NotificationCenter.default.post(name: .liteTextEditorSetZoomPreset, object: sender.representedObject)
-    }
-
     private func configureMainMenu() {
         let mainMenu = NSMenu()
 
@@ -400,22 +396,10 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         let viewMenu = NSMenu(title: "View")
         viewMenu.addItem(commandItem("Toggle Outline", action: #selector(toggleOutline), key: "1", modifiers: [.command, .option]))
         viewMenu.addItem(NSMenuItem.separator())
-        viewMenu.addItem(commandItem("Zoom In", action: #selector(zoomIn), key: "+"))
+        viewMenu.addItem(commandItem("Zoom In", action: #selector(zoomIn), key: "="))
         viewMenu.addItem(commandItem("Zoom Out", action: #selector(zoomOut), key: "-"))
         viewMenu.addItem(commandItem("Actual Size", action: #selector(actualSize), key: "0"))
         viewMenu.addItem(commandItem("Fit Page", action: #selector(fitPageToScreen), key: "0", modifiers: [.command, .option]))
-        viewMenu.addItem(NSMenuItem.separator())
-
-        let zoomPresetMenuItem = NSMenuItem(title: "Zoom Size", action: nil, keyEquivalent: "")
-        let zoomPresetMenu = NSMenu(title: "Zoom Size")
-        DocumentZoomPreset.fixedPresets.forEach { preset in
-            let item = NSMenuItem(title: preset.title, action: #selector(setZoomPreset(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = preset.rawValue
-            zoomPresetMenu.addItem(item)
-        }
-        zoomPresetMenuItem.submenu = zoomPresetMenu
-        viewMenu.addItem(zoomPresetMenuItem)
         viewMenu.addItem(NSMenuItem.separator())
         viewMenu.addItem(NSMenuItem(title: "Enter Full Screen", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f"))
         viewMenu.items.last?.keyEquivalentModifierMask = [.control, .command]
@@ -545,7 +529,6 @@ extension Notification.Name {
     static let liteTextEditorZoomOut = Notification.Name("liteTextEditorZoomOut")
     static let liteTextEditorZoomFitPage = Notification.Name("liteTextEditorZoomFitPage")
     static let liteTextEditorZoomActualSize = Notification.Name("liteTextEditorZoomActualSize")
-    static let liteTextEditorSetZoomPreset = Notification.Name("liteTextEditorSetZoomPreset")
     static let liteTextEditorToggleOutline = Notification.Name("liteTextEditorToggleOutline")
     static let liteTextEditorRecentDocumentsChanged = Notification.Name("liteTextEditorRecentDocumentsChanged")
 }

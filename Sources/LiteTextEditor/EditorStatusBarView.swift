@@ -5,7 +5,6 @@ struct EditorStatusBarView: View {
     @Binding var selectedCountMetric: DocumentCountMetric
     @State private var isCountMenuHovered = false
     @State private var isZoomMenuHovered = false
-    @State private var isZoomSliderEditing = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -170,21 +169,9 @@ struct EditorStatusBarView: View {
         Slider(
             value: Binding(
                 get: { editor.zoomMagnification },
-                set: { value in
-                    if isZoomSliderEditing {
-                        editor.previewZoomMagnification(value)
-                    } else {
-                        editor.setZoomMagnification(value)
-                    }
-                }
+                set: { editor.setZoomMagnification($0) }
             ),
-            in: editor.minimumZoomMagnification...editor.maximumZoomMagnification,
-            onEditingChanged: { isEditing in
-                isZoomSliderEditing = isEditing
-                if !isEditing {
-                    editor.setZoomMagnification(editor.zoomMagnification)
-                }
-            }
+            in: editor.minimumZoomMagnification...editor.maximumZoomMagnification
         )
         .frame(width: 120, height: 18)
         .controlSize(.small)

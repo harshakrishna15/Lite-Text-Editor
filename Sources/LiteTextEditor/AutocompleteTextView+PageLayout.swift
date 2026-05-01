@@ -42,6 +42,14 @@ extension AutocompleteTextView {
         applyFrameSizeIfNeeded(targetFrameSize(forPageCount: renderedPageCount))
     }
 
+    func resizeForCachedPages(at magnification: CGFloat) {
+        documentLayoutScale = min(max(magnification, 0.01), 10)
+        applyFrameSizeIfNeeded(
+            targetFrameSize(forPageCount: renderedPageCount, magnification: magnification),
+            preservesVisibleOrigin: false
+        )
+    }
+
     func prepareForUserScroll() {
         pendingPaperResize = false
         updatePaperLayout()
@@ -50,10 +58,14 @@ extension AutocompleteTextView {
 
     func moveInsertionPointToDocumentStartAndScrollToPageTop() {
         setSelectedRange(NSRange(location: 0, length: 0))
-        scrollToPageTop()
+        scrollToPageTopCenteredHorizontally()
 
         DispatchQueue.main.async { [weak self] in
-            self?.scrollToPageTop()
+            self?.scrollToPageTopCenteredHorizontally()
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            self?.scrollToPageTopCenteredHorizontally()
         }
     }
 
@@ -123,7 +135,11 @@ extension AutocompleteTextView {
             return
         }
 
-        clipView.scroll(to: clampedOrigin)
+        let physicalOrigin = NSPoint(
+            x: clampedOrigin.x * documentLayoutScale,
+            y: clampedOrigin.y * documentLayoutScale
+        )
+        clipView.scroll(to: physicalOrigin)
         scrollView.reflectScrolledClipView(clipView)
     }
 
@@ -196,20 +212,24 @@ extension AutocompleteTextView {
         DispatchQueue.main.async { [weak self] in
             guard let self, let window = self.window else { return }
             window.makeFirstResponder(self)
-            self.scrollToPageTop()
+            self.scrollToPageTopCenteredHorizontally()
         }
     }
 
-    private func targetFrameSize(forPageCount pageCount: Int) -> NSSize {
+    private func targetFrameSize(forPageCount pageCount: Int, magnification: CGFloat? = nil) -> NSSize {
         let contentHeight = Self.pageStackHeight(forPageCount: pageCount) + (Self.deskPadding * 2)
+        let scale = max(
+            min(magnification ?? documentLayoutScale, Self.minimumStableCanvasMagnification),
+            0.01
+        )
         let viewportHeight = max(
-            enclosingScrollView?.contentSize.height ?? 0,
-            enclosingScrollView?.contentView.bounds.height ?? 0
+            (enclosingScrollView?.contentSize.height ?? 0) / scale,
+            (enclosingScrollView?.contentView.bounds.height ?? 0) / scale
         )
         let viewportWidth = max(
-            enclosingScrollView?.contentSize.width ?? 0,
-            enclosingScrollView?.contentView.bounds.width ?? 0,
-            frame.width
+            (enclosingScrollView?.contentSize.width ?? 0) / scale,
+            (enclosingScrollView?.contentView.bounds.width ?? 0) / scale,
+            frame.width / max(documentLayoutScale, 0.01)
         )
         let targetHeight = max(contentHeight, viewportHeight)
         let targetWidth = max(viewportWidth, Self.paperWidth + (Self.deskPadding * 2))
@@ -245,16 +265,31 @@ extension AutocompleteTextView {
         return pageCount
     }
 
-    private func applyFrameSizeIfNeeded(_ targetSize: NSSize, pageCountChanged: Bool = false) {
-        guard abs(frame.height - targetSize.height) > 1 || abs(frame.width - targetSize.width) > 1 else {
+    private func applyFrameSizeIfNeeded(
+        _ targetSize: NSSize,
+        pageCountChanged: Bool = false,
+        preservesVisibleOrigin: Bool = true
+    ) {
+        let targetFrameSize = NSSize(
+            width: targetSize.width * documentLayoutScale,
+            height: targetSize.height * documentLayoutScale
+        )
+
+        guard abs(bounds.height - targetSize.height) > 1
+            || abs(bounds.width - targetSize.width) > 1
+            || abs(frame.height - targetFrameSize.height) > 1
+            || abs(frame.width - targetFrameSize.width) > 1 else {
             if pageCountChanged {
                 needsDisplay = true
             }
             return
         }
 
-        let visibleOrigin = enclosingScrollView?.contentView.documentVisibleRect.origin
-        super.setFrameSize(targetSize)
+        let visibleOrigin = preservesVisibleOrigin
+            ? enclosingScrollView?.contentView.documentVisibleRect.origin
+            : nil
+        super.setFrameSize(targetFrameSize)
+        setBoundsSize(targetSize)
         updatePaperLayout()
 
         if let visibleOrigin {
@@ -266,11 +301,19 @@ extension AutocompleteTextView {
         Self.deskPadding
     }
 
-    private func scrollToPageTop() {
+    private func scrollToPageTopCenteredHorizontally() {
         guard let scrollView = enclosingScrollView else { return }
 
         let clipView = scrollView.contentView
-        let currentOrigin = clipView.documentVisibleRect.origin
-        restoreVisibleOrigin(NSPoint(x: currentOrigin.x, y: bounds.minY))
+        let visibleRect = clipView.documentVisibleRect
+        let pageFrame = currentPageStackFrame
+        let proposedX = pageFrame.midX - (visibleRect.width / 2)
+        let maxX = max(bounds.minX, bounds.maxX - visibleRect.width)
+        restoreVisibleOrigin(
+            NSPoint(
+                x: min(max(proposedX, bounds.minX), maxX),
+                y: bounds.minY
+            )
+        )
     }
 }

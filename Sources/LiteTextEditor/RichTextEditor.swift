@@ -14,7 +14,7 @@ struct RichTextEditor: NSViewRepresentable {
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = true
         scrollView.backgroundColor = .liteTextEditorDesk
-        scrollView.allowsMagnification = true
+        scrollView.allowsMagnification = false
         scrollView.hasHorizontalRuler = false
         scrollView.hasVerticalRuler = false
         scrollView.rulersVisible = false
@@ -256,7 +256,6 @@ struct RichTextEditor: NSViewRepresentable {
             center.addObserver(self, selector: #selector(zoomOut), name: .liteTextEditorZoomOut, object: nil)
             center.addObserver(self, selector: #selector(fitPageToScreen), name: .liteTextEditorZoomFitPage, object: nil)
             center.addObserver(self, selector: #selector(actualSize), name: .liteTextEditorZoomActualSize, object: nil)
-            center.addObserver(self, selector: #selector(setZoomPreset), name: .liteTextEditorSetZoomPreset, object: nil)
         }
 
         @objc private func toggleBold() {
@@ -336,13 +335,6 @@ struct RichTextEditor: NSViewRepresentable {
 
         @objc private func actualSize() {
             controller?.actualSize()
-        }
-
-        @objc private func setZoomPreset(_ notification: Notification) {
-            guard let rawValue = notification.object as? String,
-                  let preset = DocumentZoomPreset(rawValue: rawValue) else { return }
-
-            controller?.setZoomPreset(preset)
         }
 
         func textDidChange(_ notification: Notification) {

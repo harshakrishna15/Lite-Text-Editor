@@ -31,22 +31,6 @@ extension EditorController {
         applyZoom(CGFloat(clampedMagnification))
     }
 
-    func previewZoomMagnification(_ magnification: Double) {
-        let clampedMagnification = min(max(magnification, minimumZoomMagnification), maximumZoomMagnification)
-        selectedZoomPreset = matchingPreset(for: CGFloat(clampedMagnification)) ?? .actualSize
-        applyZoom(CGFloat(clampedMagnification), shouldResizePages: false)
-    }
-
-    func previewTrackpadZoom(delta: CGFloat) {
-        let currentMagnification = scrollView?.magnification ?? CGFloat(zoomMagnification)
-        let nextMagnification = currentMagnification * max(0.1, 1 + delta)
-        previewZoomMagnification(Double(nextMagnification))
-    }
-
-    func finishTrackpadZoom() {
-        setZoomMagnification(zoomMagnification)
-    }
-
     func setZoomPreset(_ preset: DocumentZoomPreset) {
         if selectedZoomPreset != preset {
             selectedZoomPreset = preset
@@ -63,38 +47,24 @@ extension EditorController {
     func refreshZoomForLayout() {
         if selectedZoomPreset == .fitPage {
             applyZoom(fitPageMagnification(), shouldResizePages: false)
-        } else if let scrollView {
-            updateZoomDisplayText(for: scrollView.magnification)
+        } else {
+            updateZoomDisplayText(for: CGFloat(zoomMagnification))
         }
     }
 
     func configureZoomForCurrentScrollView() {
         guard let scrollView else { return }
 
-        scrollView.allowsMagnification = true
+        scrollView.allowsMagnification = false
         scrollView.minMagnification = minimumZoom
         scrollView.maxMagnification = maximumZoom
-
-        if let paperScrollView = scrollView as? PaperScrollView {
-            paperScrollView.onMagnifyGesture = { [weak self] magnificationDelta, phase in
-                guard let self else { return }
-
-                switch phase {
-                case .ended, .cancelled:
-                    self.finishTrackpadZoom()
-                default:
-                    self.previewTrackpadZoom(delta: magnificationDelta)
-                }
-            }
-        }
+        scrollView.magnification = 1
 
         setZoomPreset(selectedZoomPreset)
     }
 
     private func stepZoom(direction: Int) {
-        let current = scrollView?.magnification
-            ?? selectedZoomPreset.magnification
-            ?? fitPageMagnification()
+        let current = CGFloat(zoomMagnification)
 
         let nextPreset: DocumentZoomPreset?
 
@@ -127,45 +97,26 @@ extension EditorController {
 
         guard let scrollView, let textView else { return }
 
-        if abs(scrollView.magnification - clampedMagnification) > 0.001 {
-            scrollView.setMagnification(clampedMagnification, centeredAt: pageAnchoredZoomCenter())
+        if abs(scrollView.magnification - 1) > 0.001 {
+            scrollView.magnification = 1
         }
 
-        if shouldResizePages {
-            textView.resizeForCachedPages()
-        }
-
-        keepPageVisible()
+        textView.resizeForCachedPages(at: clampedMagnification)
+        keepPageCentered()
         textView.refreshLayoutAfterZoomChange()
     }
 
-    private func pageAnchoredZoomCenter() -> NSPoint {
-        guard let scrollView, let textView else { return .zero }
-
-        let visibleRect = scrollView.contentView.documentVisibleRect
-        let pageFrame = textView.currentPageStackFrame
-
-        guard pageFrame.intersects(visibleRect) else {
-            return NSPoint(x: pageFrame.midX, y: pageFrame.midY)
-        }
-
-        return ZoomViewportCalculator.stableCenter(for: visibleRect, pageFrame: pageFrame)
-    }
-
-    private func keepPageVisible() {
+    private func keepPageCentered() {
         guard let scrollView, let textView else { return }
 
         let clipView = scrollView.contentView
         let visibleRect = clipView.documentVisibleRect
         let pageFrame = textView.currentPageStackFrame
-        let targetCenter = pageFrame.intersects(visibleRect)
-            ? ZoomViewportCalculator.stableCenter(for: visibleRect, pageFrame: pageFrame)
-            : NSPoint(x: pageFrame.midX, y: pageFrame.midY)
-
-        let targetOrigin = ZoomViewportCalculator.clampedVisibleOrigin(
-            centeredAt: targetCenter,
-            visibleSize: visibleRect.size,
-            documentBounds: textView.bounds
+        let proposedX = pageFrame.midX - (visibleRect.width / 2)
+        let maxX = max(textView.bounds.minX, textView.bounds.maxX - visibleRect.width)
+        let targetOrigin = NSPoint(
+            x: min(max(proposedX, textView.bounds.minX), maxX),
+            y: visibleRect.origin.y
         )
 
         guard abs(clipView.bounds.origin.x - targetOrigin.x) > 0.5
@@ -173,7 +124,12 @@ extension EditorController {
             return
         }
 
-        clipView.scroll(to: targetOrigin)
+        clipView.scroll(
+            to: NSPoint(
+                x: targetOrigin.x * textView.documentLayoutScale,
+                y: targetOrigin.y * textView.documentLayoutScale
+            )
+        )
         scrollView.reflectScrolledClipView(clipView)
     }
 
