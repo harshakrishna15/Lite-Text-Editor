@@ -28,6 +28,8 @@ enum SuggestionLabelLayout {
 }
 
 extension AutocompleteTextView {
+    static let minimumWordsBeforePrediction = 50
+
     func refreshSuggestion() {
         pendingSuggestionRefreshWorkItem?.cancel()
         pendingSuggestionRefreshWorkItem = nil
@@ -48,6 +50,11 @@ extension AutocompleteTextView {
         }
 
         guard canShowPredictionAtInsertionPoint() else {
+            clearSuggestion()
+            return
+        }
+
+        guard hasEnoughWordsBeforeInsertionPoint() else {
             clearSuggestion()
             return
         }
@@ -110,8 +117,8 @@ extension AutocompleteTextView {
         suggestionLabel.isSelectable = false
         suggestionLabel.drawsBackground = false
         suggestionLabel.isBordered = false
-        suggestionLabel.textColor = .tertiaryLabelColor
-        suggestionLabel.font = .systemFont(ofSize: 11)
+        suggestionLabel.textColor = ghostSuggestionForegroundColor(for: nil)
+        suggestionLabel.font = defaultSuggestionFont
         suggestionLabel.lineBreakMode = .byWordWrapping
         suggestionLabel.maximumNumberOfLines = 3
         suggestionLabel.cell?.lineBreakMode = .byWordWrapping
@@ -184,19 +191,16 @@ extension AutocompleteTextView {
         }
 
         let previousSuggestion = currentSuggestion
-        let previousFont = suggestionLabel.font
-        let nextFont = typingAttributes[.font] as? NSFont
+        let previousAttributedSuggestion = suggestionLabel.attributedStringValue
+        let nextAttributedSuggestion = attributedSuggestion(for: suggestion)
+        let shouldUpdateAttributedSuggestion = !previousAttributedSuggestion.isEqual(to: nextAttributedSuggestion)
 
         currentSuggestion = suggestion
-        if suggestionLabel.stringValue != suggestion {
-            suggestionLabel.stringValue = suggestion
+        if shouldUpdateAttributedSuggestion {
+            suggestionLabel.attributedStringValue = nextAttributedSuggestion
         }
 
-        if let typingFont = nextFont, previousFont != typingFont {
-            suggestionLabel.font = typingFont
-        }
-
-        if previousSuggestion != suggestion || previousFont != suggestionLabel.font {
+        if previousSuggestion != suggestion || shouldUpdateAttributedSuggestion {
             suggestionLabel.invalidateIntrinsicContentSize()
         }
 
@@ -230,6 +234,35 @@ extension AutocompleteTextView {
         return nsString.substring(with: NSRange(location: start, length: length))
     }
 
+    func hasEnoughWordsBeforeInsertionPoint(
+        minimumWords: Int = AutocompleteTextView.minimumWordsBeforePrediction
+    ) -> Bool {
+        let location = min(max(selectedRange().location, 0), (string as NSString).length)
+        guard location > 0 else { return false }
+
+        let nsString = string as NSString
+        let prefix = nsString.substring(to: location)
+        var wordCount = 0
+        var isInsideWord = false
+
+        for scalar in prefix.unicodeScalars {
+            if CharacterSet.alphanumerics.contains(scalar) {
+                if !isInsideWord {
+                    wordCount += 1
+                    if wordCount >= minimumWords {
+                        return true
+                    }
+
+                    isInsideWord = true
+                }
+            } else {
+                isInsideWord = false
+            }
+        }
+
+        return false
+    }
+
     private func makeSuggestionRequest() -> SuggestionRequest {
         SuggestionContextBuilder().request(
             documentText: string,
@@ -241,6 +274,35 @@ extension AutocompleteTextView {
     private func textToInsert(for suggestion: String) -> String {
         let needsLeadingSpace = !(contextBeforeInsertionPoint().last?.isWhitespace ?? true)
         return needsLeadingSpace ? " \(suggestion)" : suggestion
+    }
+
+    func attributedSuggestion(for suggestion: String) -> NSAttributedString {
+        var attributes = typingAttributes
+
+        if attributes[.font] == nil {
+            attributes[.font] = defaultSuggestionFont
+        }
+
+        attributes[.foregroundColor] = ghostSuggestionForegroundColor(
+            for: attributes[.foregroundColor] as? NSColor
+        )
+
+        if let backgroundColor = attributes[.backgroundColor] as? NSColor {
+            attributes[.backgroundColor] = backgroundColor.withAlphaComponent(
+                min(backgroundColor.alphaComponent, 0.22)
+            )
+        }
+
+        return NSAttributedString(string: suggestion, attributes: attributes)
+    }
+
+    private var defaultSuggestionFont: NSFont {
+        NSFont.systemFont(ofSize: 11)
+    }
+
+    private func ghostSuggestionForegroundColor(for color: NSColor?) -> NSColor {
+        let baseColor = color ?? .tertiaryLabelColor
+        return baseColor.withAlphaComponent(min(baseColor.alphaComponent, 0.42))
     }
 
     private func positionSuggestionLabel() {

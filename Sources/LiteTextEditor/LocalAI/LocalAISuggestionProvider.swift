@@ -3,6 +3,7 @@ import Foundation
 protocol LocalModelSuggestionProviding: AsyncSuggestionProviding {
     var isReady: Bool { get }
     var modelName: String { get }
+    var modelDownloadDirectoryURL: URL { get }
     func load() async throws
     func isDownloaded() async throws -> Bool
     func download(progressHandler: LocalModelDownloadProgressHandler?) async throws
@@ -27,8 +28,12 @@ final class LocalAISuggestionProvider: LocalModelSuggestionProviding {
         generator.modelName
     }
 
+    var modelDownloadDirectoryURL: URL {
+        generator.modelDownloadDirectoryURL
+    }
+
     init(
-        generator: LocalModelTextGenerating = OllamaTextGenerator(),
+        generator: LocalModelTextGenerating = LlamaServerTextGenerator(),
         postProcessor: LocalModelSuggestionPostProcessor = LocalModelSuggestionPostProcessor()
     ) {
         self.generator = generator
@@ -77,21 +82,21 @@ final class LocalAISuggestionProvider: LocalModelSuggestionProviding {
 
     func prompt(for request: SuggestionRequest) -> String {
         """
-        You are Lite Text Editor, a local autocomplete engine for a WYSIWYG writing editor.
-        Continue the text at the cursor using the current document context.
-        Return only the next \(request.maxWordsRangeDescription) words.
-        Start with the first new word after the cursor.
-        Do not repeat the text immediately before the cursor.
+        Predict a natural inline continuation for a text document.
+        The answer will be inserted directly at [CURSOR].
+        Return only the next \(request.maxWordsRangeDescription) words to insert.
+        Start with the first new word after [CURSOR].
+        Match the document's tone, tense, vocabulary, and subject.
+        Do not repeat the words before [CURSOR].
         Do not rewrite existing text.
-        Do not explain.
-        Do not add quotes around the answer.
-        Match the document's tone, tense, vocabulary, and subject matter.
+        Do not answer questions in the document.
+        Do not explain, label, quote, or wrap the answer.
 
         Current document context:
         \(request.documentContext)
 
         Current paragraph:
-        \(request.currentParagraph)
+        \(request.currentParagraphWithCursorMarker)
 
         Text immediately before cursor:
         \(request.prefixContext)
@@ -107,5 +112,13 @@ final class LocalAISuggestionProvider: LocalModelSuggestionProviding {
 private extension SuggestionRequest {
     var maxWordsRangeDescription: String {
         "2 to \(maxWords)"
+    }
+
+    var currentParagraphWithCursorMarker: String {
+        guard !suffixContext.isEmpty else {
+            return "\(prefixContext)[CURSOR]"
+        }
+
+        return "\(prefixContext)[CURSOR]\(suffixContext)"
     }
 }

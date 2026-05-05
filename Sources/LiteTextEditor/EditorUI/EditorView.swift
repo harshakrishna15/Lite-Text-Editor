@@ -12,7 +12,6 @@ struct EditorView: View {
     @State private var suggestionWords: Double
     @State private var suggestionWordsText: String
     @State private var isSettingsPresented = false
-    @State private var selectedCountMetric = DocumentCountMetric.words
     @State private var isOutlineVisible = false
     @State private var isLiveResizing = false
     @State private var editorWindowID: ObjectIdentifier?
@@ -96,10 +95,7 @@ struct EditorView: View {
 
             Divider()
 
-            EditorStatusBarView(
-                editor: editor,
-                selectedCountMetric: $selectedCountMetric
-            )
+            EditorStatusBarView(editor: editor)
         }
         .background(Color(nsColor: .liteTextEditorDesk))
         .background(WindowLiveResizeReader(windowID: $editorWindowID))
@@ -161,6 +157,7 @@ struct EditorView: View {
                 onDownloadLocalModel: editor.downloadLocalModel,
                 onCancelLocalModelDownload: editor.cancelLocalModelDownload,
                 onUninstallLocalModel: editor.uninstallLocalModel,
+                onShowLocalModelDownloadLocation: editor.showLocalModelDownloadLocation,
                 onSuggestionWordsCommit: applySuggestionWordsText
             )
         }

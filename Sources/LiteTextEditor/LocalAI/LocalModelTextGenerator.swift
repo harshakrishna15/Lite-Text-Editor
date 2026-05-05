@@ -2,6 +2,20 @@ import Foundation
 
 typealias LocalModelDownloadProgressHandler = (LocalModelDownloadProgress) -> Void
 
+enum LocalModelDownloadLocation {
+    static var defaultDirectoryURL: URL {
+        let applicationSupport = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first ?? FileManager.default.homeDirectoryForCurrentUser
+
+        return applicationSupport
+            .appendingPathComponent("Lite Text Editor", isDirectory: true)
+            .appendingPathComponent("Models", isDirectory: true)
+            .appendingPathComponent("Files", isDirectory: true)
+    }
+}
+
 struct LocalModelDownloadProgress: Equatable {
     let bytesDownloaded: Int64
     let totalBytes: Int64?
@@ -61,6 +75,7 @@ struct LocalModelDownloadProgress: Equatable {
 protocol LocalModelTextGenerating: AnyObject {
     var modelName: String { get }
     var isLoaded: Bool { get }
+    var modelDownloadDirectoryURL: URL { get }
     func load() async throws
     func isDownloaded() async throws -> Bool
     func download(progressHandler: LocalModelDownloadProgressHandler?) async throws
@@ -70,6 +85,7 @@ protocol LocalModelTextGenerating: AnyObject {
 
 extension LocalModelTextGenerating {
     var modelName: String { "Local Model" }
+    var modelDownloadDirectoryURL: URL { LocalModelDownloadLocation.defaultDirectoryURL }
 
     func download() async throws {
         try await download(progressHandler: nil)
@@ -127,20 +143,51 @@ struct LocalModelSuggestionPostProcessor {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .trimmingCharacters(in: CharacterSet(charactersIn: "\"'`"))
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        return strippingKnownLabel(from: unwrapped)
+        return strippingInstructionalWrapper(from: strippingKnownLabel(from: unwrapped))
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .trimmingCharacters(in: CharacterSet(charactersIn: "\"'`"))
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func strippingKnownLabel(from text: String) -> String {
-        let labels = ["Completion:", "Suggestion:", "Answer:"]
+        let labels = [
+            "Completion:",
+            "Suggestion:",
+            "Answer:",
+            "Prediction:",
+            "Autocomplete:"
+        ]
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let lowercased = trimmed.lowercased()
 
         for label in labels where lowercased.hasPrefix(label.lowercased()) {
             return String(trimmed.dropFirst(label.count))
+        }
+
+        return trimmed
+    }
+
+    private func strippingInstructionalWrapper(from text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowercased = trimmed.lowercased()
+        let wrappers = [
+            "the next words are",
+            "the next words would be",
+            "the continuation is",
+            "a natural continuation is",
+            "i would continue with",
+            "continue with",
+            "insert",
+            "answer:"
+        ]
+
+        for wrapper in wrappers where lowercased.hasPrefix(wrapper) {
+            let remainder = String(trimmed.dropFirst(wrapper.count))
+            return remainder
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: ":,- "))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
         return trimmed

@@ -62,8 +62,8 @@ final class SuggestionProviderTests: XCTestCase {
         XCTAssertFalse(provider.isReady)
 
         let prompt = provider.prompt(for: request)
-        XCTAssertTrue(prompt.contains("Return only the next 2 to 4 words."))
-        XCTAssertTrue(prompt.contains("Do not repeat the text immediately before the cursor."))
+        XCTAssertTrue(prompt.contains("Return only the next 2 to 4 words to insert."))
+        XCTAssertTrue(prompt.contains("Do not repeat the words before [CURSOR]."))
         XCTAssertTrue(prompt.contains("Text immediately before cursor:"))
         XCTAssertTrue(prompt.contains("The next point is"))
     }
@@ -108,6 +108,19 @@ final class SuggestionProviderTests: XCTestCase {
 
         let suggestion = (provider as SuggestionProviding).suggestion(for: request)
         XCTAssertNil(suggestion)
+    }
+
+    func testLocalAIProviderStripsInstructionalModelWrappers() async throws {
+        let request = makeRequest(prefix: "The current draft")
+        let generator = StubLocalModelTextGenerator(
+            rawCompletion: "The continuation is: should continue with details"
+        )
+        let provider = LocalAISuggestionProvider(generator: generator)
+
+        try await provider.load()
+
+        let suggestion = (provider as SuggestionProviding).suggestion(for: request)
+        XCTAssertEqual(suggestion, "should continue with details")
     }
 
     func testEditorControllerAcceptsInjectedSuggestionProvider() {

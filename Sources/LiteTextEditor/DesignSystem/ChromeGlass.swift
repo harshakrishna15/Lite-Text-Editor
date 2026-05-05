@@ -20,8 +20,9 @@ enum ChromeRenderingPolicy {
     static let floatingPanelShadowOpacity = 0.08
     static let floatingPanelShadowRadius: CGFloat = 4
     static let floatingPanelShadowYOffset: CGFloat = 2
-    static let liveResizeFloatingPanelShadowOpacity = 0.0
-    static let liveResizeFloatingPanelShadowRadius: CGFloat = 0
+    static let liveResizeFloatingPanelShadowOpacity = floatingPanelShadowOpacity
+    static let liveResizeFloatingPanelShadowRadius = floatingPanelShadowRadius
+    static let liveResizeFloatingPanelShadowYOffset = floatingPanelShadowYOffset
 
     static func usesNativeGlass(isLiveResizing: Bool) -> Bool {
         usesNativeLiquidGlass && !isLiveResizing
@@ -106,18 +107,16 @@ private struct ChromeFloatingPanelShadowModifier: ViewModifier {
         let shadowRadius = isLiveResizing
             ? ChromeRenderingPolicy.liveResizeFloatingPanelShadowRadius
             : ChromeRenderingPolicy.floatingPanelShadowRadius
-        let shadowYOffset = isLiveResizing ? 0 : ChromeRenderingPolicy.floatingPanelShadowYOffset
+        let shadowYOffset = isLiveResizing
+            ? ChromeRenderingPolicy.liveResizeFloatingPanelShadowYOffset
+            : ChromeRenderingPolicy.floatingPanelShadowYOffset
 
-        if shadowOpacity <= 0 || shadowRadius <= 0 {
-            content
-        } else {
-            content.shadow(
-                color: Color.black.opacity(shadowOpacity),
-                radius: shadowRadius,
-                x: 0,
-                y: shadowYOffset
-            )
-        }
+        content.shadow(
+            color: Color.black.opacity(shadowOpacity),
+            radius: shadowRadius,
+            x: 0,
+            y: shadowYOffset
+        )
     }
 }
 

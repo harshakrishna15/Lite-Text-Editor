@@ -2,9 +2,6 @@ import SwiftUI
 
 struct EditorStatusBarView: View {
     @ObservedObject var editor: EditorController
-    @Binding var selectedCountMetric: DocumentCountMetric
-    @State private var isCountMenuHovered = false
-    @State private var isCountPopoverPresented = false
     @State private var isZoomMenuHovered = false
     @State private var isZoomPopoverPresented = false
 
@@ -13,7 +10,7 @@ struct EditorStatusBarView: View {
 
         ChromeGlassContainer(spacing: 8) {
             HStack(spacing: 12) {
-                documentCountMenu
+                documentStatisticsText
 
                 if !activeStructureText.isEmpty {
                     StatusBarDivider()
@@ -60,68 +57,20 @@ struct EditorStatusBarView: View {
         }
     }
 
-    private var documentCountMenu: some View {
-        Button {
-            isCountPopoverPresented.toggle()
-        } label: {
-            HStack(spacing: 4) {
-                Text(selectedCountMetric.statusText(for: editor.documentStatistics))
-                    .font(ChromeStyle.smallTextFont)
-                    .monospacedDigit()
-                    .foregroundStyle(ChromeStyle.glassControlTextColor)
-                    .lineLimit(1)
-                    .frame(width: 180, alignment: .leading)
+    private var documentStatisticsText: some View {
+        HStack(spacing: 12) {
+            Text("Pages: \(DocumentTextStatistics.formatted(editor.documentStatistics.pages))")
+                .frame(minWidth: 58, alignment: .leading)
 
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(ChromeStyle.glassSecondaryTextColor)
-            }
-            .padding(.horizontal, 6)
-            .frame(height: 22)
-            .chromeGlassControlBackground(
-                isActive: isCountMenuHovered || isCountPopoverPresented,
-                isSelected: isCountPopoverPresented,
-                fallbackColor: isCountMenuHovered || isCountPopoverPresented ? ChromeStyle.toolbarHoverFill : Color.clear,
-                in: RoundedRectangle(cornerRadius: 6, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(isCountMenuHovered ? ChromeStyle.toolbarHoverOverlay : Color.clear)
-                    .allowsHitTesting(false)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .strokeBorder(
-                        isCountMenuHovered || isCountPopoverPresented ? ChromeStyle.toolbarHoverBorder : Color.clear,
-                        lineWidth: isCountMenuHovered || isCountPopoverPresented ? 1 : 0
-                    )
-                    .allowsHitTesting(false)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            Text("Words: \(DocumentTextStatistics.formatted(editor.documentStatistics.words))")
+                .frame(minWidth: 74, alignment: .leading)
         }
-        .buttonStyle(.plain)
-        .onHover { isCountMenuHovered = $0 }
-        .accessibilityLabel("Document Counts")
-        .popover(isPresented: $isCountPopoverPresented, arrowEdge: .top) {
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(DocumentCountMetric.allCases) { metric in
-                    ToolbarPopoverActionRow(
-                        title: metric.menuText(for: editor.documentStatistics),
-                        symbol: "text.word.spacing",
-                        isSelected: selectedCountMetric == metric
-                    ) {
-                        selectedCountMetric = metric
-                        isCountPopoverPresented = false
-                    }
-                }
-            }
-            .padding(12)
-            .frame(width: 296)
-        }
+        .font(ChromeStyle.smallTextFont)
+        .monospacedDigit()
+        .foregroundStyle(ChromeStyle.glassControlTextColor)
+        .lineLimit(1)
         .fixedSize()
-        .help("Document Counts")
-        .animation(.easeOut(duration: 0.12), value: isCountMenuHovered)
-        .animation(.easeOut(duration: 0.12), value: isCountPopoverPresented)
+        .help("Document Statistics")
     }
 
     private var zoomControls: some View {
@@ -141,7 +90,7 @@ struct EditorStatusBarView: View {
                         .foregroundStyle(ChromeStyle.glassSecondaryTextColor)
                 }
                 .padding(.horizontal, 5)
-                .frame(height: 20)
+                .frame(height: ChromeStyle.statusBarZoomDropdownHeight)
                 .chromeGlassControlBackground(
                     isActive: isZoomMenuHovered || isZoomPopoverPresented,
                     isSelected: isZoomPopoverPresented,

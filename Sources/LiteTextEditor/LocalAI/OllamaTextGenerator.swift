@@ -1,5 +1,6 @@
 import Dispatch
 import Foundation
+import CryptoKit
 
 final class OllamaTextGenerator: LocalModelTextGenerating {
     private enum Availability {
@@ -47,8 +48,17 @@ final class OllamaTextGenerator: LocalModelTextGenerating {
 
     private struct CreateRequest: Encodable {
         let model: String
-        let modelfile: String
+        let files: [String: String]
+        let parameters: CreateParameters
         let stream: Bool
+    }
+
+    private struct CreateParameters: Encodable {
+        let numCtx: Int
+
+        enum CodingKeys: String, CodingKey {
+            case numCtx = "num_ctx"
+        }
     }
 
     private struct CreateResponse: Decodable {
@@ -86,8 +96,8 @@ final class OllamaTextGenerator: LocalModelTextGenerating {
     }
 
     private static let defaultPort = 11435
-    private static let defaultModelDownloadURLString = "https://huggingface.co/Triangle104/SmolLM2-135M-Instruct-Q4_K_M-GGUF/resolve/main/smollm2-135m-instruct-q4_k_m.gguf"
-    private static let defaultModelFileName = "smollm2-135m-instruct-q4_k_m.gguf"
+    private static let defaultModelDownloadURLString = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/df5bf01389a39c743ab467d734bf501681e041c5/qwen2.5-0.5b-instruct-q4_k_m.gguf"
+    private static let defaultModelFileName = "qwen2.5-0.5b-instruct-q4_k_m.gguf"
 
     private let model: String
     private let baseURL: URL
@@ -118,8 +128,12 @@ final class OllamaTextGenerator: LocalModelTextGenerating {
         model
     }
 
+    var modelDownloadDirectoryURL: URL {
+        modelFileURL.deletingLastPathComponent()
+    }
+
     init(
-        model: String = ProcessInfo.processInfo.environment["LITE_TEXT_EDITOR_OLLAMA_MODEL"] ?? "lite-text-editor-autocomplete:latest",
+        model: String = ProcessInfo.processInfo.environment["LITE_TEXT_EDITOR_OLLAMA_MODEL"] ?? "lite-text-editor-qwen-document-autocomplete:latest",
         baseURL: URL = OllamaTextGenerator.defaultBaseURL(),
         modelsDirectory: URL = OllamaTextGenerator.defaultModelsDirectory(),
         modelFileURL: URL = OllamaTextGenerator.defaultModelFileURL(),
@@ -195,8 +209,8 @@ final class OllamaTextGenerator: LocalModelTextGenerating {
 
     func uninstall() async throws {
         do {
+            try await deleteRuntimeModelIfPossible()
             try removeDownloadedModelFile()
-            try? await deleteRuntimeModelIfPossible()
             markUnavailable()
         } catch {
             markUnavailable()
@@ -287,12 +301,13 @@ final class OllamaTextGenerator: LocalModelTextGenerating {
     }
 
     private func createRuntimeModel() async throws {
+        let digest = try sha256Digest(for: modelFileURL)
+        try await ensureRuntimeBlobExists(digest: digest)
+
         let createRequest = CreateRequest(
             model: model,
-            modelfile: """
-            FROM "\(escapedModelFilePath)"
-            PARAMETER num_ctx 2048
-            """,
+            files: [modelFileURL.lastPathComponent: "sha256:\(digest)"],
+            parameters: CreateParameters(numCtx: 2048),
             stream: false
         )
         guard let httpBody = try? JSONEncoder().encode(createRequest) else {
@@ -316,10 +331,44 @@ final class OllamaTextGenerator: LocalModelTextGenerating {
         }
     }
 
-    private var escapedModelFilePath: String {
-        modelFileURL.path
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
+    private func ensureRuntimeBlobExists(digest: String) async throws {
+        let blobURL = endpoint("api", "blobs", "sha256:\(digest)")
+
+        var headRequest = URLRequest(url: blobURL)
+        headRequest.httpMethod = "HEAD"
+        headRequest.timeoutInterval = timeout
+
+        if let (_, response) = try? await session.data(for: headRequest),
+           (response as? HTTPURLResponse)?.isSuccessful == true {
+            return
+        }
+
+        var uploadRequest = URLRequest(url: blobURL)
+        uploadRequest.httpMethod = "POST"
+        uploadRequest.timeoutInterval = min(downloadTimeout, 300)
+
+        let (_, response) = try await session.upload(for: uploadRequest, fromFile: modelFileURL)
+        guard (response as? HTTPURLResponse)?.isSuccessful == true else {
+            throw GeneratorError.unexpectedStatus
+        }
+    }
+
+    private func sha256Digest(for url: URL) throws -> String {
+        let fileHandle = try FileHandle(forReadingFrom: url)
+        defer {
+            try? fileHandle.close()
+        }
+
+        var hasher = SHA256()
+        while true {
+            let data = try fileHandle.read(upToCount: 1024 * 1024) ?? Data()
+            if data.isEmpty { break }
+            hasher.update(data: data)
+        }
+
+        return hasher.finalize()
+            .map { String(format: "%02x", $0) }
+            .joined()
     }
 
     private func deleteRuntimeModelIfPossible() async throws {
@@ -338,7 +387,12 @@ final class OllamaTextGenerator: LocalModelTextGenerating {
         request.httpBody = httpBody
 
         let (_, response) = try await session.data(for: request)
-        guard (response as? HTTPURLResponse)?.isSuccessful == true else {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw GeneratorError.unexpectedStatus
+        }
+
+        guard httpResponse.statusCode != 404 else { return }
+        guard httpResponse.isSuccessful else {
             throw GeneratorError.unexpectedStatus
         }
     }

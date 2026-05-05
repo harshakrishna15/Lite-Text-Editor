@@ -361,7 +361,8 @@ struct FormattingState: Equatable {
     var isItalic = false
     var isUnderline = false
     var isStrikethrough = false
-    var hasHighlight = false
+    var highlightColor: NSColor?
+    var hasHighlight: Bool { highlightColor != nil }
     var isBulletedList = false
     var isNumberedList = false
     var alignment: NSTextAlignment = .left

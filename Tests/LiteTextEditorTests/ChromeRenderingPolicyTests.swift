@@ -15,11 +15,23 @@ final class ChromeRenderingPolicyTests: XCTestCase {
         XCTAssertFalse(ChromeRenderingPolicy.usesNativeGlass(isLiveResizing: true))
     }
 
-    func testFloatingPanelShadowBudgetStaysSmall() {
+    func testFloatingPanelShadowBudgetKeepsLiveResizeVisibleAndSmall() {
         XCTAssertLessThanOrEqual(ChromeRenderingPolicy.floatingPanelShadowOpacity, 0.08)
         XCTAssertLessThanOrEqual(ChromeRenderingPolicy.floatingPanelShadowRadius, 4)
         XCTAssertLessThanOrEqual(ChromeRenderingPolicy.floatingPanelShadowYOffset, 2)
-        XCTAssertEqual(ChromeRenderingPolicy.liveResizeFloatingPanelShadowOpacity, 0)
-        XCTAssertEqual(ChromeRenderingPolicy.liveResizeFloatingPanelShadowRadius, 0)
+        XCTAssertGreaterThan(ChromeRenderingPolicy.liveResizeFloatingPanelShadowOpacity, 0)
+        XCTAssertLessThanOrEqual(
+            ChromeRenderingPolicy.liveResizeFloatingPanelShadowOpacity,
+            ChromeRenderingPolicy.floatingPanelShadowOpacity
+        )
+        XCTAssertGreaterThan(ChromeRenderingPolicy.liveResizeFloatingPanelShadowRadius, 0)
+        XCTAssertLessThanOrEqual(
+            ChromeRenderingPolicy.liveResizeFloatingPanelShadowRadius,
+            ChromeRenderingPolicy.floatingPanelShadowRadius
+        )
+        XCTAssertLessThanOrEqual(
+            ChromeRenderingPolicy.liveResizeFloatingPanelShadowYOffset,
+            ChromeRenderingPolicy.floatingPanelShadowYOffset
+        )
     }
 }

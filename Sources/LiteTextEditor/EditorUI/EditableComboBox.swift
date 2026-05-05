@@ -18,7 +18,7 @@ struct EditableComboBox: NSViewRepresentable {
         comboBox.completes = false
         comboBox.usesDataSource = false
         comboBox.numberOfVisibleItems = visibleItemCount
-        comboBox.controlSize = .regular
+        comboBox.controlSize = .small
         comboBox.font = NSFont.systemFont(ofSize: NSFont.systemFontSize(for: .regular))
         comboBox.bezelStyle = .roundedBezel
         comboBox.isBordered = true
@@ -28,7 +28,6 @@ struct EditableComboBox: NSViewRepresentable {
         comboBox.cell?.alignment = .left
         comboBox.cell?.lineBreakMode = .byTruncatingTail
         comboBox.cell?.usesSingleLineMode = true
-        comboBox.focusRingType = .none
         comboBox.stringValue = text
         comboBox.previewsFontFamilies = previewsFontFamilies
         updateItems(for: comboBox)
@@ -41,11 +40,11 @@ struct EditableComboBox: NSViewRepresentable {
         comboBox.numberOfVisibleItems = visibleItemCount
         comboBox.completes = false
         comboBox.previewsFontFamilies = previewsFontFamilies
+        comboBox.controlSize = .small
         comboBox.isBordered = true
         comboBox.drawsBackground = true
         comboBox.backgroundColor = .controlBackgroundColor
         comboBox.textColor = .controlTextColor
-        comboBox.focusRingType = .none
 
         if comboBox.itemValues != items {
             updateItems(for: comboBox)
@@ -129,13 +128,11 @@ struct EditableComboBox: NSViewRepresentable {
                 length: 0
             )
             comboBox.shouldSkipCompletionForCurrentEdit = false
-            comboBox.setKeyboardFocused(true)
         }
 
         func controlTextDidEndEditing(_ notification: Notification) {
             guard let comboBox = notification.object as? EditableComboBoxView else { return }
             comboBox.clearEditorSelection()
-            comboBox.setKeyboardFocused(false)
             commit(comboBox.stringValue)
         }
 
@@ -215,34 +212,6 @@ final class EditableComboBoxView: NSComboBox {
     var previousEditorText = ""
     var previousSelectionRange = NSRange(location: 0, length: 0)
     private let fontPreviewResolver = FontPreviewResolver()
-    private var isKeyboardFocused = false
-
-    override var intrinsicContentSize: NSSize {
-        NSSize(width: NSView.noIntrinsicMetric, height: ChromeStyle.toolbarControlHeight)
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-
-        guard isKeyboardFocused else { return }
-
-        NSGraphicsContext.saveGraphicsState()
-        let focusPath = NSBezierPath(
-            roundedRect: bounds.insetBy(dx: 1.5, dy: 1.5),
-            xRadius: 8,
-            yRadius: 8
-        )
-        NSColor.controlAccentColor.withAlphaComponent(0.82).setStroke()
-        focusPath.lineWidth = 2
-        focusPath.stroke()
-        NSGraphicsContext.restoreGraphicsState()
-    }
-
-    func setKeyboardFocused(_ isFocused: Bool) {
-        guard isKeyboardFocused != isFocused else { return }
-        isKeyboardFocused = isFocused
-        needsDisplay = true
-    }
 
     func clearEditorSelection() {
         guard let editor = currentEditor() else { return }

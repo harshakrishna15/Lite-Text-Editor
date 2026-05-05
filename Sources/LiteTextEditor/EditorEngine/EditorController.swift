@@ -90,6 +90,21 @@ final class EditorController: ObservableObject {
         predictionState = state
     }
 
+    func showLocalModelDownloadLocation() {
+        let directoryURL = localModelProvider?.modelDownloadDirectoryURL
+            ?? LocalModelDownloadLocation.defaultDirectoryURL
+
+        do {
+            try FileManager.default.createDirectory(
+                at: directoryURL,
+                withIntermediateDirectories: true
+            )
+            NSWorkspace.shared.open(directoryURL)
+        } catch {
+            documentStatusText = "Could not open model folder"
+        }
+    }
+
     func refreshLocalModelState() {
         guard !localModelState.isDownloading else { return }
         guard let localModelProvider else {
@@ -201,7 +216,10 @@ final class EditorController: ObservableObject {
                 try await localModelProvider.uninstall()
                 nextState = .notInstalled(modelName: modelName)
             } catch {
-                nextState = .failed(modelName: modelName, message: "Uninstall failed")
+                let isDownloaded = (try? await localModelProvider.isDownloaded()) ?? false
+                nextState = isDownloaded
+                    ? .unloaded(modelName: modelName)
+                    : .failed(modelName: modelName, message: "Uninstall failed")
             }
 
             await MainActor.run {

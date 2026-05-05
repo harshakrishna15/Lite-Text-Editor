@@ -3,7 +3,7 @@ import XCTest
 @testable import LiteTextEditor
 
 final class FormattingStateTests: XCTestCase {
-    func testEmptySelectionSamplesAttributesAtInsertionPoint() {
+    func testEmptySelectionSamplesAttributesAtInsertionPoint() throws {
         let fixture = makeFixture()
         let font = NSFont(name: "Helvetica", size: 18) ?? NSFont.systemFont(ofSize: 18)
         fixture.textView.textStorage?.setAttributedString(
@@ -12,6 +12,7 @@ final class FormattingStateTests: XCTestCase {
                 attributes: [
                     .font: font,
                     .foregroundColor: NSColor.systemRed,
+                    .backgroundColor: NSColor.systemBlue.withAlphaComponent(0.25),
                     .underlineStyle: NSUnderlineStyle.single.rawValue,
                     .strikethroughStyle: NSUnderlineStyle.single.rawValue
                 ]
@@ -26,6 +27,9 @@ final class FormattingStateTests: XCTestCase {
         XCTAssertTrue(fixture.controller.formattingState.isUnderline)
         XCTAssertTrue(fixture.controller.formattingState.isStrikethrough)
         XCTAssertTrue(fixture.controller.formattingState.textColor.isEqual(NSColor.systemRed))
+        XCTAssertTrue(fixture.controller.formattingState.hasHighlight)
+        let highlightColor = try XCTUnwrap(fixture.controller.formattingState.highlightColor)
+        XCTAssertEqual(highlightColor.alphaComponent, 0.25, accuracy: 0.001)
     }
 
     func testMouseFormattingSampleOverridesEmptySelection() {

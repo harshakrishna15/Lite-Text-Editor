@@ -17,158 +17,176 @@ struct LiteTextEditorSettingsView: View {
     let onDownloadLocalModel: () -> Void
     let onCancelLocalModelDownload: () -> Void
     let onUninstallLocalModel: () -> Void
+    let onShowLocalModelDownloadLocation: () -> Void
     let onSuggestionWordsCommit: (String) -> Void
 
     var body: some View {
         let isAutocompleteEnabled = localModelState.isLoaded
         let areSuggestionControlsEnabled = isAutocompleteEnabled && isInlineSuggestionsEnabled
 
-        VStack(alignment: .leading, spacing: 26) {
+        VStack(alignment: .leading, spacing: 22) {
             Text("Settings")
                 .font(.headline)
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Writing")
-                    .font(ChromeStyle.controlTextFont)
-                    .foregroundStyle(ChromeStyle.controlTextColor)
-
-                settingsToggle(
-                    "Check spelling while typing",
-                    isOn: $isContinuousSpellCheckingEnabled,
-                    help: "Check Spelling While Typing"
-                )
-
-                settingsToggle(
-                    "Automatically replace misspellings",
-                    isOn: $isAutomaticTextReplacementEnabled,
-                    help: "Automatically Replace Misspellings"
-                )
-
-                settingsToggle(
-                    "Check grammar",
-                    isOn: $isGrammarCheckingEnabled,
-                    help: "Check Grammar"
-                )
-
-                settingsToggle(
-                    "Use smart quotes",
-                    isOn: $isAutomaticQuoteSubstitutionEnabled,
-                    help: "Use Smart Quotes"
-                )
-
-                settingsToggle(
-                    "Use smart dashes",
-                    isOn: $isAutomaticDashSubstitutionEnabled,
-                    help: "Use Smart Dashes"
-                )
-            }
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 14) {
-                Text("Autocomplete")
-                    .font(ChromeStyle.controlTextFont)
-                    .foregroundStyle(ChromeStyle.controlTextColor)
-
-                HStack(alignment: .top, spacing: 14) {
-                    Text("Model")
-                        .font(ChromeStyle.controlTextFont)
-                        .foregroundStyle(ChromeStyle.controlTextColor)
-                        .frame(width: 178, alignment: .leading)
-                        .padding(.top, 2)
-
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(localModelState.modelName)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 26) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Writing")
                             .font(ChromeStyle.controlTextFont)
                             .foregroundStyle(ChromeStyle.controlTextColor)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
 
-                        Text(localModelState.statusText)
-                            .font(ChromeStyle.smallTextFont)
-                            .foregroundStyle(localModelState.isLoaded ? ChromeStyle.secondaryTextColor : .secondary)
-                            .lineLimit(1)
+                        settingsToggle(
+                            "Check spelling while typing",
+                            isOn: $isContinuousSpellCheckingEnabled,
+                            help: "Check Spelling While Typing"
+                        )
 
-                        if localModelState.isDownloading {
-                            if let fractionCompleted = localModelState.downloadProgress?.fractionCompleted {
-                                ProgressView(value: fractionCompleted, total: 1)
-                                    .frame(maxWidth: 220)
-                            } else {
-                                ProgressView()
-                                    .controlSize(.small)
-                            }
-                        }
+                        settingsToggle(
+                            "Automatically replace misspellings",
+                            isOn: $isAutomaticTextReplacementEnabled,
+                            help: "Automatically Replace Misspellings"
+                        )
+
+                        settingsToggle(
+                            "Check grammar",
+                            isOn: $isGrammarCheckingEnabled,
+                            help: "Check Grammar"
+                        )
+
+                        settingsToggle(
+                            "Use smart quotes",
+                            isOn: $isAutomaticQuoteSubstitutionEnabled,
+                            help: "Use Smart Quotes"
+                        )
+
+                        settingsToggle(
+                            "Use smart dashes",
+                            isOn: $isAutomaticDashSubstitutionEnabled,
+                            help: "Use Smart Dashes"
+                        )
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                    HStack(spacing: 10) {
-                        Button(localModelState.primaryActionTitle) {
-                            if localModelState.isDownloading {
-                                onCancelLocalModelDownload()
-                            } else if localModelState.isLoaded {
-                                onRefreshLocalModelState()
-                            } else {
-                                onDownloadLocalModel()
+                    Divider()
+
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("Autocomplete")
+                            .font(ChromeStyle.controlTextFont)
+                            .foregroundStyle(ChromeStyle.controlTextColor)
+
+                        HStack(alignment: .top, spacing: 14) {
+                            Text("Model")
+                                .font(ChromeStyle.controlTextFont)
+                                .foregroundStyle(ChromeStyle.controlTextColor)
+                                .frame(width: 178, alignment: .leading)
+                                .padding(.top, 2)
+
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(localModelState.modelName)
+                                    .font(ChromeStyle.controlTextFont)
+                                    .foregroundStyle(ChromeStyle.controlTextColor)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+
+                                Text(localModelState.statusText)
+                                    .font(ChromeStyle.smallTextFont)
+                                    .foregroundStyle(localModelState.isLoaded ? ChromeStyle.secondaryTextColor : .secondary)
+                                    .lineLimit(1)
+
+                                if localModelState.isDownloading {
+                                    if let fractionCompleted = localModelState.downloadProgress?.fractionCompleted {
+                                        ProgressView(value: fractionCompleted, total: 1)
+                                            .frame(maxWidth: 220)
+                                    } else {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                            VStack(alignment: .trailing, spacing: 8) {
+                                HStack(spacing: 10) {
+                                    Button(localModelState.primaryActionTitle) {
+                                        if localModelState.isDownloading {
+                                            onCancelLocalModelDownload()
+                                        } else if localModelState.isLoaded {
+                                            onRefreshLocalModelState()
+                                        } else {
+                                            onDownloadLocalModel()
+                                        }
+                                    }
+                                    .disabled(localModelState.isBusy && !localModelState.isDownloading)
+                                    .help(localModelState.primaryActionTitle)
+
+                                    if localModelState.canUninstall {
+                                        Button("Uninstall") {
+                                            onUninstallLocalModel()
+                                        }
+                                        .disabled(localModelState.isBusy)
+                                        .help("Uninstall Model")
+                                    }
+                                }
+
+                                Button("Show in Finder") {
+                                    onShowLocalModelDownloadLocation()
+                                }
+                                .help("Show Model Download Location")
                             }
                         }
-                        .disabled(localModelState.isBusy && !localModelState.isDownloading)
-                        .help(localModelState.primaryActionTitle)
 
-                        if localModelState.canUninstall {
-                            Button("Uninstall") {
-                                onUninstallLocalModel()
-                            }
-                            .disabled(localModelState.isBusy)
-                            .help("Uninstall Model")
+                        settingsToggle(
+                            "Show inline suggestions",
+                            isOn: $isInlineSuggestionsEnabled,
+                            help: "Show Inline Suggestions"
+                        )
+                        .disabled(!isAutocompleteEnabled)
+                        .opacity(isAutocompleteEnabled ? 1 : 0.45)
+
+                        HStack(spacing: 14) {
+                            Text("Words per suggestion")
+                                .font(ChromeStyle.controlTextFont)
+                                .foregroundStyle(areSuggestionControlsEnabled ? ChromeStyle.controlTextColor : ChromeStyle.secondaryTextColor)
+                                .frame(width: 178, alignment: .leading)
+
+                            EditableComboBox(
+                                text: $suggestionWordsText,
+                                items: suggestionWordOptions,
+                                visibleItemCount: suggestionWordOptions.count,
+                                onCommit: onSuggestionWordsCommit
+                            )
+                            .frame(width: 92, height: ChromeStyle.toolbarControlHeight)
+                            .disabled(!areSuggestionControlsEnabled)
+                            .help("Words per Suggestion")
+
+                            Text("words")
+                                .font(ChromeStyle.smallTextFont)
+                                .foregroundStyle(ChromeStyle.secondaryTextColor)
                         }
+                        .opacity(areSuggestionControlsEnabled ? 1 : 0.45)
+
                     }
+
+                    Divider()
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Startup")
+                            .font(ChromeStyle.controlTextFont)
+                            .foregroundStyle(ChromeStyle.controlTextColor)
+
+                        settingsToggle(
+                            "Reopen last document on launch",
+                            isOn: $shouldReopenLastDocument,
+                            help: "Reopen Last Document on Launch"
+                        )
+                    }
+
+                    Divider()
+
+                    licenseSection
                 }
-
-                settingsToggle(
-                    "Show inline suggestions",
-                    isOn: $isInlineSuggestionsEnabled,
-                    help: "Show Inline Suggestions"
-                )
-                .disabled(!isAutocompleteEnabled)
-                .opacity(isAutocompleteEnabled ? 1 : 0.45)
-
-                HStack(spacing: 14) {
-                    Text("Words per suggestion")
-                        .font(ChromeStyle.controlTextFont)
-                        .foregroundStyle(areSuggestionControlsEnabled ? ChromeStyle.controlTextColor : ChromeStyle.secondaryTextColor)
-                        .frame(width: 178, alignment: .leading)
-
-                    EditableComboBox(
-                        text: $suggestionWordsText,
-                        items: suggestionWordOptions,
-                        visibleItemCount: suggestionWordOptions.count,
-                        onCommit: onSuggestionWordsCommit
-                    )
-                    .frame(width: 92, height: ChromeStyle.toolbarControlHeight)
-                    .disabled(!areSuggestionControlsEnabled)
-                    .help("Words per Suggestion")
-
-                    Text("words")
-                        .font(ChromeStyle.smallTextFont)
-                        .foregroundStyle(ChromeStyle.secondaryTextColor)
-                }
-                .opacity(areSuggestionControlsEnabled ? 1 : 0.45)
-
+                .padding(.trailing, 12)
             }
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Startup")
-                    .font(ChromeStyle.controlTextFont)
-                    .foregroundStyle(ChromeStyle.controlTextColor)
-
-                settingsToggle(
-                    "Reopen last document on launch",
-                    isOn: $shouldReopenLastDocument,
-                    help: "Reopen Last Document on Launch"
-                )
-            }
+            .frame(maxHeight: 560)
 
             HStack {
                 Spacer()
@@ -192,5 +210,59 @@ struct LiteTextEditorSettingsView: View {
             .font(ChromeStyle.controlTextFont)
             .toggleStyle(.checkbox)
             .help(help)
+    }
+
+    private var licenseSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Licenses")
+                .font(ChromeStyle.controlTextFont)
+                .foregroundStyle(ChromeStyle.controlTextColor)
+
+            ForEach(LicenseAcknowledgements.all) { acknowledgement in
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: 9) {
+                        Link("Source", destination: acknowledgement.sourceURL)
+                            .font(ChromeStyle.smallTextFont)
+
+                        Text(acknowledgement.licenseText)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(ChromeStyle.controlTextColor)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color(nsColor: .textBackgroundColor).opacity(0.72))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(ChromeStyle.chromeControlBorder, lineWidth: 1)
+                            )
+                    }
+                    .padding(.top, 8)
+                } label: {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(acknowledgement.name)
+                            .font(ChromeStyle.controlTextFont)
+                            .foregroundStyle(ChromeStyle.controlTextColor)
+
+                        Text("\(acknowledgement.licenseName) - \(acknowledgement.usage)")
+                            .font(ChromeStyle.smallTextFont)
+                            .foregroundStyle(ChromeStyle.secondaryTextColor)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .font(ChromeStyle.controlTextFont)
+                .padding(10)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(ChromeStyle.chromeControlBackground)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(ChromeStyle.chromeControlBorder, lineWidth: 1)
+                )
+            }
+        }
     }
 }

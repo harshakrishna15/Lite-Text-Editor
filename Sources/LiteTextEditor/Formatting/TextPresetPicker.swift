@@ -12,15 +12,13 @@ struct TextPresetPicker: NSViewRepresentable {
         let button = ToolbarPopUpButton()
         button.target = context.coordinator
         button.action = #selector(Coordinator.selectPreset(_:))
-        button.controlSize = .regular
+        button.controlSize = .small
         button.bezelStyle = .rounded
-        button.isBordered = false
+        button.isBordered = true
         button.font = NSFont.systemFont(ofSize: NSFont.systemFontSize(for: .regular))
         button.autoenablesItems = false
-        button.focusRingType = .none
         button.cell?.alignment = .left
         button.cell?.lineBreakMode = .byTruncatingTail
-        (button.cell as? NSPopUpButtonCell)?.arrowPosition = .noArrow
         button.previewFontName = fontName
         updateItems(for: button)
         select(selection, in: button)
@@ -29,11 +27,10 @@ struct TextPresetPicker: NSViewRepresentable {
 
     func updateNSView(_ button: ToolbarPopUpButton, context: Context) {
         context.coordinator.parent = self
-        button.isBordered = false
-        button.focusRingType = .none
+        button.controlSize = .small
+        button.isBordered = true
         button.cell?.alignment = .left
         button.cell?.lineBreakMode = .byTruncatingTail
-        (button.cell as? NSPopUpButtonCell)?.arrowPosition = .noArrow
 
         if button.itemValues != displayedPresets.map(\.rawValue)
             || button.previewFontName != fontName {
@@ -93,9 +90,5 @@ final class ToolbarPopUpButton: NSPopUpButton {
 
     convenience init() {
         self.init(frame: .zero, pullsDown: false)
-    }
-
-    override var intrinsicContentSize: NSSize {
-        NSSize(width: NSView.noIntrinsicMetric, height: ChromeStyle.toolbarControlHeight)
     }
 }

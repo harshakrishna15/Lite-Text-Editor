@@ -12,14 +12,10 @@ enum ChromeStyle {
     static let controlSymbolFont = Font.system(size: controlFontSize, weight: .medium)
     static let largeSymbolFont = Font.system(size: 17, weight: .regular)
     static let toolbarControlHeight: CGFloat = 26
+    static let toolbarDropdownControlHeight: CGFloat = 20
+    static let statusBarZoomDropdownHeight: CGFloat = 18
     static let toolbarControlCornerRadius: CGFloat = 5
     static let toolbarPopoverRowCornerRadius: CGFloat = 6
-    static let toolbarPickerCornerRadius: CGFloat = 6
-    static let toolbarPickerChevronWidth: CGFloat = 16
-    static let toolbarPickerChevronTrailingPadding: CGFloat = 8
-    static let toolbarPickerFill = Color(nsColor: .controlColor).opacity(0.90)
-    static let toolbarPickerBorder = Color.black.opacity(0.18)
-    static let toolbarPickerTopHighlight = Color.white.opacity(0.38)
     static let toolbarPanelHeight: CGFloat = 40
     static let toolbarFloatingTopPadding: CGFloat = 8
     static let toolbarFloatingBottomPadding: CGFloat = 6

@@ -177,7 +177,7 @@ struct ToolbarPopoverButton<Content: View>: View {
                     .foregroundStyle(ChromeStyle.glassSecondaryTextColor)
             }
             .foregroundStyle(isHovered ? ChromeStyle.controlTextColor : ChromeStyle.glassControlTextColor)
-            .frame(width: ChromeStyle.toolbarIconWidth + 8, height: ChromeStyle.toolbarControlHeight)
+            .frame(width: ChromeStyle.toolbarIconWidth + 8, height: ChromeStyle.toolbarDropdownControlHeight)
             .chromeGlassControlBackground(
                 isActive: isPresented || isHovered,
                 isSelected: isPresented,

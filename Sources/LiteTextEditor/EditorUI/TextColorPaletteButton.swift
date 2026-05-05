@@ -31,18 +31,20 @@ struct TextColorPaletteButton: View {
 }
 
 struct HighlightColorPaletteButton: View {
-    let hasHighlight: Bool
+    let highlightColor: NSColor?
     let onApplyHighlight: (HighlightColorOption) -> Void
 
     @State private var isPalettePresented = false
     @State private var isHovered = false
 
     var body: some View {
+        let hasHighlight = highlightColor != nil
+
         ToolbarPaletteButton(
             symbol: "paintbrush.pointed",
             accessibilityLabel: "Highlight Color",
             help: "Highlight Color",
-            indicatorColor: hasHighlight ? Color(nsColor: NSColor.systemYellow.withAlphaComponent(0.65)) : .clear,
+            indicatorColor: highlightColor.map { Color(nsColor: $0) } ?? .clear,
             indicatorStrokeColor: hasHighlight ? Color.black.opacity(0.20) : ChromeStyle.glassSecondaryTextColor.opacity(0.45),
             isSelected: isPalettePresented || hasHighlight,
             selectedIconColor: hasHighlight || isPalettePresented ? .accentColor : nil,

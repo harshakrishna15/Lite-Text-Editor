@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import LiteTextEditor
 
@@ -8,6 +9,28 @@ final class ToolbarLayoutPolicyTests: XCTestCase {
         XCTAssertLessThanOrEqual(ChromeStyle.compactToolbarFontControlWidth, ChromeStyle.toolbarFontControlWidth)
         XCTAssertLessThanOrEqual(ChromeStyle.compactToolbarStyleControlWidth, ChromeStyle.toolbarStyleControlWidth)
         XCTAssertLessThanOrEqual(ChromeStyle.compactToolbarHorizontalPadding, ChromeStyle.toolbarHorizontalPadding)
+    }
+
+    func testToolbarDropdownsStayThinnerThanToolbarButtons() {
+        XCTAssertEqual(ChromeStyle.toolbarDropdownControlHeight, 20)
+        XCTAssertLessThan(ChromeStyle.toolbarDropdownControlHeight, ChromeStyle.toolbarControlHeight)
+    }
+
+    func testToolbarDropdownHeightMatchesNativeSmallControls() {
+        let comboBox = NSComboBox()
+        comboBox.controlSize = .small
+        comboBox.font = NSFont.systemFont(ofSize: NSFont.systemFontSize(for: .regular))
+        comboBox.bezelStyle = .roundedBezel
+
+        let popUpButton = NSPopUpButton(frame: .zero, pullsDown: false)
+        popUpButton.controlSize = .small
+        popUpButton.bezelStyle = .rounded
+        popUpButton.isBordered = true
+        popUpButton.font = NSFont.systemFont(ofSize: NSFont.systemFontSize(for: .regular))
+        popUpButton.addItem(withTitle: "Body")
+
+        XCTAssertEqual(comboBox.intrinsicContentSize.height, ChromeStyle.toolbarDropdownControlHeight)
+        XCTAssertEqual(popUpButton.fittingSize.height, ChromeStyle.toolbarDropdownControlHeight)
     }
 
     func testInitialModeUsesMiddleBreakpoint() {

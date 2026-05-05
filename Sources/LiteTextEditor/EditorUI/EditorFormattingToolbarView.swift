@@ -12,7 +12,6 @@ struct EditorFormattingToolbarView: View {
     @Binding var isOutlineVisible: Bool
 
     @State private var isCompactToolbar = false
-    @Namespace private var toolbarNamespace
 
     private let fonts = InstalledFontProvider.fontFamilies
     private let sizes = [11.0, 12.0, 14.0, 16.0, 18.0, 20.0, 24.0, 28.0, 32.0]
@@ -71,16 +70,12 @@ struct EditorFormattingToolbarView: View {
     private var formattingBar: some View {
         HStack(alignment: .center, spacing: ChromeStyle.toolbarSectionSpacing) {
             outlineToggleButton
-                .matchedGeometryEffect(id: ToolbarAnimationID.outlineToggle, in: toolbarNamespace)
             ToolbarDivider()
             stylePresetSection
-                .matchedGeometryEffect(id: ToolbarAnimationID.stylePreset, in: toolbarNamespace)
             ToolbarDivider()
             fontControlsSection
-                .matchedGeometryEffect(id: ToolbarAnimationID.fontControls, in: toolbarNamespace)
             ToolbarDivider()
             primaryInlineFormattingSection
-                .matchedGeometryEffect(id: ToolbarAnimationID.primaryFormatting, in: toolbarNamespace)
         }
         .padding(.horizontal, toolbarHorizontalPadding)
         .padding(.vertical, 7)
@@ -111,7 +106,7 @@ struct EditorFormattingToolbarView: View {
                 previewsFontFamilies: true,
                 onCommit: applyFontName
             )
-            .frame(width: fontControlWidth, height: ChromeStyle.toolbarControlHeight)
+            .frame(width: fontControlWidth)
             .help("Font")
 
             EditableComboBox(
@@ -120,7 +115,7 @@ struct EditorFormattingToolbarView: View {
                 visibleItemCount: sizeOptions.count,
                 onCommit: applyFontSizeText
             )
-            .frame(width: ChromeStyle.toolbarSizeControlWidth, height: ChromeStyle.toolbarControlHeight)
+            .frame(width: ChromeStyle.toolbarSizeControlWidth)
             .help("Font Size")
 
             sizeToolsMenu
@@ -170,7 +165,7 @@ struct EditorFormattingToolbarView: View {
             )
 
             HighlightColorPaletteButton(
-                hasHighlight: editor.formattingState.hasHighlight,
+                highlightColor: editor.formattingState.highlightColor,
                 onApplyHighlight: editor.applyHighlight
             )
 
@@ -218,30 +213,8 @@ struct EditorFormattingToolbarView: View {
                 setSelectedSize(preset.size)
                 editor.applyPreset(preset, fontName: selectedFont)
             }
-            .frame(width: styleControlWidth, height: ChromeStyle.toolbarControlHeight)
-            .background(
-                RoundedRectangle(cornerRadius: ChromeStyle.toolbarPickerCornerRadius, style: .continuous)
-                    .fill(ChromeStyle.toolbarPickerFill)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: ChromeStyle.toolbarPickerCornerRadius, style: .continuous)
-                    .strokeBorder(ChromeStyle.toolbarPickerTopHighlight, lineWidth: 0.5)
-                    .padding(0.5)
-                    .allowsHitTesting(false)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: ChromeStyle.toolbarPickerCornerRadius, style: .continuous)
-                    .strokeBorder(ChromeStyle.toolbarPickerBorder, lineWidth: 1)
-                    .allowsHitTesting(false)
-            )
-            .overlay(alignment: .trailing) {
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(ChromeStyle.glassSecondaryTextColor)
-                    .frame(width: ChromeStyle.toolbarPickerChevronWidth, height: ChromeStyle.toolbarControlHeight)
-                    .padding(.trailing, ChromeStyle.toolbarPickerChevronTrailingPadding)
-                    .allowsHitTesting(false)
-            }
+            .frame(width: styleControlWidth)
+            .help("Style")
         }
     }
 
@@ -310,11 +283,4 @@ private enum InstalledFontProvider {
 
         return ["System"] + families
     }()
-}
-
-private enum ToolbarAnimationID {
-    static let outlineToggle = "outlineToggle"
-    static let fontControls = "fontControls"
-    static let stylePreset = "stylePreset"
-    static let primaryFormatting = "primaryFormatting"
 }

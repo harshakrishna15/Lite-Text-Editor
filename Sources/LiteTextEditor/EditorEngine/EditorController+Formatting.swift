@@ -619,6 +619,8 @@ extension EditorController {
         let traits = font.fontDescriptor.symbolicTraits
         let listState = currentListState(in: textView)
 
+        let highlightColor = attributes[.backgroundColor] as? NSColor
+
         return FormattingState(
             fontFamilyName: displayFontFamilyName(for: font),
             fontSize: Double(font.pointSize),
@@ -627,7 +629,7 @@ extension EditorController {
             isItalic: traits.contains(.italic),
             isUnderline: attributes[.underlineStyle] != nil,
             isStrikethrough: attributes[.strikethroughStyle] != nil,
-            hasHighlight: attributes[.backgroundColor] != nil,
+            highlightColor: highlightColor,
             isBulletedList: listState.isBulleted,
             isNumberedList: listState.isNumbered,
             alignment: normalizedAlignment(currentParagraphStyle(in: textView).alignment)
