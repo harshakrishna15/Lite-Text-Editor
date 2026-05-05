@@ -20,14 +20,7 @@ struct SpellingCorrectionCard: View {
                     .font(ChromeStyle.smallTextFont)
                     .foregroundStyle(ChromeStyle.secondaryTextColor)
 
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(ChromeStyle.secondaryTextColor)
-                        .frame(width: 18, height: 18)
-                }
-                .buttonStyle(.borderless)
-                .help("Close Spelling Review")
+                SpellingCloseButton(action: onClose)
             }
 
             if state.hasIssue {
@@ -121,5 +114,34 @@ struct SpellingCorrectionCard: View {
                 .stroke(Color.black.opacity(0.12), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.18), radius: 18, x: 0, y: 8)
+    }
+}
+
+private struct SpellingCloseButton: View {
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "xmark")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(isHovered ? ChromeStyle.controlTextColor : ChromeStyle.secondaryTextColor)
+                .frame(width: 22, height: 22)
+                .chromeGlassControlBackground(
+                    isActive: true,
+                    fallbackColor: isHovered ? ChromeStyle.toolbarHoverFill : Color.clear,
+                    in: RoundedRectangle(cornerRadius: ChromeStyle.toolbarControlCornerRadius, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: ChromeStyle.toolbarControlCornerRadius, style: .continuous)
+                        .stroke(isHovered ? ChromeStyle.toolbarHoverBorder : Color.clear, lineWidth: isHovered ? 1 : 0)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: ChromeStyle.toolbarControlCornerRadius, style: .continuous))
+        }
+        .buttonStyle(.borderless)
+        .onHover { isHovered = $0 }
+        .accessibilityLabel("Close Spelling Review")
+        .help("Close Spelling Review")
     }
 }

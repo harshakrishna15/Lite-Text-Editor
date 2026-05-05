@@ -36,11 +36,7 @@ struct EditorStatusBarView: View {
             .padding(.horizontal, 12)
         }
         .frame(height: 28)
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Color.white.opacity(0.22))
-                .frame(height: 1)
-        }
+        .background(ChromeBlurBackground())
     }
 
     @ViewBuilder
@@ -78,7 +74,8 @@ struct EditorStatusBarView: View {
             .frame(height: 22)
             .chromeGlassControlBackground(
                 isActive: true,
-                fallbackColor: isCountMenuHovered ? ChromeStyle.toolbarHoverFill : Color.clear,
+                isSelected: isCountPopoverPresented,
+                fallbackColor: isCountMenuHovered || isCountPopoverPresented ? ChromeStyle.toolbarHoverFill : Color.clear,
                 in: RoundedRectangle(cornerRadius: 6, style: .continuous)
             )
             .overlay(
@@ -98,6 +95,7 @@ struct EditorStatusBarView: View {
         }
         .buttonStyle(.plain)
         .onHover { isCountMenuHovered = $0 }
+        .accessibilityLabel("Document Counts")
         .popover(isPresented: $isCountPopoverPresented, arrowEdge: .top) {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(DocumentCountMetric.allCases) { metric in
@@ -140,7 +138,8 @@ struct EditorStatusBarView: View {
                 .frame(height: 20)
                 .chromeGlassControlBackground(
                     isActive: true,
-                    fallbackColor: isZoomMenuHovered ? ChromeStyle.toolbarHoverFill : Color.clear,
+                    isSelected: isZoomPopoverPresented,
+                    fallbackColor: isZoomMenuHovered || isZoomPopoverPresented ? ChromeStyle.toolbarHoverFill : Color.clear,
                     in: RoundedRectangle(cornerRadius: 5, style: .continuous)
                 )
                 .overlay(
@@ -160,9 +159,14 @@ struct EditorStatusBarView: View {
             }
             .buttonStyle(.plain)
             .onHover { isZoomMenuHovered = $0 }
+            .accessibilityLabel("Zoom Size")
             .popover(isPresented: $isZoomPopoverPresented, arrowEdge: .top) {
                 VStack(alignment: .leading, spacing: 6) {
-                    ToolbarPopoverActionRow(title: DocumentZoomPreset.fitPage.title, symbol: "arrow.up.left.and.down.right.magnifyingglass") {
+                    ToolbarPopoverActionRow(
+                        title: DocumentZoomPreset.fitPage.title,
+                        symbol: "arrow.up.left.and.down.right.magnifyingglass",
+                        isSelected: editor.selectedZoomPreset == .fitPage
+                    ) {
                         editor.fitPageToScreen()
                         isZoomPopoverPresented = false
                     }

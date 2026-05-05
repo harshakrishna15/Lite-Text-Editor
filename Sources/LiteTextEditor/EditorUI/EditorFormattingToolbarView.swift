@@ -37,7 +37,7 @@ struct EditorFormattingToolbarView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: isCompactToolbar ? ChromeStyle.compactToolbarHeight : ChromeStyle.regularToolbarHeight)
-        .background(ToolbarBlurBackground())
+        .background(ChromeBlurBackground())
     }
 
     private func updateToolbarMode(for width: CGFloat, animated: Bool) {
@@ -108,15 +108,14 @@ struct EditorFormattingToolbarView: View {
     }
 
     private var outlineToggleButton: some View {
-        ToolbarSection {
-            RibbonIconButton(
-                symbol: "sidebar.left",
-                help: isOutlineVisible ? "Hide Outline" : "Show Outline",
-                isSelected: isOutlineVisible
-            ) {
-                withAnimation(ChromeStyle.outlinePanelAnimation) {
-                    isOutlineVisible.toggle()
-                }
+        RibbonIconButton(
+            symbol: "sidebar.left",
+            help: isOutlineVisible ? "Hide Outline" : "Show Outline",
+            isSelected: isOutlineVisible,
+            isToggle: true
+        ) {
+            withAnimation(ChromeStyle.outlinePanelAnimation) {
+                isOutlineVisible.toggle()
             }
         }
     }
@@ -142,6 +141,8 @@ struct EditorFormattingToolbarView: View {
             )
             .frame(width: ChromeStyle.toolbarSizeControlWidth, height: ChromeStyle.toolbarControlHeight)
             .help("Font Size")
+
+            sizeToolsMenu
         }
     }
 
@@ -156,22 +157,23 @@ struct EditorFormattingToolbarView: View {
 
     private var inlineTextStyleSection: some View {
         ToolbarSection {
-            RibbonIconButton(symbol: "bold", help: "Bold", isSelected: editor.formattingState.isBold) {
+            RibbonIconButton(symbol: "bold", help: "Bold", isSelected: editor.formattingState.isBold, isToggle: true) {
                 editor.toggleBold()
             }
 
-            RibbonIconButton(symbol: "italic", help: "Italic", isSelected: editor.formattingState.isItalic) {
+            RibbonIconButton(symbol: "italic", help: "Italic", isSelected: editor.formattingState.isItalic, isToggle: true) {
                 editor.toggleItalic()
             }
 
-            RibbonIconButton(symbol: "underline", help: "Underline", isSelected: editor.formattingState.isUnderline) {
+            RibbonIconButton(symbol: "underline", help: "Underline", isSelected: editor.formattingState.isUnderline, isToggle: true) {
                 editor.toggleUnderline()
             }
 
             RibbonIconButton(
                 symbol: "strikethrough",
                 help: "Strikethrough",
-                isSelected: editor.formattingState.isStrikethrough
+                isSelected: editor.formattingState.isStrikethrough,
+                isToggle: true
             ) {
                 editor.toggleStrikethrough()
             }
@@ -190,6 +192,10 @@ struct EditorFormattingToolbarView: View {
                 hasHighlight: editor.formattingState.hasHighlight,
                 onApplyHighlight: editor.applyHighlight
             )
+
+            RibbonIconButton(symbol: "eraser", help: "Clear Formatting") {
+                clearFormatting()
+            }
         }
     }
 
@@ -199,9 +205,7 @@ struct EditorFormattingToolbarView: View {
             ToolbarDivider()
             listQuickFormattingSection
             ToolbarDivider()
-            textToolsMenu
-            paragraphToolsMenu
-            listToolsMenu
+            expandedToolsSection
         }
         .fixedSize(horizontal: true, vertical: false)
     }
@@ -210,9 +214,18 @@ struct EditorFormattingToolbarView: View {
         ToolbarPopoverButton(title: "More", symbol: "ellipsis.circle", help: "More Formatting", width: 286) { dismiss in
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    textToolsPopoverContent(dismiss: dismiss, includesCompactOnlyItems: true)
+                    textToolsPopoverContent(
+                        dismiss: dismiss,
+                        includesCompactOnlyItems: false,
+                        includesSizeAndClearTools: false
+                    )
                     Divider()
-                    paragraphToolsPopoverContent(dismiss: dismiss, includesAlignment: true, includesLineSpacing: true)
+                    paragraphToolsPopoverContent(
+                        dismiss: dismiss,
+                        includesAlignment: true,
+                        includesLineSpacing: true,
+                        includesAlignmentTools: true
+                    )
                     Divider()
                     listToolsPopoverContent(dismiss: dismiss, includesPrimaryListActions: true)
                 }
@@ -236,13 +249,36 @@ struct EditorFormattingToolbarView: View {
 
     private var textToolsMenu: some View {
         ToolbarPopoverButton(title: "Text", symbol: "textformat", help: "Text Formatting", width: 260) { dismiss in
-            textToolsPopoverContent(dismiss: dismiss, includesCompactOnlyItems: false)
+            textToolsPopoverContent(
+                dismiss: dismiss,
+                includesCompactOnlyItems: false,
+                includesSizeAndClearTools: false
+            )
+        }
+    }
+
+    private var expandedToolsSection: some View {
+        ToolbarSection {
+            textToolsMenu
+            paragraphToolsMenu
+            listToolsMenu
+        }
+    }
+
+    private var sizeToolsMenu: some View {
+        ToolbarPopoverButton(title: "Size", symbol: "textformat.size", help: "Text Size Tools", width: 190) { dismiss in
+            sizeToolsPopoverContent(dismiss: dismiss)
         }
     }
 
     private var paragraphToolsMenu: some View {
         ToolbarPopoverButton(title: "Paragraph", symbol: "text.alignleft", help: "Paragraph Formatting", width: 264) { dismiss in
-            paragraphToolsPopoverContent(dismiss: dismiss, includesAlignment: false, includesLineSpacing: false)
+            paragraphToolsPopoverContent(
+                dismiss: dismiss,
+                includesAlignment: false,
+                includesLineSpacing: false,
+                includesAlignmentTools: false
+            )
         }
     }
 
@@ -257,7 +293,8 @@ struct EditorFormattingToolbarView: View {
             RibbonIconButton(
                 symbol: "text.alignleft",
                 help: "Align Left",
-                isSelected: editor.formattingState.alignment == .left
+                isSelected: editor.formattingState.alignment == .left,
+                isToggle: true
             ) {
                 editor.setAlignment(.left)
             }
@@ -265,7 +302,8 @@ struct EditorFormattingToolbarView: View {
             RibbonIconButton(
                 symbol: "text.aligncenter",
                 help: "Center",
-                isSelected: editor.formattingState.alignment == .center
+                isSelected: editor.formattingState.alignment == .center,
+                isToggle: true
             ) {
                 editor.setAlignment(.center)
             }
@@ -273,9 +311,19 @@ struct EditorFormattingToolbarView: View {
             RibbonIconButton(
                 symbol: "text.alignright",
                 help: "Align Right",
-                isSelected: editor.formattingState.alignment == .right
+                isSelected: editor.formattingState.alignment == .right,
+                isToggle: true
             ) {
                 editor.setAlignment(.right)
+            }
+
+            RibbonIconButton(
+                symbol: "text.justify",
+                help: "Justify",
+                isSelected: editor.formattingState.alignment == .justified,
+                isToggle: true
+            ) {
+                editor.setAlignment(.justified)
             }
 
             ToolbarPopoverButton(title: "Line Spacing", symbol: "line.3.horizontal", help: "Line Spacing", width: 150) { dismiss in
@@ -295,7 +343,8 @@ struct EditorFormattingToolbarView: View {
             RibbonIconButton(
                 symbol: "list.bullet",
                 help: "Bulleted List",
-                isSelected: editor.formattingState.isBulletedList
+                isSelected: editor.formattingState.isBulletedList,
+                isToggle: true
             ) {
                 editor.togglePlainList()
             }
@@ -303,7 +352,8 @@ struct EditorFormattingToolbarView: View {
             RibbonIconButton(
                 symbol: "list.number",
                 help: "Numbered List",
-                isSelected: editor.formattingState.isNumberedList
+                isSelected: editor.formattingState.isNumberedList,
+                isToggle: true
             ) {
                 editor.toggleNumberedList()
             }
@@ -319,7 +369,11 @@ struct EditorFormattingToolbarView: View {
     }
 
     @ViewBuilder
-    private func textToolsPopoverContent(dismiss: @escaping () -> Void, includesCompactOnlyItems: Bool) -> some View {
+    private func textToolsPopoverContent(
+        dismiss: @escaping () -> Void,
+        includesCompactOnlyItems: Bool,
+        includesSizeAndClearTools: Bool
+    ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             ToolbarPopoverSection(title: "Baseline") {
                 ForEach(TextBaselineOption.allCases, id: \.rawValue) { option in
@@ -370,23 +424,33 @@ struct EditorFormattingToolbarView: View {
                 }
             }
 
-            Divider()
+            if includesSizeAndClearTools {
+                Divider()
 
-            ToolbarPopoverSection(title: "Size") {
-                popoverActionRow("Increase Size", symbol: "textformat.size.larger", dismiss: dismiss) {
-                    adjustSize(by: 1)
-                }
+                sizeToolsPopoverContent(dismiss: dismiss)
+                clearFormattingPopoverContent(dismiss: dismiss)
+            }
+        }
+    }
 
-                popoverActionRow("Decrease Size", symbol: "textformat.size.smaller", dismiss: dismiss) {
-                    adjustSize(by: -1)
-                }
+    @ViewBuilder
+    private func sizeToolsPopoverContent(dismiss: @escaping () -> Void) -> some View {
+        ToolbarPopoverSection(title: "Size") {
+            popoverActionRow("Increase Size", symbol: "textformat.size.larger", dismiss: dismiss) {
+                adjustSize(by: 1)
+            }
 
-                popoverActionRow("Clear Formatting", symbol: "eraser", dismiss: dismiss) {
-                    selectedFont = "System"
-                    setSelectedSize(11)
-                    textColor = .black
-                    editor.clearFormatting()
-                }
+            popoverActionRow("Decrease Size", symbol: "textformat.size.smaller", dismiss: dismiss) {
+                adjustSize(by: -1)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func clearFormattingPopoverContent(dismiss: @escaping () -> Void) -> some View {
+        ToolbarPopoverSection(title: "Formatting") {
+            popoverActionRow("Clear Formatting", symbol: "eraser", dismiss: dismiss) {
+                clearFormatting()
             }
         }
     }
@@ -395,7 +459,8 @@ struct EditorFormattingToolbarView: View {
     private func paragraphToolsPopoverContent(
         dismiss: @escaping () -> Void,
         includesAlignment: Bool,
-        includesLineSpacing: Bool
+        includesLineSpacing: Bool,
+        includesAlignmentTools: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             if includesLineSpacing {
@@ -434,46 +499,56 @@ struct EditorFormattingToolbarView: View {
                 }
             }
 
-            Divider()
+            if includesAlignmentTools {
+                Divider()
 
-            ToolbarPopoverSection(title: "Alignment") {
-                if includesAlignment {
-                    popoverActionRow(
-                        "Left",
-                        symbol: "text.alignleft",
-                        isSelected: editor.formattingState.alignment == .left,
-                        dismiss: dismiss
-                    ) {
-                        editor.setAlignment(.left)
-                    }
+                alignmentToolsPopoverContent(dismiss: dismiss, includesPrimaryAlignment: includesAlignment)
+            }
+        }
+    }
 
-                    popoverActionRow(
-                        "Center",
-                        symbol: "text.aligncenter",
-                        isSelected: editor.formattingState.alignment == .center,
-                        dismiss: dismiss
-                    ) {
-                        editor.setAlignment(.center)
-                    }
-
-                    popoverActionRow(
-                        "Right",
-                        symbol: "text.alignright",
-                        isSelected: editor.formattingState.alignment == .right,
-                        dismiss: dismiss
-                    ) {
-                        editor.setAlignment(.right)
-                    }
+    @ViewBuilder
+    private func alignmentToolsPopoverContent(
+        dismiss: @escaping () -> Void,
+        includesPrimaryAlignment: Bool
+    ) -> some View {
+        ToolbarPopoverSection(title: "Alignment") {
+            if includesPrimaryAlignment {
+                popoverActionRow(
+                    "Left",
+                    symbol: "text.alignleft",
+                    isSelected: editor.formattingState.alignment == .left,
+                    dismiss: dismiss
+                ) {
+                    editor.setAlignment(.left)
                 }
 
                 popoverActionRow(
-                    "Justify",
-                    symbol: "text.justify",
-                    isSelected: editor.formattingState.alignment == .justified,
+                    "Center",
+                    symbol: "text.aligncenter",
+                    isSelected: editor.formattingState.alignment == .center,
                     dismiss: dismiss
                 ) {
-                    editor.setAlignment(.justified)
+                    editor.setAlignment(.center)
                 }
+
+                popoverActionRow(
+                    "Right",
+                    symbol: "text.alignright",
+                    isSelected: editor.formattingState.alignment == .right,
+                    dismiss: dismiss
+                ) {
+                    editor.setAlignment(.right)
+                }
+            }
+
+            popoverActionRow(
+                "Justify",
+                symbol: "text.justify",
+                isSelected: editor.formattingState.alignment == .justified,
+                dismiss: dismiss
+            ) {
+                editor.setAlignment(.justified)
             }
         }
     }
@@ -548,7 +623,7 @@ struct EditorFormattingToolbarView: View {
             .chromeGlassControlBackground(
                 isActive: true,
                 fallbackColor: ChromeStyle.toolbarHoverFill.opacity(0.76),
-                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                in: RoundedRectangle(cornerRadius: ChromeStyle.toolbarPickerCornerRadius, style: .continuous)
             )
         }
     }
@@ -564,6 +639,13 @@ struct EditorFormattingToolbarView: View {
     private func adjustSize(by delta: Double) {
         let size = setSelectedSize(selectedSize + delta)
         editor.applyFont(name: selectedFont, size: size)
+    }
+
+    private func clearFormatting() {
+        selectedFont = "System"
+        setSelectedSize(11)
+        textColor = .black
+        editor.clearFormatting()
     }
 
     private func applyFontName(_ fontName: String) {
@@ -619,26 +701,6 @@ struct EditorFormattingToolbarView: View {
         size.rounded() == size ? "\(Int(size))" : String(format: "%.1f", size)
     }
 
-}
-
-private struct ToolbarBlurBackground: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        configure(view)
-        return view
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        configure(nsView)
-    }
-
-    private func configure(_ view: NSVisualEffectView) {
-        view.material = .hudWindow
-        view.blendingMode = .withinWindow
-        view.state = .active
-        view.isEmphasized = false
-        view.appearance = NSAppearance(named: .vibrantLight)
-    }
 }
 
 private enum InstalledFontProvider {

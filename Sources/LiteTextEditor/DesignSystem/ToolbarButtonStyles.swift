@@ -33,7 +33,7 @@ struct ToolbarIconButtonStyle: ButtonStyle {
     let isHovered: Bool
 
     func makeBody(configuration: Configuration) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 5, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: ChromeStyle.toolbarControlCornerRadius, style: .continuous)
 
         configuration.label
             .chromeGlassControlBackground(
@@ -100,6 +100,7 @@ struct RibbonIconButton: View {
     let symbol: String
     let help: String
     var isSelected = false
+    var isToggle = false
     let action: () -> Void
 
     @State private var isHovered = false
@@ -115,6 +116,7 @@ struct RibbonIconButton: View {
         .buttonStyle(ToolbarIconButtonStyle(isSelected: isSelected, isHovered: isHovered))
         .onHover { isHovered = $0 }
         .accessibilityLabel(help)
+        .accessibilitySelectedState(isToggle ? isSelected : nil)
         .help(help)
     }
 
@@ -139,7 +141,7 @@ struct StatusBarIconButton: View {
             Image(systemName: symbol)
                 .font(ChromeStyle.controlSymbolFont)
                 .foregroundStyle(isHovered ? ChromeStyle.controlTextColor : ChromeStyle.glassControlTextColor)
-                .frame(width: 18, height: 18)
+                .frame(width: 22, height: 20)
                 .contentShape(Rectangle())
         }
         .buttonStyle(ToolbarIconButtonStyle(isSelected: false, isHovered: isHovered))
@@ -160,7 +162,7 @@ struct ToolbarPopoverButton<Content: View>: View {
     @State private var isPresented = false
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 5, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: ChromeStyle.toolbarControlCornerRadius, style: .continuous)
 
         Button {
             isPresented.toggle()
@@ -256,7 +258,7 @@ struct ToolbarPopoverActionRow: View {
             .padding(.horizontal, 8)
             .frame(height: 28)
             .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                RoundedRectangle(cornerRadius: ChromeStyle.toolbarPopoverRowCornerRadius, style: .continuous)
                     .fill(isHovered || isSelected ? Color.accentColor.opacity(isSelected ? 0.16 : 0.10) : Color.clear)
             )
             .contentShape(Rectangle())
@@ -264,5 +266,23 @@ struct ToolbarPopoverActionRow: View {
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
         .accessibilityLabel(title)
+        .accessibilitySelectedState(isSelected ? true : nil)
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func accessibilitySelectedState(_ isSelected: Bool?) -> some View {
+        if let isSelected {
+            if isSelected {
+                self
+                    .accessibilityValue("On")
+                    .accessibilityAddTraits(.isSelected)
+            } else {
+                self.accessibilityValue("Off")
+            }
+        } else {
+            self
+        }
     }
 }

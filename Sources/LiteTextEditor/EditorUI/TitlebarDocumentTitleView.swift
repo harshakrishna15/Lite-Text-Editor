@@ -20,10 +20,10 @@ struct TitlebarDocumentTitleView: View {
         }
         .buttonStyle(.plain)
             .fixedSize(horizontal: true, vertical: false)
-            .frame(minHeight: 22, maxHeight: 22, alignment: .leading)
+            .frame(minHeight: TitlebarDocumentTitleLayout.height, maxHeight: TitlebarDocumentTitleLayout.height, alignment: .leading)
             .padding(.horizontal, 8)
             .background(titleBackground)
-            .contentShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: TitlebarDocumentTitleLayout.cornerRadius, style: .continuous))
             .onHover { isHovered = $0 }
             .onChange(of: editor.documentTitle) { title in
                 titleState.syncDocumentTitle(title, isEditing: isPopoverPresented)
@@ -70,9 +70,9 @@ struct TitlebarDocumentTitleView: View {
     private var titleBackground: some View {
         if isPopoverPresented || isHovered {
             Color.clear
-                .chromeGlassBackground(.titlebarControl, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                .chromeGlassBackground(.titlebarControl, in: RoundedRectangle(cornerRadius: TitlebarDocumentTitleLayout.cornerRadius, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    RoundedRectangle(cornerRadius: TitlebarDocumentTitleLayout.cornerRadius, style: .continuous)
                         .stroke(Color(nsColor: .separatorColor).opacity(isPopoverPresented ? 0.62 : 0.34), lineWidth: 1)
                 )
         }

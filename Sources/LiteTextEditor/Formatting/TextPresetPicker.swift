@@ -152,8 +152,8 @@ final class ToolbarPopUpButton: NSPopUpButton {
             : NSColor.separatorColor.withAlphaComponent(0.72)
         let path = NSBezierPath(
             roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5),
-            xRadius: 6,
-            yRadius: 6
+            xRadius: ChromeStyle.toolbarPickerCornerRadius,
+            yRadius: ChromeStyle.toolbarPickerCornerRadius
         )
         strokeColor.setStroke()
         path.lineWidth = isFocused ? 1.25 : 1

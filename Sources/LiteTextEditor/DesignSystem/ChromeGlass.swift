@@ -165,6 +165,26 @@ struct ChromeGlassContainer<Content: View>: View {
     }
 }
 
+struct ChromeBlurBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        configure(view)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        configure(nsView)
+    }
+
+    private func configure(_ view: NSVisualEffectView) {
+        view.material = .hudWindow
+        view.blendingMode = .withinWindow
+        view.state = .active
+        view.isEmphasized = false
+        view.appearance = ChromeStyle.appearance
+    }
+}
+
 extension View {
     func chromeGlassBackground<S: Shape>(
         _ surface: ChromeGlassSurface = .panel,

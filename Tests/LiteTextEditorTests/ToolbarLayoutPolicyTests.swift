@@ -2,6 +2,13 @@ import XCTest
 @testable import LiteTextEditor
 
 final class ToolbarLayoutPolicyTests: XCTestCase {
+    func testToolbarBreakpointsStayOrderedAndCompactControlsShrink() {
+        XCTAssertLessThan(ChromeStyle.toolbarCompactBreakpoint, ChromeStyle.toolbarModeInitialBreakpoint)
+        XCTAssertLessThan(ChromeStyle.toolbarModeInitialBreakpoint, ChromeStyle.toolbarRegularBreakpoint)
+        XCTAssertLessThanOrEqual(ChromeStyle.compactToolbarFontControlWidth, ChromeStyle.toolbarFontControlWidth)
+        XCTAssertLessThanOrEqual(ChromeStyle.compactToolbarStyleControlWidth, ChromeStyle.toolbarStyleControlWidth)
+    }
+
     func testInitialModeUsesMiddleBreakpoint() {
         XCTAssertFalse(
             ToolbarLayoutPolicy.shouldUseCompactToolbar(

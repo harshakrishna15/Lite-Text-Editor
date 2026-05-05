@@ -221,6 +221,87 @@ final class FormattingOptionsCommandTests: XCTestCase {
         XCTAssertTrue(fixture.controller.formattingState.isBulletedList)
     }
 
+    func testNumberedToolbarCommandUpdatesFormattingState() {
+        let fixture = makeFixture("First")
+        fixture.textView.setSelectedRange(NSRange(location: 0, length: fixture.textView.string.count))
+
+        fixture.controller.toggleNumberedList()
+        fixture.controller.refreshFormattingState()
+
+        XCTAssertTrue(fixture.controller.formattingState.isNumberedList)
+    }
+
+    func testToggleListStyleRemovesExistingMatchingMarkers() {
+        let fixture = makeFixture("• First\n• Second")
+        fixture.textView.setSelectedRange(NSRange(location: 0, length: fixture.textView.string.utf16.count))
+
+        fixture.controller.applyListStyle(.bullet)
+
+        XCTAssertEqual(fixture.textView.string, "First\nSecond")
+    }
+
+    func testReturnContinuesLetteredRomanDashAndChecklistLists() {
+        let cases: [(input: String, expected: String)] = [
+            ("A. First", "A. First\nB. "),
+            ("IV. First", "IV. First\nV. "),
+            ("- First", "- First\n- "),
+            ("☐ First", "☐ First\n☐ ")
+        ]
+
+        for testCase in cases {
+            let fixture = makeFixture(testCase.input)
+            let textView = fixture.textView
+            textView.setSelectedRange(NSRange(location: textView.string.utf16.count, length: 0))
+
+            textView.insertNewline(nil)
+
+            XCTAssertEqual(textView.string, testCase.expected)
+            XCTAssertEqual(textView.selectedRange(), NSRange(location: testCase.expected.utf16.count, length: 0))
+        }
+    }
+
+    func testInlineCommandsUpdateTypingAttributesAtInsertionPoint() {
+        let fixture = makeFixture("hello")
+        let controller = fixture.controller
+        let textView = fixture.textView
+        textView.setSelectedRange(NSRange(location: 0, length: 0))
+
+        controller.toggleBold()
+        controller.toggleItalic()
+        controller.toggleUnderline()
+        controller.applyTextColor(.red)
+        controller.setCharacterSpacing(.wider)
+        controller.setBaseline(.superscript)
+
+        let font = textView.typingAttributes[.font] as? NSFont
+        XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.bold) == true)
+        XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.italic) == true)
+        XCTAssertNotNil(textView.typingAttributes[.underlineStyle])
+        XCTAssertNotNil(textView.typingAttributes[.foregroundColor])
+        XCTAssertEqual(textView.typingAttributes[.kern] as? CGFloat, 1.0)
+        XCTAssertEqual(textView.typingAttributes[.superscript] as? Int, 1)
+    }
+
+    func testPresetAtInsertionPointFormatsOnlyCurrentParagraph() {
+        let fixture = makeFixture("First paragraph\nSecond paragraph")
+        let textView = fixture.textView
+        let secondParagraphStart = (textView.string as NSString).range(of: "Second").location
+        textView.setSelectedRange(NSRange(location: secondParagraphStart + 2, length: 0))
+
+        fixture.controller.applyPreset(.heading, fontName: "System")
+
+        let firstFont = attribute(.font, at: 0, in: textView) as? NSFont
+        let secondFont = attribute(.font, at: secondParagraphStart, in: textView) as? NSFont
+        XCTAssertEqual(firstFont?.pointSize, CGFloat(11))
+        XCTAssertEqual(secondFont?.pointSize, CGFloat(TextPreset.heading.size))
+        XCTAssertEqual(paragraphStyle(at: 0, in: textView).paragraphSpacingBefore, 0, accuracy: 0.001)
+        XCTAssertEqual(
+            paragraphStyle(at: secondParagraphStart, in: textView).paragraphSpacingBefore,
+            TextPreset.heading.paragraphSpacingBefore,
+            accuracy: 0.001
+        )
+    }
+
     func testClearFormattingRemovesInlineAndParagraphFormatting() {
         let fixture = makeFixture("hello")
         let controller = fixture.controller
@@ -276,6 +357,23 @@ final class FormattingOptionsCommandTests: XCTestCase {
 
         XCTAssertEqual(textView.string, "• First\n")
         XCTAssertEqual(textView.selectedRange(), NSRange(location: "• First\n".utf16.count, length: 0))
+    }
+
+    func testMultiParagraphAlignmentAppliesEachSelectedParagraph() {
+        let text = "First paragraph\nSecond paragraph\nThird paragraph"
+        let fixture = makeFixture(text)
+        let textView = fixture.textView
+        let secondParagraphStart = (text as NSString).range(of: "Second").location
+        textView.setSelectedRange(NSRange(location: 0, length: secondParagraphStart + 6))
+
+        fixture.controller.setAlignment(.right)
+
+        XCTAssertEqual(paragraphStyle(at: 0, in: textView).alignment, .right)
+        XCTAssertEqual(paragraphStyle(at: secondParagraphStart, in: textView).alignment, .right)
+        XCTAssertEqual(
+            paragraphStyle(at: (text as NSString).range(of: "Third").location, in: textView).alignment,
+            .left
+        )
     }
 
     private struct Fixture {

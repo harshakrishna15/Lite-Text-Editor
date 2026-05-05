@@ -100,7 +100,7 @@ private struct ToolbarPaletteButton<Content: View>: View {
     }
 
     private var iconColor: Color {
-        selectedIconColor ?? (isHovered ? ChromeStyle.controlTextColor : ChromeStyle.glassControlTextColor)
+        selectedIconColor ?? (isSelected ? Color.accentColor : (isHovered ? ChromeStyle.controlTextColor : ChromeStyle.glassControlTextColor))
     }
 }
 
@@ -246,6 +246,8 @@ private struct PaletteSwatchButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilitySelectedState(isSelected ? true : nil)
         .help(title)
     }
 }

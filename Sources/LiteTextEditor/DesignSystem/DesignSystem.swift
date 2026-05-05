@@ -12,11 +12,14 @@ enum ChromeStyle {
     static let controlSymbolFont = Font.system(size: controlFontSize, weight: .medium)
     static let largeSymbolFont = Font.system(size: 17, weight: .regular)
     static let toolbarControlHeight: CGFloat = 26
+    static let toolbarControlCornerRadius: CGFloat = 5
+    static let toolbarPopoverRowCornerRadius: CGFloat = 6
+    static let toolbarPickerCornerRadius: CGFloat = 6
     static let regularToolbarHeight: CGFloat = 40
     static let compactToolbarHeight: CGFloat = 40
-    static let toolbarCompactBreakpoint: CGFloat = 1_405
-    static let toolbarRegularBreakpoint: CGFloat = 1_455
-    static let toolbarModeInitialBreakpoint: CGFloat = 1_430
+    static let toolbarCompactBreakpoint: CGFloat = 1_545
+    static let toolbarRegularBreakpoint: CGFloat = 1_595
+    static let toolbarModeInitialBreakpoint: CGFloat = 1_570
     static let toolbarModeAnimation = Animation.interpolatingSpring(
         mass: 1.0,
         stiffness: 145,
