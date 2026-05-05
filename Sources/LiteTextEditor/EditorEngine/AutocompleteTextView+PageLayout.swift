@@ -1,6 +1,14 @@
 import AppKit
 
 extension AutocompleteTextView {
+    private static let pageShadow: NSShadow = {
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.14)
+        shadow.shadowOffset = NSSize(width: 0, height: -2)
+        shadow.shadowBlurRadius = 14
+        return shadow
+    }()
+
     static func visualContentY(forContentY contentY: CGFloat) -> CGFloat {
         guard contentY > 0 else { return contentY }
 
@@ -215,11 +223,7 @@ extension AutocompleteTextView {
             let path = NSBezierPath(roundedRect: pageRect, xRadius: 2, yRadius: 2)
 
             NSGraphicsContext.saveGraphicsState()
-            let shadow = NSShadow()
-            shadow.shadowColor = NSColor.black.withAlphaComponent(0.14)
-            shadow.shadowOffset = NSSize(width: 0, height: -2)
-            shadow.shadowBlurRadius = 14
-            shadow.set()
+            Self.pageShadow.set()
             NSColor.white.setFill()
             path.fill()
             NSGraphicsContext.restoreGraphicsState()

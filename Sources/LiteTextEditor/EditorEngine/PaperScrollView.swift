@@ -124,10 +124,13 @@ final class PaperScrollView: NSScrollView {
         prepareDocumentForFirstScrollIfNeeded()
         let originalX = contentView.bounds.origin.x
         super.scrollWheel(with: event)
+        let didDriftHorizontally = abs(contentView.bounds.origin.x - originalX) > 0.5
         restoreHorizontalOrigin(originalX)
 
-        DispatchQueue.main.async { [weak self] in
-            self?.restoreHorizontalOrigin(originalX)
+        if didDriftHorizontally {
+            DispatchQueue.main.async { [weak self] in
+                self?.restoreHorizontalOrigin(originalX)
+            }
         }
     }
 

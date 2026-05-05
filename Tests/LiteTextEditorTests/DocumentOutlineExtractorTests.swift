@@ -82,6 +82,27 @@ final class DocumentOutlineExtractorTests: XCTestCase {
         XCTAssertEqual(items.map(\.sectionNumber), ["1.1"])
     }
 
+    func testChildCountsStopAtSameLevelSiblingAndIncludeNestedChildren() {
+        let document = NSMutableAttributedString(string: """
+        First Section
+        First Child
+        Second Child
+        Second Section
+        Third Child
+        """)
+
+        apply(font: .systemFont(ofSize: TextPreset.heading.size, weight: TextPreset.heading.weight), to: "First Section", in: document)
+        apply(font: .systemFont(ofSize: TextPreset.subheading.size, weight: TextPreset.subheading.weight), to: "First Child", in: document)
+        apply(font: .systemFont(ofSize: TextPreset.subheading.size, weight: TextPreset.subheading.weight), to: "Second Child", in: document)
+        apply(font: .systemFont(ofSize: TextPreset.heading.size, weight: TextPreset.heading.weight), to: "Second Section", in: document)
+        apply(font: .systemFont(ofSize: TextPreset.subheading.size, weight: TextPreset.subheading.weight), to: "Third Child", in: document)
+
+        let items = DocumentOutlineExtractor().makeOutlineItems(from: document)
+
+        XCTAssertEqual(items.map(\.title), ["First Section", "First Child", "Second Child", "Second Section", "Third Child"])
+        XCTAssertEqual(items.map(\.childCount), [2, 0, 0, 1, 0])
+    }
+
     private func apply(font: NSFont, to substring: String, in document: NSMutableAttributedString) {
         let range = (document.string as NSString).range(of: substring)
         XCTAssertNotEqual(range.location, NSNotFound, "Missing substring: \(substring)")

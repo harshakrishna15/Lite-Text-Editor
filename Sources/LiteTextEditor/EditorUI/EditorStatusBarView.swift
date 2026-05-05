@@ -9,14 +9,16 @@ struct EditorStatusBarView: View {
     @State private var isZoomPopoverPresented = false
 
     var body: some View {
+        let activeStructureText = editor.activeStructureText
+
         ChromeGlassContainer(spacing: 8) {
             HStack(spacing: 12) {
                 documentCountMenu
 
-                if !editor.activeStructureText.isEmpty {
+                if !activeStructureText.isEmpty {
                     StatusBarDivider()
 
-                    Text(editor.activeStructureText)
+                    Text(activeStructureText)
                         .font(ChromeStyle.smallTextFont)
                         .foregroundStyle(ChromeStyle.secondaryTextColor)
                         .lineLimit(1)

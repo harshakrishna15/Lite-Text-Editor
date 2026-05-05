@@ -107,13 +107,13 @@ struct DocumentTextStatistics: Equatable {
         let words = countSubstrings(in: text, by: .byWords)
         let sentences = countSubstrings(in: text, by: .bySentences)
         let lineCounts = lineAndParagraphCounts(in: text)
-        let charactersNoSpaces = countNonWhitespaceCharacters(in: text)
+        let characterCounts = characterCounts(in: text)
         let readingMinutes = words == 0 ? 0 : max(1, Int(ceil(Double(words) / 225.0)))
 
         return DocumentTextStatistics(
             words: words,
-            characters: text.count,
-            charactersNoSpaces: charactersNoSpaces,
+            characters: characterCounts.total,
+            charactersNoSpaces: characterCounts.nonWhitespace,
             sentences: sentences,
             paragraphs: lineCounts.paragraphs,
             lines: lineCounts.lines,
@@ -165,10 +165,18 @@ struct DocumentTextStatistics: Equatable {
         return (lines: lines, paragraphs: paragraphs)
     }
 
-    private static func countNonWhitespaceCharacters(in text: String) -> Int {
-        text.reduce(0) { count, character in
-            character.isDocumentWhitespace ? count : count + 1
+    private static func characterCounts(in text: String) -> (total: Int, nonWhitespace: Int) {
+        var total = 0
+        var nonWhitespace = 0
+
+        for character in text {
+            total += 1
+            if !character.isDocumentWhitespace {
+                nonWhitespace += 1
+            }
         }
+
+        return (total, nonWhitespace)
     }
 }
 

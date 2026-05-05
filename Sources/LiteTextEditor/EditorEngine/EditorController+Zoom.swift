@@ -27,7 +27,10 @@ extension EditorController {
 
     func setZoomMagnification(_ magnification: Double) {
         let clampedMagnification = min(max(magnification, minimumZoomMagnification), maximumZoomMagnification)
-        selectedZoomPreset = matchingPreset(for: CGFloat(clampedMagnification)) ?? .actualSize
+        let nextPreset = matchingPreset(for: CGFloat(clampedMagnification)) ?? .actualSize
+        if selectedZoomPreset != nextPreset {
+            selectedZoomPreset = nextPreset
+        }
         applyZoom(CGFloat(clampedMagnification))
     }
 
@@ -109,6 +112,7 @@ extension EditorController {
         updateZoomDisplayText(for: clampedMagnification)
 
         guard let scrollView, let textView else { return }
+        let shouldRefreshTextLayout = abs(textView.documentLayoutScale - clampedMagnification) > 0.001
 
         if abs(scrollView.magnification - 1) > 0.001 {
             scrollView.magnification = 1
@@ -117,7 +121,7 @@ extension EditorController {
         textView.resizeForCachedPages(at: clampedMagnification)
         keepPageCentered()
 
-        if shouldResizePages {
+        if shouldResizePages && shouldRefreshTextLayout {
             textView.refreshLayoutAfterZoomChange()
         }
     }

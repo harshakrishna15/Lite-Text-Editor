@@ -128,26 +128,18 @@ struct RichTextEditor: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSScrollView, context: Context) {
         guard let textView = nsView.documentView as? AutocompleteTextView else { return }
-        textView.maxSuggestionWords = maxSuggestionWords
-        textView.suggestionProvider = controller.suggestionProvider
-        textView.isAutomaticSpellingCorrectionEnabled = isAutomaticTextReplacementEnabled
-        textView.isAutomaticTextReplacementEnabled = isAutomaticTextReplacementEnabled
-        textView.onDocumentMetricsChanged = { [weak controller] in
-            controller?.markDocumentEdited()
-            controller?.scheduleDocumentStatisticsRefresh()
+        if textView.maxSuggestionWords != maxSuggestionWords {
+            textView.maxSuggestionWords = maxSuggestionWords
         }
-        textView.onAcceptSpellingCorrection = { [weak controller] in
-            controller?.applyCurrentSpellingCorrection()
+
+        if textView.isAutomaticSpellingCorrectionEnabled != isAutomaticTextReplacementEnabled {
+            textView.isAutomaticSpellingCorrectionEnabled = isAutomaticTextReplacementEnabled
         }
-        textView.onCloseSpellingCorrection = { [weak controller] in
-            controller?.closeSpellingReview()
+
+        if textView.isAutomaticTextReplacementEnabled != isAutomaticTextReplacementEnabled {
+            textView.isAutomaticTextReplacementEnabled = isAutomaticTextReplacementEnabled
         }
-        textView.onMoveSpellingCorrectionSelection = { [weak controller] delta in
-            controller?.moveSpellingSuggestionSelection(by: delta)
-        }
-        textView.onFormattingSampleLocationChanged = { [weak controller] in
-            controller?.scheduleFormattingStateRefresh()
-        }
+
         if controller.textView !== textView {
             controller.textView = textView
         }
@@ -156,13 +148,33 @@ struct RichTextEditor: NSViewRepresentable {
             controller.scrollView = nsView
         }
 
-        textView.usesRuler = false
-        textView.isRulerVisible = false
-        nsView.hasHorizontalRuler = false
-        nsView.hasVerticalRuler = false
-        nsView.rulersVisible = false
-        nsView.horizontalRulerView = nil
-        nsView.verticalRulerView = nil
+        if textView.usesRuler {
+            textView.usesRuler = false
+        }
+
+        if textView.isRulerVisible {
+            textView.isRulerVisible = false
+        }
+
+        if nsView.hasHorizontalRuler {
+            nsView.hasHorizontalRuler = false
+        }
+
+        if nsView.hasVerticalRuler {
+            nsView.hasVerticalRuler = false
+        }
+
+        if nsView.rulersVisible {
+            nsView.rulersVisible = false
+        }
+
+        if nsView.horizontalRulerView != nil {
+            nsView.horizontalRulerView = nil
+        }
+
+        if nsView.verticalRulerView != nil {
+            nsView.verticalRulerView = nil
+        }
     }
 
     func makeCoordinator() -> Coordinator {

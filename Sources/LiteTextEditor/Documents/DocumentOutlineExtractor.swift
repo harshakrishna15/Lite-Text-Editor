@@ -24,19 +24,15 @@ struct DocumentOutlineExtractor {
 
         var items: [DocumentOutlineItem] = []
         var sectionCounters: [Int] = []
+        let boundaries = candidateBoundaries(for: candidates, stringLength: string.length)
 
         for (index, candidate) in candidates.enumerated() {
             let sectionNumber = nextSectionNumber(for: candidate.level, counters: &sectionCounters)
-            let sectionEnd = candidates[(index + 1)...].first { nextCandidate in
-                nextCandidate.level <= candidate.level
-            }?.location ?? string.length
+            let boundary = boundaries[index]
+            let sectionEnd = boundary.sectionEndLocation
             let sectionLength = max(0, sectionEnd - candidate.location)
             let sectionBodyRange = bodyRange(for: candidate, sectionEnd: sectionEnd, stringLength: string.length)
             let sectionMetrics = metrics(in: sectionBodyRange, string: string)
-            let childCount = candidates[(index + 1)...].prefix { nextCandidate in
-                nextCandidate.level > candidate.level
-            }
-            .count
 
             items.append(
                 DocumentOutlineItem(
@@ -51,7 +47,7 @@ struct DocumentOutlineExtractor {
                     wordCount: sectionMetrics.wordCount,
                     characterCount: sectionMetrics.characterCount,
                     paragraphCount: sectionMetrics.paragraphCount,
-                    childCount: childCount
+                    childCount: boundary.childCount
                 )
             )
         }
@@ -94,6 +90,44 @@ struct DocumentOutlineExtractor {
         }
 
         return candidates
+    }
+
+    private func candidateBoundaries(
+        for candidates: [DocumentOutlineCandidate],
+        stringLength: Int
+    ) -> [DocumentOutlineCandidateBoundary] {
+        guard !candidates.isEmpty else { return [] }
+
+        var boundaries = Array(
+            repeating: DocumentOutlineCandidateBoundary(sectionEndLocation: stringLength, childCount: 0),
+            count: candidates.count
+        )
+        var boundaryStack: [Int] = []
+
+        for index in candidates.indices.reversed() {
+            let candidate = candidates[index]
+
+            while let boundaryIndex = boundaryStack.last,
+                  candidates[boundaryIndex].level > candidate.level {
+                boundaryStack.removeLast()
+            }
+
+            if let boundaryIndex = boundaryStack.last {
+                boundaries[index] = DocumentOutlineCandidateBoundary(
+                    sectionEndLocation: candidates[boundaryIndex].location,
+                    childCount: boundaryIndex - index - 1
+                )
+            } else {
+                boundaries[index] = DocumentOutlineCandidateBoundary(
+                    sectionEndLocation: stringLength,
+                    childCount: candidates.count - index - 1
+                )
+            }
+
+            boundaryStack.append(index)
+        }
+
+        return boundaries
     }
 
     private func nextSectionNumber(for level: Int, counters: inout [Int]) -> String {
@@ -257,6 +291,11 @@ private struct DocumentOutlineCandidate {
     let level: Int
     let location: Int
     let headingLength: Int
+}
+
+private struct DocumentOutlineCandidateBoundary {
+    let sectionEndLocation: Int
+    let childCount: Int
 }
 
 private struct DocumentOutlineSectionMetrics {

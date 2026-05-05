@@ -81,6 +81,17 @@ final class ZoomControllerTests: XCTestCase {
         XCTAssertGreaterThan(fixture.textView.zoomLayoutRefreshCount, refreshCountAfterCommittedZoom)
     }
 
+    func testRepeatingSameZoomSkipsTextLayoutRefresh() {
+        let fixture = makeControllerFixture()
+
+        fixture.controller.setZoomMagnification(1.25)
+        let refreshCountAfterFirstZoom = fixture.textView.zoomLayoutRefreshCount
+
+        fixture.controller.setZoomMagnification(1.25)
+
+        XCTAssertEqual(fixture.textView.zoomLayoutRefreshCount, refreshCountAfterFirstZoom)
+    }
+
     func testFitPageLayoutRefreshDoesNotForceTextLayoutRefresh() {
         let fixture = makeControllerFixture()
 
