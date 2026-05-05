@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-enum AutosaveStore {
+enum LastDocumentStore {
     private static let lastDocumentURLKey = "LiteTextEditor.lastDocumentURL"
 
     static var lastDocumentURL: URL? {
@@ -22,35 +22,119 @@ enum AutosaveStore {
     }
 }
 
-enum AutosaveSettingsStore {
-    private static let isEnabledKey = "LiteTextEditor.autosaveEnabled"
+enum WritingSettingsStore {
+    private static let isContinuousSpellCheckingEnabledKey = "LiteTextEditor.continuousSpellCheckingEnabled"
+    private static let isGrammarCheckingEnabledKey = "LiteTextEditor.grammarCheckingEnabled"
+    private static let isAutomaticReplacementEnabledKey = "LiteTextEditor.automaticTextReplacementEnabled"
+    private static let isAutomaticQuoteSubstitutionEnabledKey = "LiteTextEditor.automaticQuoteSubstitutionEnabled"
+    private static let isAutomaticDashSubstitutionEnabledKey = "LiteTextEditor.automaticDashSubstitutionEnabled"
 
-    static func loadIsEnabled() -> Bool {
-        guard UserDefaults.standard.object(forKey: isEnabledKey) != nil else {
-            return true
-        }
-
-        return UserDefaults.standard.bool(forKey: isEnabledKey)
+    static func loadIsContinuousSpellCheckingEnabled(userDefaults: UserDefaults = .standard) -> Bool {
+        loadBool(forKey: isContinuousSpellCheckingEnabledKey, defaultValue: true, userDefaults: userDefaults)
     }
 
-    static func saveIsEnabled(_ isEnabled: Bool) {
-        UserDefaults.standard.set(isEnabled, forKey: isEnabledKey)
+    static func saveIsContinuousSpellCheckingEnabled(_ isEnabled: Bool, userDefaults: UserDefaults = .standard) {
+        userDefaults.set(isEnabled, forKey: isContinuousSpellCheckingEnabledKey)
+    }
+
+    static func loadIsGrammarCheckingEnabled(userDefaults: UserDefaults = .standard) -> Bool {
+        loadBool(forKey: isGrammarCheckingEnabledKey, defaultValue: true, userDefaults: userDefaults)
+    }
+
+    static func saveIsGrammarCheckingEnabled(_ isEnabled: Bool, userDefaults: UserDefaults = .standard) {
+        userDefaults.set(isEnabled, forKey: isGrammarCheckingEnabledKey)
+    }
+
+    static func loadIsAutomaticReplacementEnabled(userDefaults: UserDefaults = .standard) -> Bool {
+        loadBool(forKey: isAutomaticReplacementEnabledKey, defaultValue: false, userDefaults: userDefaults)
+    }
+
+    static func saveIsAutomaticReplacementEnabled(_ isEnabled: Bool, userDefaults: UserDefaults = .standard) {
+        userDefaults.set(isEnabled, forKey: isAutomaticReplacementEnabledKey)
+    }
+
+    static func loadIsAutomaticQuoteSubstitutionEnabled(userDefaults: UserDefaults = .standard) -> Bool {
+        loadBool(forKey: isAutomaticQuoteSubstitutionEnabledKey, defaultValue: true, userDefaults: userDefaults)
+    }
+
+    static func saveIsAutomaticQuoteSubstitutionEnabled(_ isEnabled: Bool, userDefaults: UserDefaults = .standard) {
+        userDefaults.set(isEnabled, forKey: isAutomaticQuoteSubstitutionEnabledKey)
+    }
+
+    static func loadIsAutomaticDashSubstitutionEnabled(userDefaults: UserDefaults = .standard) -> Bool {
+        loadBool(forKey: isAutomaticDashSubstitutionEnabledKey, defaultValue: true, userDefaults: userDefaults)
+    }
+
+    static func saveIsAutomaticDashSubstitutionEnabled(_ isEnabled: Bool, userDefaults: UserDefaults = .standard) {
+        userDefaults.set(isEnabled, forKey: isAutomaticDashSubstitutionEnabledKey)
+    }
+
+    private static func loadBool(forKey key: String, defaultValue: Bool, userDefaults: UserDefaults) -> Bool {
+        guard userDefaults.object(forKey: key) != nil else { return defaultValue }
+        return userDefaults.bool(forKey: key)
     }
 }
 
 enum TextCorrectionSettingsStore {
-    private static let isAutomaticReplacementEnabledKey = "LiteTextEditor.automaticTextReplacementEnabled"
-
     static func loadIsAutomaticReplacementEnabled() -> Bool {
-        guard UserDefaults.standard.object(forKey: isAutomaticReplacementEnabledKey) != nil else {
-            return false
-        }
-
-        return UserDefaults.standard.bool(forKey: isAutomaticReplacementEnabledKey)
+        WritingSettingsStore.loadIsAutomaticReplacementEnabled()
     }
 
     static func saveIsAutomaticReplacementEnabled(_ isEnabled: Bool) {
-        UserDefaults.standard.set(isEnabled, forKey: isAutomaticReplacementEnabledKey)
+        WritingSettingsStore.saveIsAutomaticReplacementEnabled(isEnabled)
+    }
+}
+
+enum AutocompleteSettingsStore {
+    static let minimumSuggestionWords = 2
+    static let maximumSuggestionWords = 5
+    static let defaultSuggestionWords = 4
+
+    private static let isInlineSuggestionsEnabledKey = "LiteTextEditor.inlineSuggestionsEnabled"
+    private static let maxSuggestionWordsKey = "LiteTextEditor.maxSuggestionWords"
+
+    static func loadIsInlineSuggestionsEnabled(userDefaults: UserDefaults = .standard) -> Bool {
+        guard userDefaults.object(forKey: isInlineSuggestionsEnabledKey) != nil else {
+            return true
+        }
+
+        return userDefaults.bool(forKey: isInlineSuggestionsEnabledKey)
+    }
+
+    static func saveIsInlineSuggestionsEnabled(_ isEnabled: Bool, userDefaults: UserDefaults = .standard) {
+        userDefaults.set(isEnabled, forKey: isInlineSuggestionsEnabledKey)
+    }
+
+    static func loadMaxSuggestionWords(userDefaults: UserDefaults = .standard) -> Int {
+        guard userDefaults.object(forKey: maxSuggestionWordsKey) != nil else {
+            return defaultSuggestionWords
+        }
+
+        return normalizedSuggestionWordCount(userDefaults.integer(forKey: maxSuggestionWordsKey))
+    }
+
+    static func saveMaxSuggestionWords(_ wordCount: Int, userDefaults: UserDefaults = .standard) {
+        userDefaults.set(normalizedSuggestionWordCount(wordCount), forKey: maxSuggestionWordsKey)
+    }
+
+    static func normalizedSuggestionWordCount(_ wordCount: Int) -> Int {
+        min(max(wordCount, minimumSuggestionWords), maximumSuggestionWords)
+    }
+}
+
+enum StartupSettingsStore {
+    private static let shouldReopenLastDocumentKey = "LiteTextEditor.reopenLastDocument"
+
+    static func loadShouldReopenLastDocument(userDefaults: UserDefaults = .standard) -> Bool {
+        guard userDefaults.object(forKey: shouldReopenLastDocumentKey) != nil else {
+            return true
+        }
+
+        return userDefaults.bool(forKey: shouldReopenLastDocumentKey)
+    }
+
+    static func saveShouldReopenLastDocument(_ isEnabled: Bool, userDefaults: UserDefaults = .standard) {
+        userDefaults.set(isEnabled, forKey: shouldReopenLastDocumentKey)
     }
 }
 

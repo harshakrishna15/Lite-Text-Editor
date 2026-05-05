@@ -15,6 +15,8 @@ enum ChromeStyle {
     static let toolbarControlCornerRadius: CGFloat = 5
     static let toolbarPopoverRowCornerRadius: CGFloat = 6
     static let toolbarPickerCornerRadius: CGFloat = 6
+    static let toolbarPickerChevronWidth: CGFloat = 16
+    static let toolbarPickerChevronTrailingPadding: CGFloat = 8
     static let toolbarPanelHeight: CGFloat = 40
     static let toolbarFloatingTopPadding: CGFloat = 8
     static let toolbarFloatingBottomPadding: CGFloat = 6

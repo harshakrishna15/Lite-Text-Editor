@@ -54,25 +54,6 @@ final class SuggestionProviderTests: XCTestCase {
         XCTAssertNil(PhraseSuggestionEngine().suggestion(for: request))
     }
 
-    func testDocumentMemoryIgnoresCursorMarkerAndTrailingContext() {
-        let request = SuggestionRequest(
-            documentText: "",
-            cursorLocation: 0,
-            prefixContext: "alpha beta",
-            suffixContext: " cursor should not leak",
-            currentParagraph: "alpha beta cursor should not leak",
-            documentContext: """
-            alpha beta gamma delta
-            alpha beta
-            [CURSOR]
-            cursor should not leak
-            """,
-            maxWords: 4
-        )
-
-        XCTAssertEqual(PhraseSuggestionEngine().suggestion(for: request), "gamma delta")
-    }
-
     func testLocalAIProviderBuildsModelPromptWithoutReturningWhenUnloaded() {
         let request = makeRequest(prefix: "The next point is")
         let provider = LocalAISuggestionProvider()
@@ -82,6 +63,7 @@ final class SuggestionProviderTests: XCTestCase {
 
         let prompt = provider.prompt(for: request)
         XCTAssertTrue(prompt.contains("Return only the next 2 to 4 words."))
+        XCTAssertTrue(prompt.contains("Do not repeat the text immediately before the cursor."))
         XCTAssertTrue(prompt.contains("Text immediately before cursor:"))
         XCTAssertTrue(prompt.contains("The next point is"))
     }
@@ -117,6 +99,17 @@ final class SuggestionProviderTests: XCTestCase {
         XCTAssertNil(suggestion)
     }
 
+    func testLocalAIProviderFiltersPrefixOnlyEcho() async throws {
+        let request = makeRequest(prefix: "The current draft")
+        let generator = StubLocalModelTextGenerator(rawCompletion: "The current draft")
+        let provider = LocalAISuggestionProvider(generator: generator)
+
+        try await provider.load()
+
+        let suggestion = (provider as SuggestionProviding).suggestion(for: request)
+        XCTAssertNil(suggestion)
+    }
+
     func testEditorControllerAcceptsInjectedSuggestionProvider() {
         let request = makeRequest(prefix: "Custom providers")
         let controller = EditorController(
@@ -124,6 +117,25 @@ final class SuggestionProviderTests: XCTestCase {
         )
 
         XCTAssertEqual(controller.suggestionProvider.suggestion(for: request), "stay isolated")
+    }
+
+    func testEditorControllerUsesOnlyLocalAIByDefault() {
+        let controller = EditorController()
+        guard let pipeline = controller.suggestionProvider as? SuggestionPipeline else {
+            XCTFail("Expected default suggestion provider to be a pipeline")
+            return
+        }
+
+        XCTAssertEqual(pipeline.providers.count, 1)
+        XCTAssertTrue(pipeline.providers[0] is LocalAISuggestionProvider)
+    }
+
+    func testDefaultPipelineReturnsNilWhenLocalAIIsUnloaded() {
+        let request = makeRequest(prefix: "This is on the")
+        let provider = LocalAISuggestionProvider(generator: UnavailableLocalModelTextGenerator())
+        let pipeline = SuggestionPipeline(providers: [provider])
+
+        XCTAssertNil(pipeline.suggestion(for: request))
     }
 
     private func makeRequest(prefix: String) -> SuggestionRequest {

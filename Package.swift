@@ -13,7 +13,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "LiteTextEditor",
-            path: "Sources/LiteTextEditor"
+            path: "Sources/LiteTextEditor",
+            resources: [
+                .process("Resources")
+            ]
         ),
         .testTarget(
             name: "LiteTextEditorTests",

@@ -9,9 +9,11 @@ enum SuggestionLabelLayout {
     static func frame(
         anchorPoint: NSPoint,
         fittingSize: NSSize,
-        visibleRect: NSRect
+        visibleRect: NSRect,
+        maximumWidth: CGFloat? = nil
     ) -> NSRect {
-        let availableWidth = max(0, visibleRect.width - (edgePadding * 2))
+        let visibleWidth = max(0, visibleRect.width - (edgePadding * 2))
+        let availableWidth = maximumWidth.map { min(visibleWidth, max(0, $0)) } ?? visibleWidth
         let width = min(fittingSize.width + horizontalPadding, availableWidth)
         let height = fittingSize.height
         let minX = visibleRect.minX + edgePadding
@@ -35,7 +37,17 @@ extension AutocompleteTextView {
         let refreshKey = suggestionRefreshKey()
         lastSuggestionRefreshKey = refreshKey
 
+        guard isInlineSuggestionEnabled else {
+            clearSuggestion()
+            return
+        }
+
         guard selectedRange().length == 0 else {
+            clearSuggestion()
+            return
+        }
+
+        guard canShowPredictionAtInsertionPoint() else {
             clearSuggestion()
             return
         }
@@ -43,6 +55,7 @@ extension AutocompleteTextView {
         let request = makeSuggestionRequest()
         let provider = suggestionProvider
         clearSuggestion()
+        publishPredictionState(.predicting)
 
         pendingSuggestionTask = Task { [weak self] in
             let suggestion = await provider.asyncSuggestion(for: request)
@@ -99,13 +112,22 @@ extension AutocompleteTextView {
         suggestionLabel.isBordered = false
         suggestionLabel.textColor = .tertiaryLabelColor
         suggestionLabel.font = .systemFont(ofSize: 11)
-        suggestionLabel.cell?.lineBreakMode = .byTruncatingTail
-        suggestionLabel.cell?.usesSingleLineMode = true
+        suggestionLabel.lineBreakMode = .byWordWrapping
+        suggestionLabel.maximumNumberOfLines = 3
+        suggestionLabel.cell?.lineBreakMode = .byWordWrapping
+        suggestionLabel.cell?.wraps = true
+        suggestionLabel.cell?.isScrollable = false
+        suggestionLabel.cell?.usesSingleLineMode = false
         suggestionLabel.wantsLayer = true
         addSubview(suggestionLabel)
     }
 
     func scheduleSuggestionRefresh() {
+        guard isInlineSuggestionEnabled else {
+            clearSuggestion()
+            return
+        }
+
         let scheduledKey = suggestionRefreshKey()
         guard scheduledKey != lastSuggestionRefreshKey else { return }
 
@@ -131,6 +153,7 @@ extension AutocompleteTextView {
     func clearSuggestion() {
         pendingSuggestionTask?.cancel()
         pendingSuggestionTask = nil
+        publishPredictionState(.idle)
 
         guard currentSuggestion != nil || !suggestionLabel.isHidden || !suggestionLabel.stringValue.isEmpty else {
             return
@@ -149,11 +172,17 @@ extension AutocompleteTextView {
             selectionLength: selection.length,
             stringLength: textStorageLength,
             contentGeneration: contentGeneration,
-            maxSuggestionWords: maxSuggestionWords
+            maxSuggestionWords: maxSuggestionWords,
+            isInlineSuggestionEnabled: isInlineSuggestionEnabled
         )
     }
 
     private func showSuggestion(_ suggestion: String) {
+        guard canShowPredictionAtInsertionPoint() else {
+            clearSuggestion()
+            return
+        }
+
         let previousSuggestion = currentSuggestion
         let previousFont = suggestionLabel.font
         let nextFont = typingAttributes[.font] as? NSFont
@@ -168,11 +197,29 @@ extension AutocompleteTextView {
         }
 
         if previousSuggestion != suggestion || previousFont != suggestionLabel.font {
-            suggestionLabel.sizeToFit()
+            suggestionLabel.invalidateIntrinsicContentSize()
         }
 
         suggestionLabel.isHidden = false
         positionSuggestionLabel()
+        publishPredictionState(.available(for: suggestion))
+    }
+
+    private func publishPredictionState(_ state: PredictionState) {
+        onPredictionStateChanged?(state)
+    }
+
+    private func canShowPredictionAtInsertionPoint() -> Bool {
+        let selection = selectedRange()
+        guard selection.length == 0 else { return false }
+
+        let nsString = string as NSString
+        guard selection.location < nsString.length else { return true }
+
+        let suffix = nsString.substring(from: selection.location)
+        return suffix.unicodeScalars.allSatisfy {
+            CharacterSet.whitespacesAndNewlines.contains($0)
+        }
     }
 
     private func contextBeforeInsertionPoint() -> String {
@@ -205,12 +252,24 @@ extension AutocompleteTextView {
         let screenRect = firstRect(forCharacterRange: insertionRange, actualRange: nil)
         let windowPoint = window.convertPoint(fromScreen: screenRect.origin)
         let localPoint = convert(windowPoint, from: nil)
+        let maximumWidth = maximumSuggestionLabelWidth(from: localPoint)
+
+        suggestionLabel.preferredMaxLayoutWidth = max(
+            1,
+            maximumWidth - SuggestionLabelLayout.horizontalPadding
+        )
         let labelSize = suggestionLabel.fittingSize
 
         suggestionLabel.frame = SuggestionLabelLayout.frame(
             anchorPoint: localPoint,
             fittingSize: labelSize,
-            visibleRect: visibleRect
+            visibleRect: visibleRect,
+            maximumWidth: maximumWidth
         )
+    }
+
+    private func maximumSuggestionLabelWidth(from anchorPoint: NSPoint) -> CGFloat {
+        let textRightEdge = textContainerOrigin.x + (textContainer?.containerSize.width ?? Self.pageTextWidth)
+        return max(0, textRightEdge - anchorPoint.x - SuggestionLabelLayout.leadingOffset)
     }
 }

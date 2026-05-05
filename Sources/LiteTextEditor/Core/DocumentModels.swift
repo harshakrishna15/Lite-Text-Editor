@@ -216,6 +216,32 @@ struct SpellCorrectionState: Equatable {
     }
 }
 
+enum PredictionState: Equatable {
+    case idle
+    case predicting
+    case available(wordCount: Int)
+
+    static func available(for suggestion: String) -> PredictionState {
+        let wordCount = suggestion
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .count
+        return .available(wordCount: wordCount)
+    }
+
+    var statusText: String? {
+        switch self {
+        case .idle:
+            return nil
+        case .predicting:
+            return "Predicting..."
+        case .available(let wordCount):
+            let clampedWordCount = max(1, wordCount)
+            return "Prediction: \(clampedWordCount) \(clampedWordCount == 1 ? "word" : "words")"
+        }
+    }
+}
+
 struct DocumentStructureMetadata: Equatable {
     let title: String?
     let titleCount: Int

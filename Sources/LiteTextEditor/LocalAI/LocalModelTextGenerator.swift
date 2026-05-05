@@ -1,9 +1,89 @@
 import Foundation
 
+typealias LocalModelDownloadProgressHandler = (LocalModelDownloadProgress) -> Void
+
+struct LocalModelDownloadProgress: Equatable {
+    let bytesDownloaded: Int64
+    let totalBytes: Int64?
+    let estimatedSecondsRemaining: TimeInterval?
+
+    var fractionCompleted: Double? {
+        guard let totalBytes, totalBytes > 0 else { return nil }
+        return min(max(Double(bytesDownloaded) / Double(totalBytes), 0), 1)
+    }
+
+    var percentageText: String? {
+        guard let fractionCompleted else { return nil }
+        return "\(Int((fractionCompleted * 100).rounded()))%"
+    }
+
+    var statusText: String {
+        if let percentageText {
+            if let estimatedTimeText {
+                return "Downloading... \(percentageText) - \(estimatedTimeText)"
+            }
+
+            return "Downloading... \(percentageText) - estimating time"
+        }
+
+        return "Downloading... \(downloadedBytesText)"
+    }
+
+    private var estimatedTimeText: String? {
+        guard let estimatedSecondsRemaining else { return nil }
+        guard estimatedSecondsRemaining > 0 else { return "finishing" }
+
+        let seconds = max(1, Int(estimatedSecondsRemaining.rounded(.up)))
+
+        if seconds < 60 {
+            return "about \(seconds)s left"
+        }
+
+        let minutes = Int((Double(seconds) / 60).rounded(.up))
+        if minutes < 60 {
+            return "about \(minutes)m left"
+        }
+
+        let hours = minutes / 60
+        let remainingMinutes = minutes % 60
+        if remainingMinutes == 0 {
+            return "about \(hours)h left"
+        }
+
+        return "about \(hours)h \(remainingMinutes)m left"
+    }
+
+    private var downloadedBytesText: String {
+        ByteCountFormatter.string(fromByteCount: bytesDownloaded, countStyle: .file)
+    }
+}
+
 protocol LocalModelTextGenerating: AnyObject {
+    var modelName: String { get }
     var isLoaded: Bool { get }
     func load() async throws
+    func isDownloaded() async throws -> Bool
+    func download(progressHandler: LocalModelDownloadProgressHandler?) async throws
+    func uninstall() async throws
     func completion(for prompt: String) -> String?
+}
+
+extension LocalModelTextGenerating {
+    var modelName: String { "Local Model" }
+
+    func download() async throws {
+        try await download(progressHandler: nil)
+    }
+
+    func download(progressHandler: LocalModelDownloadProgressHandler?) async throws {
+        try await load()
+    }
+
+    func isDownloaded() async throws -> Bool {
+        isLoaded
+    }
+
+    func uninstall() async throws {}
 }
 
 final class UnavailableLocalModelTextGenerator: LocalModelTextGenerating {
@@ -32,6 +112,8 @@ struct LocalModelSuggestionPostProcessor {
             .prefix(request.maxWords)
             .joined(separator: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !repeatsRecentPrefix(clipped, request: request) else { return nil }
 
         return clipped.isEmpty ? nil : clipped
     }
@@ -73,9 +155,9 @@ struct LocalModelSuggestionPostProcessor {
         let completionWords = completion
             .components(separatedBy: .whitespacesAndNewlines)
             .filter { !$0.isEmpty }
-        guard completionWords.count > prefixWords.count else { return completion }
+        guard !completionWords.isEmpty else { return completion }
 
-        for triggerLength in stride(from: min(prefixWords.count, completionWords.count - 1), through: 1, by: -1) {
+        for triggerLength in stride(from: min(prefixWords.count, completionWords.count), through: 1, by: -1) {
             let prefixTail = prefixWords.suffix(triggerLength).map(normalizedWord)
             let completionHead = completionWords.prefix(triggerLength).map(normalizedWord)
 
@@ -85,6 +167,27 @@ struct LocalModelSuggestionPostProcessor {
         }
 
         return completion
+    }
+
+    private func repeatsRecentPrefix(_ suggestion: String, request: SuggestionRequest) -> Bool {
+        let prefixWords = request.prefixContext
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .map(normalizedWord)
+        let suggestionWords = suggestion
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .map(normalizedWord)
+        let maximumLength = min(prefixWords.count, suggestionWords.count)
+        guard maximumLength >= 2 else { return false }
+
+        for length in stride(from: maximumLength, through: 2, by: -1) {
+            if Array(prefixWords.suffix(length)) == Array(suggestionWords.prefix(length)) {
+                return true
+            }
+        }
+
+        return false
     }
 
     private func normalizedWord(_ word: String) -> String {

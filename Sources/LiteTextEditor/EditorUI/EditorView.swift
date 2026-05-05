@@ -9,8 +9,8 @@ struct EditorView: View {
     @State private var selectedStyle = TextPreset.body
     @State private var textColor = Color.black
     @State private var customTextColors = TextColorPaletteStore.load()
-    @State private var suggestionWords = 4.0
-    @State private var suggestionWordsText = "4"
+    @State private var suggestionWords: Double
+    @State private var suggestionWordsText: String
     @State private var isSettingsPresented = false
     @State private var selectedCountMetric = DocumentCountMetric.words
     @State private var isOutlineVisible = false
@@ -19,7 +19,10 @@ struct EditorView: View {
     private let suggestionWordOptions = ["2", "3", "4", "5"]
 
     init(editor: EditorController = EditorController()) {
+        let initialSuggestionWords = AutocompleteSettingsStore.loadMaxSuggestionWords()
         _editor = StateObject(wrappedValue: editor)
+        _suggestionWords = State(initialValue: Double(initialSuggestionWords))
+        _suggestionWordsText = State(initialValue: "\(initialSuggestionWords)")
     }
 
     var body: some View {
@@ -28,7 +31,12 @@ struct EditorView: View {
                 RichTextEditor(
                     controller: editor,
                     maxSuggestionWords: Int(suggestionWords),
-                    isAutomaticTextReplacementEnabled: editor.isAutomaticTextReplacementEnabled
+                    isInlineSuggestionsEnabled: editor.isInlineSuggestionsEnabled,
+                    isContinuousSpellCheckingEnabled: editor.isContinuousSpellCheckingEnabled,
+                    isGrammarCheckingEnabled: editor.isGrammarCheckingEnabled,
+                    isAutomaticTextReplacementEnabled: editor.isAutomaticTextReplacementEnabled,
+                    isAutomaticQuoteSubstitutionEnabled: editor.isAutomaticQuoteSubstitutionEnabled,
+                    isAutomaticDashSubstitutionEnabled: editor.isAutomaticDashSubstitutionEnabled
                 )
                 .clipped()
                 .background(Color(nsColor: .liteTextEditorDesk))
@@ -118,18 +126,46 @@ struct EditorView: View {
         }
         .sheet(isPresented: $isSettingsPresented) {
             LiteTextEditorSettingsView(
-                isAutosaveEnabled: Binding(
-                    get: { editor.isAutosaveEnabled },
-                    set: { editor.setAutosaveEnabled($0) }
+                isContinuousSpellCheckingEnabled: Binding(
+                    get: { editor.isContinuousSpellCheckingEnabled },
+                    set: { editor.setContinuousSpellCheckingEnabled($0) }
+                ),
+                isGrammarCheckingEnabled: Binding(
+                    get: { editor.isGrammarCheckingEnabled },
+                    set: { editor.setGrammarCheckingEnabled($0) }
                 ),
                 isAutomaticTextReplacementEnabled: Binding(
                     get: { editor.isAutomaticTextReplacementEnabled },
                     set: { editor.setAutomaticTextReplacementEnabled($0) }
                 ),
+                isAutomaticQuoteSubstitutionEnabled: Binding(
+                    get: { editor.isAutomaticQuoteSubstitutionEnabled },
+                    set: { editor.setAutomaticQuoteSubstitutionEnabled($0) }
+                ),
+                isAutomaticDashSubstitutionEnabled: Binding(
+                    get: { editor.isAutomaticDashSubstitutionEnabled },
+                    set: { editor.setAutomaticDashSubstitutionEnabled($0) }
+                ),
+                isInlineSuggestionsEnabled: Binding(
+                    get: { editor.isInlineSuggestionsEnabled },
+                    set: { editor.setInlineSuggestionsEnabled($0) }
+                ),
+                shouldReopenLastDocument: Binding(
+                    get: { editor.shouldReopenLastDocument },
+                    set: { editor.setShouldReopenLastDocument($0) }
+                ),
                 suggestionWordsText: $suggestionWordsText,
+                localModelState: editor.localModelState,
                 suggestionWordOptions: suggestionWordOptions,
+                onRefreshLocalModelState: editor.refreshLocalModelState,
+                onDownloadLocalModel: editor.downloadLocalModel,
+                onCancelLocalModelDownload: editor.cancelLocalModelDownload,
+                onUninstallLocalModel: editor.uninstallLocalModel,
                 onSuggestionWordsCommit: applySuggestionWordsText
             )
+        }
+        .onAppear {
+            editor.refreshLocalModelState()
         }
     }
 
@@ -154,9 +190,10 @@ struct EditorView: View {
             return
         }
 
-        let clampedValue = min(max(Int(rawValue.rounded()), 2), 5)
+        let clampedValue = AutocompleteSettingsStore.normalizedSuggestionWordCount(Int(rawValue.rounded()))
         suggestionWords = Double(clampedValue)
         suggestionWordsText = "\(clampedValue)"
+        AutocompleteSettingsStore.saveMaxSuggestionWords(clampedValue)
     }
 
     private func syncFormattingControls(with formattingState: FormattingState) {

@@ -29,7 +29,7 @@ struct EditorStatusBarView: View {
 
                 Spacer()
 
-                autosaveStatusText
+                predictionStatusText
 
                 zoomControls
             }
@@ -40,15 +40,21 @@ struct EditorStatusBarView: View {
     }
 
     @ViewBuilder
-    private var autosaveStatusText: some View {
-        if let statusText = visibleAutosaveStatusText {
-            Text(statusText)
-                .font(ChromeStyle.smallTextFont)
-                .foregroundStyle(autosaveTint)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(maxWidth: 110, alignment: .trailing)
-                .help(statusText)
+    private var predictionStatusText: some View {
+        if let statusText = editor.predictionState.statusText {
+            HStack(spacing: 4) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(predictionTint)
+
+                Text(statusText)
+                    .font(ChromeStyle.smallTextFont)
+                    .foregroundStyle(predictionTint)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .frame(maxWidth: 130, alignment: .trailing)
+            .help(statusText)
 
             StatusBarDivider()
         }
@@ -220,21 +226,10 @@ struct EditorStatusBarView: View {
         .help("Zoom Slider")
     }
 
-    private var visibleAutosaveStatusText: String? {
-        switch editor.autosaveStatus {
-        case .saving:
-            return "Saving..."
-        case .failed:
-            return "Autosave failed"
-        default:
-            return nil
-        }
-    }
-
-    private var autosaveTint: Color {
-        switch editor.autosaveStatus {
-        case .failed:
-            return Color.red
+    private var predictionTint: Color {
+        switch editor.predictionState {
+        case .predicting:
+            return Color.accentColor
         default:
             return ChromeStyle.secondaryTextColor
         }

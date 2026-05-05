@@ -2,64 +2,141 @@ import SwiftUI
 
 struct LiteTextEditorSettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @Binding var isAutosaveEnabled: Bool
+    @Binding var isContinuousSpellCheckingEnabled: Bool
+    @Binding var isGrammarCheckingEnabled: Bool
     @Binding var isAutomaticTextReplacementEnabled: Bool
+    @Binding var isAutomaticQuoteSubstitutionEnabled: Bool
+    @Binding var isAutomaticDashSubstitutionEnabled: Bool
+    @Binding var isInlineSuggestionsEnabled: Bool
+    @Binding var shouldReopenLastDocument: Bool
     @Binding var suggestionWordsText: String
 
+    let localModelState: LocalModelState
     let suggestionWordOptions: [String]
+    let onRefreshLocalModelState: () -> Void
+    let onDownloadLocalModel: () -> Void
+    let onCancelLocalModelDownload: () -> Void
+    let onUninstallLocalModel: () -> Void
     let onSuggestionWordsCommit: (String) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        let isAutocompleteEnabled = localModelState.isLoaded
+        let areSuggestionControlsEnabled = isAutocompleteEnabled && isInlineSuggestionsEnabled
+
+        VStack(alignment: .leading, spacing: 26) {
             Text("Settings")
                 .font(.headline)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Documents")
-                    .font(ChromeStyle.controlTextFont)
-                    .foregroundStyle(ChromeStyle.controlTextColor)
-
-                Toggle("Autosave saved documents", isOn: $isAutosaveEnabled)
-                    .font(ChromeStyle.controlTextFont)
-                    .toggleStyle(.checkbox)
-                    .help("Autosave runs only after a document has been opened or saved somewhere.")
-
-                Text("Unsaved documents still require manual Save or Save As.")
-                    .font(ChromeStyle.smallTextFont)
-                    .foregroundStyle(ChromeStyle.secondaryTextColor)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
                 Text("Writing")
                     .font(ChromeStyle.controlTextFont)
                     .foregroundStyle(ChromeStyle.controlTextColor)
 
-                Toggle("Automatically replace misspellings", isOn: $isAutomaticTextReplacementEnabled)
-                    .font(ChromeStyle.controlTextFont)
-                    .toggleStyle(.checkbox)
-                    .help("Automatically replace misspelled words while typing.")
+                settingsToggle(
+                    "Check spelling while typing",
+                    isOn: $isContinuousSpellCheckingEnabled,
+                    help: "Check Spelling While Typing"
+                )
 
-                Text("Spellcheck and spelling review stay available when automatic replacement is off.")
-                    .font(ChromeStyle.smallTextFont)
-                    .foregroundStyle(ChromeStyle.secondaryTextColor)
-                    .fixedSize(horizontal: false, vertical: true)
+                settingsToggle(
+                    "Automatically replace misspellings",
+                    isOn: $isAutomaticTextReplacementEnabled,
+                    help: "Automatically Replace Misspellings"
+                )
+
+                settingsToggle(
+                    "Check grammar",
+                    isOn: $isGrammarCheckingEnabled,
+                    help: "Check Grammar"
+                )
+
+                settingsToggle(
+                    "Use smart quotes",
+                    isOn: $isAutomaticQuoteSubstitutionEnabled,
+                    help: "Use Smart Quotes"
+                )
+
+                settingsToggle(
+                    "Use smart dashes",
+                    isOn: $isAutomaticDashSubstitutionEnabled,
+                    help: "Use Smart Dashes"
+                )
             }
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 14) {
                 Text("Autocomplete")
                     .font(ChromeStyle.controlTextFont)
                     .foregroundStyle(ChromeStyle.controlTextColor)
 
-                HStack(spacing: 10) {
-                    Text("Words per suggestion")
+                HStack(alignment: .top, spacing: 14) {
+                    Text("Model")
                         .font(ChromeStyle.controlTextFont)
                         .foregroundStyle(ChromeStyle.controlTextColor)
-                        .frame(width: 160, alignment: .leading)
+                        .frame(width: 178, alignment: .leading)
+                        .padding(.top, 2)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(localModelState.modelName)
+                            .font(ChromeStyle.controlTextFont)
+                            .foregroundStyle(ChromeStyle.controlTextColor)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+
+                        Text(localModelState.statusText)
+                            .font(ChromeStyle.smallTextFont)
+                            .foregroundStyle(localModelState.isLoaded ? ChromeStyle.secondaryTextColor : .secondary)
+                            .lineLimit(1)
+
+                        if localModelState.isDownloading {
+                            if let fractionCompleted = localModelState.downloadProgress?.fractionCompleted {
+                                ProgressView(value: fractionCompleted, total: 1)
+                                    .frame(maxWidth: 220)
+                            } else {
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    HStack(spacing: 10) {
+                        Button(localModelState.primaryActionTitle) {
+                            if localModelState.isDownloading {
+                                onCancelLocalModelDownload()
+                            } else if localModelState.isLoaded {
+                                onRefreshLocalModelState()
+                            } else {
+                                onDownloadLocalModel()
+                            }
+                        }
+                        .disabled(localModelState.isBusy && !localModelState.isDownloading)
+                        .help(localModelState.primaryActionTitle)
+
+                        if localModelState.canUninstall {
+                            Button("Uninstall") {
+                                onUninstallLocalModel()
+                            }
+                            .disabled(localModelState.isBusy)
+                            .help("Uninstall Model")
+                        }
+                    }
+                }
+
+                settingsToggle(
+                    "Show inline suggestions",
+                    isOn: $isInlineSuggestionsEnabled,
+                    help: "Show Inline Suggestions"
+                )
+                .disabled(!isAutocompleteEnabled)
+                .opacity(isAutocompleteEnabled ? 1 : 0.45)
+
+                HStack(spacing: 14) {
+                    Text("Words per suggestion")
+                        .font(ChromeStyle.controlTextFont)
+                        .foregroundStyle(areSuggestionControlsEnabled ? ChromeStyle.controlTextColor : ChromeStyle.secondaryTextColor)
+                        .frame(width: 178, alignment: .leading)
 
                     EditableComboBox(
                         text: $suggestionWordsText,
@@ -68,17 +145,29 @@ struct LiteTextEditorSettingsView: View {
                         onCommit: onSuggestionWordsCommit
                     )
                     .frame(width: 92, height: ChromeStyle.toolbarControlHeight)
+                    .disabled(!areSuggestionControlsEnabled)
                     .help("Words per Suggestion")
 
                     Text("words")
                         .font(ChromeStyle.smallTextFont)
                         .foregroundStyle(ChromeStyle.secondaryTextColor)
                 }
+                .opacity(areSuggestionControlsEnabled ? 1 : 0.45)
 
-                Text("Choose a value from 2 to 5. Typed values are rounded and clamped into that range.")
-                    .font(ChromeStyle.smallTextFont)
-                    .foregroundStyle(ChromeStyle.secondaryTextColor)
-                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Startup")
+                    .font(ChromeStyle.controlTextFont)
+                    .foregroundStyle(ChromeStyle.controlTextColor)
+
+                settingsToggle(
+                    "Reopen last document on launch",
+                    isOn: $shouldReopenLastDocument,
+                    help: "Reopen Last Document on Launch"
+                )
             }
 
             HStack {
@@ -93,7 +182,15 @@ struct LiteTextEditorSettingsView: View {
                 .help("Done")
             }
         }
-        .padding(20)
-        .frame(width: 440)
+        .padding(30)
+        .frame(width: 680)
+        .onAppear(perform: onRefreshLocalModelState)
+    }
+
+    private func settingsToggle(_ title: String, isOn: Binding<Bool>, help: String) -> some View {
+        Toggle(title, isOn: isOn)
+            .font(ChromeStyle.controlTextFont)
+            .toggleStyle(.checkbox)
+            .help(help)
     }
 }

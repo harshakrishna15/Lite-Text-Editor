@@ -4,7 +4,12 @@ import SwiftUI
 struct RichTextEditor: NSViewRepresentable {
     let controller: EditorController
     let maxSuggestionWords: Int
+    let isInlineSuggestionsEnabled: Bool
+    let isContinuousSpellCheckingEnabled: Bool
+    let isGrammarCheckingEnabled: Bool
     let isAutomaticTextReplacementEnabled: Bool
+    let isAutomaticQuoteSubstitutionEnabled: Bool
+    let isAutomaticDashSubstitutionEnabled: Bool
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = PaperScrollView()
@@ -79,13 +84,14 @@ struct RichTextEditor: NSViewRepresentable {
         textView.usesFindPanel = true
         textView.usesRuler = false
         textView.isRulerVisible = false
-        textView.isContinuousSpellCheckingEnabled = true
+        textView.isContinuousSpellCheckingEnabled = isContinuousSpellCheckingEnabled
         textView.isAutomaticSpellingCorrectionEnabled = isAutomaticTextReplacementEnabled
-        textView.isGrammarCheckingEnabled = true
-        textView.isAutomaticQuoteSubstitutionEnabled = true
-        textView.isAutomaticDashSubstitutionEnabled = true
+        textView.isGrammarCheckingEnabled = isGrammarCheckingEnabled
+        textView.isAutomaticQuoteSubstitutionEnabled = isAutomaticQuoteSubstitutionEnabled
+        textView.isAutomaticDashSubstitutionEnabled = isAutomaticDashSubstitutionEnabled
         textView.isAutomaticTextReplacementEnabled = isAutomaticTextReplacementEnabled
         textView.maxSuggestionWords = maxSuggestionWords
+        textView.isInlineSuggestionEnabled = isInlineSuggestionsEnabled
         textView.suggestionProvider = controller.suggestionProvider
         textView.delegate = context.coordinator
         textView.onDocumentMetricsChanged = { [weak controller] in
@@ -100,6 +106,9 @@ struct RichTextEditor: NSViewRepresentable {
         }
         textView.onMoveSpellingCorrectionSelection = { [weak controller] delta in
             controller?.moveSpellingSuggestionSelection(by: delta)
+        }
+        textView.onPredictionStateChanged = { [weak controller] state in
+            controller?.updatePredictionState(state)
         }
         textView.onFormattingSampleLocationChanged = { [weak controller] in
             controller?.scheduleFormattingStateRefresh()
@@ -136,6 +145,21 @@ struct RichTextEditor: NSViewRepresentable {
         guard let textView = nsView.documentView as? AutocompleteTextView else { return }
         if textView.maxSuggestionWords != maxSuggestionWords {
             textView.maxSuggestionWords = maxSuggestionWords
+            if textView.isInlineSuggestionEnabled {
+                textView.refreshSuggestion()
+            }
+        }
+
+        if textView.isInlineSuggestionEnabled != isInlineSuggestionsEnabled {
+            textView.isInlineSuggestionEnabled = isInlineSuggestionsEnabled
+        }
+
+        if textView.isContinuousSpellCheckingEnabled != isContinuousSpellCheckingEnabled {
+            textView.isContinuousSpellCheckingEnabled = isContinuousSpellCheckingEnabled
+        }
+
+        if textView.isGrammarCheckingEnabled != isGrammarCheckingEnabled {
+            textView.isGrammarCheckingEnabled = isGrammarCheckingEnabled
         }
 
         if textView.isAutomaticSpellingCorrectionEnabled != isAutomaticTextReplacementEnabled {
@@ -144,6 +168,14 @@ struct RichTextEditor: NSViewRepresentable {
 
         if textView.isAutomaticTextReplacementEnabled != isAutomaticTextReplacementEnabled {
             textView.isAutomaticTextReplacementEnabled = isAutomaticTextReplacementEnabled
+        }
+
+        if textView.isAutomaticQuoteSubstitutionEnabled != isAutomaticQuoteSubstitutionEnabled {
+            textView.isAutomaticQuoteSubstitutionEnabled = isAutomaticQuoteSubstitutionEnabled
+        }
+
+        if textView.isAutomaticDashSubstitutionEnabled != isAutomaticDashSubstitutionEnabled {
+            textView.isAutomaticDashSubstitutionEnabled = isAutomaticDashSubstitutionEnabled
         }
 
         if controller.textView !== textView {
@@ -209,7 +241,6 @@ struct RichTextEditor: NSViewRepresentable {
             center.addObserver(self, selector: #selector(printDocument), name: .liteTextEditorPrintDocument, object: nil)
             center.addObserver(self, selector: #selector(performFindPanelAction), name: .liteTextEditorFindPanelAction, object: nil)
             center.addObserver(self, selector: #selector(confirmQuit), name: .liteTextEditorConfirmQuit, object: nil)
-            center.addObserver(self, selector: #selector(flushAutosave), name: .liteTextEditorFlushAutosave, object: nil)
         }
 
         @objc private func newDocument() {
@@ -257,10 +288,6 @@ struct RichTextEditor: NSViewRepresentable {
         @objc private func confirmQuit(_ notification: Notification) {
             guard let response = notification.object as? QuitConfirmationResponse else { return }
             response.reply = controller?.confirmQuit() ?? .terminateNow
-        }
-
-        @objc private func flushAutosave() {
-            controller?.flushAutosave()
         }
 
         func registerFormattingCommands() {

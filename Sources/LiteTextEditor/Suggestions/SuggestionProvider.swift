@@ -102,10 +102,6 @@ struct PhraseSuggestionEngine: SuggestionProviding {
             return clipped(phrase.completion, maxWords: request.maxWords)
         }
 
-        if let documentSuggestion = suggestionFromDocumentMemory(for: request) {
-            return documentSuggestion
-        }
-
         guard let lastWord = normalized.split(separator: " ").last.map(String.init),
               let candidates = nextWordMap[lastWord],
               let candidate = candidates.first else {
@@ -115,44 +111,6 @@ struct PhraseSuggestionEngine: SuggestionProviding {
         return clipped(candidate, maxWords: request.maxWords)
     }
 
-    private func suggestionFromDocumentMemory(for request: SuggestionRequest) -> String? {
-        let prefixWords = words(in: request.prefixContext)
-        let documentMemoryContext = request.documentContext
-            .components(separatedBy: "[CURSOR]")
-            .first
-            ?? request.documentContext
-        let documentWords = trimmingCurrentTrigger(
-            from: words(in: documentMemoryContext),
-            prefixWords: prefixWords
-        )
-
-        guard prefixWords.count >= 2, documentWords.count >= 4 else {
-            return nil
-        }
-
-        for triggerLength in stride(from: min(4, prefixWords.count), through: 2, by: -1) {
-            let trigger = Array(prefixWords.suffix(triggerLength))
-            let maxStart = documentWords.count - triggerLength - 2
-
-            guard maxStart >= 0 else { continue }
-
-            for index in 0...maxStart {
-                let candidateTrigger = Array(documentWords[index..<(index + triggerLength)])
-                guard candidateTrigger == trigger else { continue }
-
-                let suggestionStart = index + triggerLength
-                let suggestionEnd = min(suggestionStart + request.maxWords, documentWords.count)
-                let candidate = Array(documentWords[suggestionStart..<suggestionEnd]).joined(separator: " ")
-
-                if let clipped = clipped(candidate, maxWords: request.maxWords) {
-                    return clipped
-                }
-            }
-        }
-
-        return nil
-    }
-
     private func normalize(_ text: String) -> String {
         text
             .lowercased()
@@ -160,26 +118,6 @@ struct PhraseSuggestionEngine: SuggestionProviding {
             .split(separator: " ")
             .joined(separator: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private func words(in text: String) -> [String] {
-        normalize(text)
-            .components(separatedBy: CharacterSet.alphanumerics.inverted)
-            .filter { !$0.isEmpty }
-    }
-
-    private func trimmingCurrentTrigger(from documentWords: [String], prefixWords: [String]) -> [String] {
-        let triggerLength = min(4, prefixWords.count)
-        guard triggerLength > 0, documentWords.count >= triggerLength else {
-            return documentWords
-        }
-
-        let currentTrigger = Array(prefixWords.suffix(triggerLength))
-        guard Array(documentWords.suffix(triggerLength)) == currentTrigger else {
-            return documentWords
-        }
-
-        return Array(documentWords.dropLast(triggerLength))
     }
 
     private func clipped(_ suggestion: String, maxWords: Int) -> String? {

@@ -26,6 +26,7 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
 
         app.delegate = delegate
         app.appearance = ChromeStyle.appearance
+        delegate.configureApplicationIcon(for: app)
         app.setActivationPolicy(.regular)
         delegate.appDelegateRetainer = delegate
         delegate.configureMainMenu()
@@ -85,6 +86,15 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    private func configureApplicationIcon(for app: NSApplication) {
+        guard let iconURL = Bundle.module.url(forResource: "AppIcon", withExtension: "icns"),
+              let iconImage = NSImage(contentsOf: iconURL) else {
+            return
+        }
+
+        app.applicationIconImage = iconImage
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -608,7 +618,6 @@ extension Notification.Name {
     static let liteTextEditorSaveDocument = Notification.Name("liteTextEditorSaveDocument")
     static let liteTextEditorSaveDocumentAs = Notification.Name("liteTextEditorSaveDocumentAs")
     static let liteTextEditorConfirmQuit = Notification.Name("liteTextEditorConfirmQuit")
-    static let liteTextEditorFlushAutosave = Notification.Name("liteTextEditorFlushAutosave")
     static let liteTextEditorExportPDF = Notification.Name("liteTextEditorExportPDF")
     static let liteTextEditorPrintDocument = Notification.Name("liteTextEditorPrintDocument")
     static let liteTextEditorFindPanelAction = Notification.Name("liteTextEditorFindPanelAction")

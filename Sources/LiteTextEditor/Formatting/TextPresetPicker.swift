@@ -17,6 +17,9 @@ struct TextPresetPicker: NSViewRepresentable {
         button.font = NSFont.systemFont(ofSize: NSFont.systemFontSize(for: .regular))
         button.autoenablesItems = false
         button.focusRingType = .none
+        button.cell?.alignment = .left
+        button.cell?.lineBreakMode = .byTruncatingTail
+        (button.cell as? NSPopUpButtonCell)?.arrowPosition = .noArrow
         button.previewFontName = fontName
         updateItems(for: button)
         select(selection, in: button)
@@ -27,6 +30,9 @@ struct TextPresetPicker: NSViewRepresentable {
         context.coordinator.parent = self
         button.isBordered = false
         button.focusRingType = .none
+        button.cell?.alignment = .left
+        button.cell?.lineBreakMode = .byTruncatingTail
+        (button.cell as? NSPopUpButtonCell)?.arrowPosition = .noArrow
 
         if button.itemValues != TextPreset.allCases.map(\.rawValue)
             || button.previewFontName != fontName {
@@ -83,13 +89,6 @@ struct TextPresetPicker: NSViewRepresentable {
 final class ToolbarPopUpButton: NSPopUpButton {
     var itemValues: [String] = []
     var previewFontName = "System"
-    private var hoverTrackingArea: NSTrackingArea?
-    private var isHovered = false {
-        didSet {
-            guard oldValue != isHovered else { return }
-            needsDisplay = true
-        }
-    }
 
     convenience init() {
         self.init(frame: .zero, pullsDown: false)
@@ -97,66 +96,5 @@ final class ToolbarPopUpButton: NSPopUpButton {
 
     override var intrinsicContentSize: NSSize {
         NSSize(width: NSView.noIntrinsicMetric, height: ChromeStyle.toolbarControlHeight)
-    }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-
-        if let hoverTrackingArea {
-            removeTrackingArea(hoverTrackingArea)
-        }
-
-        let trackingArea = NSTrackingArea(
-            rect: .zero,
-            options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
-            owner: self,
-            userInfo: nil
-        )
-        addTrackingArea(trackingArea)
-        hoverTrackingArea = trackingArea
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        isHovered = true
-        super.mouseEntered(with: event)
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        isHovered = false
-        super.mouseExited(with: event)
-    }
-
-    override func becomeFirstResponder() -> Bool {
-        let didBecomeFirstResponder = super.becomeFirstResponder()
-        needsDisplay = true
-        return didBecomeFirstResponder
-    }
-
-    override func resignFirstResponder() -> Bool {
-        let didResignFirstResponder = super.resignFirstResponder()
-        needsDisplay = true
-        return didResignFirstResponder
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-        drawInteractionRing()
-    }
-
-    private func drawInteractionRing() {
-        guard isHovered || isHighlighted || window?.firstResponder === self else { return }
-
-        let isFocused = isHighlighted || window?.firstResponder === self
-        let strokeColor = isFocused
-            ? NSColor.controlAccentColor.withAlphaComponent(0.7)
-            : NSColor.separatorColor.withAlphaComponent(0.72)
-        let path = NSBezierPath(
-            roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5),
-            xRadius: ChromeStyle.toolbarPickerCornerRadius,
-            yRadius: ChromeStyle.toolbarPickerCornerRadius
-        )
-        strokeColor.setStroke()
-        path.lineWidth = isFocused ? 1.25 : 1
-        path.stroke()
     }
 }

@@ -114,20 +114,20 @@ final class DocumentTitleTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(TitlebarDocumentTitleLayout.minimumWidth, 120)
     }
 
-    func testAutosaveStoreCanClearLastDocumentURL() {
-        let previousURL = AutosaveStore.lastDocumentURL
+    func testLastDocumentStoreCanClearLastDocumentURL() {
+        let previousURL = LastDocumentStore.lastDocumentURL
         defer {
             if let previousURL {
-                AutosaveStore.saveLastDocumentURL(previousURL)
+                LastDocumentStore.saveLastDocumentURL(previousURL)
             } else {
-                AutosaveStore.clearLastDocumentURL()
+                LastDocumentStore.clearLastDocumentURL()
             }
         }
         let url = URL(fileURLWithPath: "/tmp/LiteTextEditorLastDocument.rtf")
-        AutosaveStore.saveLastDocumentURL(url)
+        LastDocumentStore.saveLastDocumentURL(url)
 
-        AutosaveStore.clearLastDocumentURL()
+        LastDocumentStore.clearLastDocumentURL()
 
-        XCTAssertNil(AutosaveStore.lastDocumentURL)
+        XCTAssertNil(LastDocumentStore.lastDocumentURL)
     }
 }

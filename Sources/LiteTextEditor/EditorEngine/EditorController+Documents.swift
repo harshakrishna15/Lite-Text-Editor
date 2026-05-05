@@ -15,37 +15,23 @@ extension EditorController {
             textView?.window?.isDocumentEdited = true
         }
 
-        let decision = autosavePolicy.editedDocumentDecision(for: currentAutosaveState)
-        setDocumentStatus(decision.statusText)
-
-        if decision.shouldScheduleAutosave {
-            scheduleAutosave()
-        } else {
-            updateAutosaveStatusForCurrentState()
-        }
+        setDocumentStatus(currentDocumentURL == nil ? "Unsaved changes" : "Edited")
     }
 
-    func setAutosaveEnabled(_ isEnabled: Bool) {
-        guard isAutosaveEnabled != isEnabled else { return }
+    func setContinuousSpellCheckingEnabled(_ isEnabled: Bool) {
+        guard isContinuousSpellCheckingEnabled != isEnabled else { return }
 
-        isAutosaveEnabled = isEnabled
-        AutosaveSettingsStore.saveIsEnabled(isEnabled)
+        isContinuousSpellCheckingEnabled = isEnabled
+        WritingSettingsStore.saveIsContinuousSpellCheckingEnabled(isEnabled)
+        textView?.isContinuousSpellCheckingEnabled = isEnabled
+    }
 
-        let decision = autosavePolicy.toggledAutosaveDecision(for: currentAutosaveState)
+    func setGrammarCheckingEnabled(_ isEnabled: Bool) {
+        guard isGrammarCheckingEnabled != isEnabled else { return }
 
-        if decision.shouldCancelPendingAutosave {
-            cancelPendingAutosave()
-        }
-
-        if let statusText = decision.statusText {
-            setDocumentStatus(statusText)
-        }
-
-        if decision.shouldScheduleAutosave {
-            scheduleAutosave()
-        } else {
-            updateAutosaveStatusForCurrentState()
-        }
+        isGrammarCheckingEnabled = isEnabled
+        WritingSettingsStore.saveIsGrammarCheckingEnabled(isEnabled)
+        textView?.isGrammarCheckingEnabled = isEnabled
     }
 
     func setAutomaticTextReplacementEnabled(_ isEnabled: Bool) {
@@ -57,19 +43,52 @@ extension EditorController {
         textView?.isAutomaticTextReplacementEnabled = isEnabled
     }
 
-    func clearDocumentEdited() {
-        cancelPendingAutosave()
+    func setAutomaticQuoteSubstitutionEnabled(_ isEnabled: Bool) {
+        guard isAutomaticQuoteSubstitutionEnabled != isEnabled else { return }
 
+        isAutomaticQuoteSubstitutionEnabled = isEnabled
+        WritingSettingsStore.saveIsAutomaticQuoteSubstitutionEnabled(isEnabled)
+        textView?.isAutomaticQuoteSubstitutionEnabled = isEnabled
+    }
+
+    func setAutomaticDashSubstitutionEnabled(_ isEnabled: Bool) {
+        guard isAutomaticDashSubstitutionEnabled != isEnabled else { return }
+
+        isAutomaticDashSubstitutionEnabled = isEnabled
+        WritingSettingsStore.saveIsAutomaticDashSubstitutionEnabled(isEnabled)
+        textView?.isAutomaticDashSubstitutionEnabled = isEnabled
+    }
+
+    func setInlineSuggestionsEnabled(_ isEnabled: Bool) {
+        guard isInlineSuggestionsEnabled != isEnabled else { return }
+
+        isInlineSuggestionsEnabled = isEnabled
+        AutocompleteSettingsStore.saveIsInlineSuggestionsEnabled(isEnabled)
+        textView?.isInlineSuggestionEnabled = isEnabled
+    }
+
+    func setShouldReopenLastDocument(_ isEnabled: Bool) {
+        guard shouldReopenLastDocument != isEnabled else { return }
+
+        shouldReopenLastDocument = isEnabled
+        StartupSettingsStore.saveShouldReopenLastDocument(isEnabled)
+    }
+
+    func clearDocumentEdited() {
         isDocumentEdited = false
         textView?.window?.isDocumentEdited = false
-        updateAutosaveStatusForCurrentState(cleanStatus: .clean)
     }
 
     func restoreLastSessionIfNeeded() {
         guard !hasRestoredLastSession, let textView else { return }
         hasRestoredLastSession = true
 
-        if let url = AutosaveStore.lastDocumentURL, FileManager.default.fileExists(atPath: url.path) {
+        guard shouldReopenLastDocument else {
+            setDocumentStatus("Ready")
+            return
+        }
+
+        if let url = LastDocumentStore.lastDocumentURL, FileManager.default.fileExists(atPath: url.path) {
             loadDocumentInBackground(
                 from: url,
                 into: textView,
@@ -77,21 +96,20 @@ extension EditorController {
                 failureMessage: "The last document could not be restored.",
                 showsErrorOnFailure: false,
                 onFailure: { [weak self] in
-                    AutosaveStore.clearLastDocumentURL()
+                    LastDocumentStore.clearLastDocumentURL()
                     self?.resetToBlankDocument()
                     self?.setDocumentStatus("Could not restore last document")
-                    self?.updateAutosaveStatusForCurrentState()
                 }
             )
             return
         }
 
         setDocumentStatus("Ready")
-        updateAutosaveStatusForCurrentState()
     }
 
     func prepareTitleForLastRestorableDocument() {
-        guard let url = AutosaveStore.lastDocumentURL,
+        guard shouldReopenLastDocument else { return }
+        guard let url = LastDocumentStore.lastDocumentURL,
               FileManager.default.fileExists(atPath: url.path) else {
             return
         }
@@ -99,14 +117,8 @@ extension EditorController {
         documentTitle = title(from: url)
     }
 
-    func flushAutosave() {
-        cancelPendingAutosave()
-        performAutosaveSynchronously()
-    }
-
     func confirmQuit() -> NSApplication.TerminateReply {
         guard isDocumentEdited else {
-            flushAutosave()
             return .terminateNow
         }
 
@@ -186,7 +198,7 @@ extension EditorController {
             recentDocumentStore.remove(currentDocumentURL)
             self.currentDocumentURL = newURL
             documentTitle = nextTitle
-            AutosaveStore.saveLastDocumentURL(newURL)
+            LastDocumentStore.saveLastDocumentURL(newURL)
             noteRecentDocument(newURL)
             updateWindowTitle(for: newURL)
             setDocumentStatus("Renamed")
@@ -256,7 +268,7 @@ extension EditorController {
             recentDocumentStore.remove(currentDocumentURL)
             self.currentDocumentURL = newURL
             pendingDocumentDirectoryURL = nil
-            AutosaveStore.saveLastDocumentURL(newURL)
+            LastDocumentStore.saveLastDocumentURL(newURL)
             noteRecentDocument(newURL)
             updateWindowTitle(for: newURL)
             setDocumentStatus("Moved")
@@ -273,16 +285,15 @@ extension EditorController {
 
         do {
             try writeDocument(to: url)
-            AutosaveStore.saveLastDocumentURL(url)
+            LastDocumentStore.saveLastDocumentURL(url)
             noteRecentDocument(url)
             updateWindowTitle(for: url)
-            clearDocumentEdited(cleanStatus: .saved)
+            clearDocumentEdited()
             setDocumentStatus("Saved")
             return true
         } catch {
             showError(error, message: "The document could not be saved.")
             setDocumentStatus("Save failed")
-            autosaveStatus = .failed
             return false
         }
     }
@@ -319,16 +330,15 @@ extension EditorController {
             currentDocumentURL = url
             pendingDocumentDirectoryURL = nil
             documentTitle = title(from: url)
-            AutosaveStore.saveLastDocumentURL(url)
+            LastDocumentStore.saveLastDocumentURL(url)
             noteRecentDocument(url)
             updateWindowTitle(for: url)
-            clearDocumentEdited(cleanStatus: .saved)
+            clearDocumentEdited()
             setDocumentStatus("Saved")
             return true
         } catch {
             showError(error, message: "The document could not be saved.")
             setDocumentStatus("Save failed")
-            autosaveStatus = .failed
             return false
         }
     }
@@ -380,130 +390,6 @@ extension EditorController {
         }
     }
 
-    private func scheduleAutosave() {
-        guard autosavePolicy.editedDocumentDecision(for: currentAutosaveState).shouldScheduleAutosave else { return }
-        cancelPendingAutosave()
-        autosaveStatus = .pending
-
-        let workItem = DispatchWorkItem { [weak self] in
-            self?.pendingAutosaveWorkItem = nil
-            self?.performAutosave()
-        }
-
-        pendingAutosaveWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8, execute: workItem)
-    }
-
-    private func performAutosave() {
-        guard let textView else { return }
-
-        let decision = autosavePolicy.runDecision(for: currentAutosaveState)
-        guard decision.shouldWriteDocument else {
-            if let statusText = decision.statusTextIfSkipped {
-                setDocumentStatus(statusText)
-            }
-            updateAutosaveStatusForCurrentState()
-            return
-        }
-
-        guard let url = currentDocumentURL else { return }
-        guard let snapshot = documentSnapshot() else { return }
-        let generation = snapshot.generation
-        let operationID = UUID()
-        autosaveOperationID = operationID
-        autosaveStatus = .saving
-
-        documentFileService.writeDocument(snapshot.attributedString, to: url) { [weak self, weak textView] result in
-            guard let self, self.autosaveOperationID == operationID else { return }
-
-            switch result {
-            case .success:
-                AutosaveStore.saveLastDocumentURL(url)
-                self.noteRecentDocument(url)
-                self.updateWindowTitle(for: url)
-
-                guard self.currentDocumentURL == url,
-                      textView?.contentGeneration == generation else {
-                    self.updateAutosaveStatusForCurrentState()
-                    if self.autosavePolicy.editedDocumentDecision(for: self.currentAutosaveState).shouldScheduleAutosave {
-                        self.scheduleAutosave()
-                    }
-                    return
-                }
-
-                self.isDocumentEdited = false
-                textView?.window?.isDocumentEdited = false
-                self.autosaveStatus = .saved
-                self.setDocumentStatus("Autosaved")
-            case .failure:
-                self.autosaveStatus = .failed
-                self.setDocumentStatus("Autosave failed")
-            }
-        }
-    }
-
-    private func performAutosaveSynchronously() {
-        guard let textView else { return }
-
-        let decision = autosavePolicy.runDecision(for: currentAutosaveState)
-        guard decision.shouldWriteDocument else {
-            if let statusText = decision.statusTextIfSkipped {
-                setDocumentStatus(statusText)
-            }
-            updateAutosaveStatusForCurrentState()
-            return
-        }
-
-        guard let url = currentDocumentURL else { return }
-
-        do {
-            autosaveStatus = .saving
-            try writeDocument(to: url)
-            AutosaveStore.saveLastDocumentURL(url)
-            noteRecentDocument(url)
-            updateWindowTitle(for: url)
-            isDocumentEdited = false
-            textView.window?.isDocumentEdited = false
-            autosaveStatus = .saved
-            setDocumentStatus("Autosaved")
-        } catch {
-            autosaveStatus = .failed
-            setDocumentStatus("Autosave failed")
-        }
-    }
-
-    private var currentAutosaveState: AutosavePolicy.State {
-        AutosavePolicy.State(
-            isEnabled: isAutosaveEnabled,
-            hasSavedDocumentURL: currentDocumentURL != nil,
-            isDocumentEdited: isDocumentEdited
-        )
-    }
-
-    private func cancelPendingAutosave() {
-        pendingAutosaveWorkItem?.cancel()
-        pendingAutosaveWorkItem = nil
-    }
-
-    private func clearDocumentEdited(cleanStatus: AutosaveStatus) {
-        cancelPendingAutosave()
-        isDocumentEdited = false
-        textView?.window?.isDocumentEdited = false
-        updateAutosaveStatusForCurrentState(cleanStatus: cleanStatus)
-    }
-
-    private func updateAutosaveStatusForCurrentState(cleanStatus: AutosaveStatus = .clean) {
-        if !isAutosaveEnabled {
-            autosaveStatus = .off
-        } else if currentDocumentURL == nil {
-            autosaveStatus = .unavailable
-        } else if isDocumentEdited {
-            autosaveStatus = .pending
-        } else {
-            autosaveStatus = cleanStatus
-        }
-    }
-
     private func setDocumentStatus(_ text: String) {
         if documentStatusText != text {
             documentStatusText = text
@@ -512,11 +398,6 @@ extension EditorController {
 
     private func confirmUnsavedChanges(messageText: String) -> Bool {
         guard isDocumentEdited else { return true }
-        let suspendedAutosave = pendingAutosaveWorkItem != nil
-        if suspendedAutosave {
-            cancelPendingAutosave()
-            updateAutosaveStatusForCurrentState()
-        }
 
         let alert = NSAlert()
         alert.alertStyle = .warning
@@ -528,17 +409,10 @@ extension EditorController {
 
         switch alert.runModal() {
         case .alertFirstButtonReturn:
-            let didSave = saveDocument()
-            if !didSave, suspendedAutosave {
-                scheduleAutosave()
-            }
-            return didSave
+            return saveDocument()
         case .alertSecondButtonReturn:
             return true
         default:
-            if suspendedAutosave {
-                scheduleAutosave()
-            }
             return false
         }
     }
@@ -553,7 +427,7 @@ extension EditorController {
         currentDocumentURL = nil
         pendingDocumentDirectoryURL = nil
         documentTitle = "Untitled"
-        AutosaveStore.clearLastDocumentURL()
+        LastDocumentStore.clearLastDocumentURL()
         textView.window?.title = ChromeStyle.windowTitle
         textView.window?.representedURL = nil
         textView.resizeForCurrentPages()
@@ -585,7 +459,7 @@ extension EditorController {
                 self.applyLoadedDocument(attributedString, from: url, into: textView)
                 self.currentDocumentURL = url
                 self.pendingDocumentDirectoryURL = nil
-                AutosaveStore.saveLastDocumentURL(url)
+                LastDocumentStore.saveLastDocumentURL(url)
                 self.noteRecentDocument(url)
                 self.clearDocumentEdited()
                 self.setDocumentStatus(successStatus)
@@ -628,8 +502,6 @@ extension EditorController {
     ) {
         let operationID = UUID()
         documentOperationID = operationID
-        cancelPendingAutosave()
-        autosaveStatus = .saving
         setDocumentStatus("Saving...")
 
         documentFileService.writeDocument(attributedString, to: url) { [weak self] result in
@@ -643,24 +515,19 @@ extension EditorController {
                     self.documentTitle = self.title(from: url)
                 }
 
-                AutosaveStore.saveLastDocumentURL(url)
+                LastDocumentStore.saveLastDocumentURL(url)
                 self.noteRecentDocument(url)
                 self.updateWindowTitle(for: url)
 
                 if self.textView?.contentGeneration == generation {
-                    self.clearDocumentEdited(cleanStatus: .saved)
+                    self.clearDocumentEdited()
                     self.setDocumentStatus("Saved")
                 } else {
-                    self.updateAutosaveStatusForCurrentState()
                     self.setDocumentStatus("Saved previous changes")
-                    if self.autosavePolicy.editedDocumentDecision(for: self.currentAutosaveState).shouldScheduleAutosave {
-                        self.scheduleAutosave()
-                    }
                 }
             case .failure(let error):
                 self.showError(error, message: "The document could not be saved.")
                 self.setDocumentStatus("Save failed")
-                self.autosaveStatus = .failed
             }
         }
     }

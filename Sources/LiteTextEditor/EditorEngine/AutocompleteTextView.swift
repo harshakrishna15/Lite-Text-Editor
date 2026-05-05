@@ -21,6 +21,7 @@ final class AutocompleteTextView: NSTextView {
         let stringLength: Int
         let contentGeneration: Int
         let maxSuggestionWords: Int
+        let isInlineSuggestionEnabled: Bool
     }
 
     struct PageMeasurementKey: Equatable {
@@ -36,10 +37,22 @@ final class AutocompleteTextView: NSTextView {
     }
 
     var maxSuggestionWords = 4
+    var isInlineSuggestionEnabled = true {
+        didSet {
+            guard oldValue != isInlineSuggestionEnabled else { return }
+
+            if isInlineSuggestionEnabled {
+                refreshSuggestion()
+            } else {
+                clearSuggestion()
+            }
+        }
+    }
     var onDocumentMetricsChanged: (() -> Void)?
     var onAcceptSpellingCorrection: (() -> Void)?
     var onCloseSpellingCorrection: (() -> Void)?
     var onMoveSpellingCorrectionSelection: ((Int) -> Void)?
+    var onPredictionStateChanged: ((PredictionState) -> Void)?
     var onFormattingSampleLocationChanged: (() -> Void)?
     var isSpellingCorrectionReviewActive = false
     var formattingSampleLocation: Int?
@@ -50,7 +63,7 @@ final class AutocompleteTextView: NSTextView {
 
     var suggestionProvider: SuggestionProviding = SuggestionPipeline(
         providers: [
-            PhraseSuggestionEngine()
+            LocalAISuggestionProvider()
         ]
     )
     let suggestionLabel = NSTextField(labelWithString: "")
@@ -145,7 +158,7 @@ final class AutocompleteTextView: NSTextView {
         } else {
             keepInsertionPointVisible()
         }
-        if !isAcceptingSuggestionWord {
+        if isInlineSuggestionEnabled && !isAcceptingSuggestionWord {
             scheduleSuggestionRefresh()
         }
     }
@@ -155,7 +168,7 @@ final class AutocompleteTextView: NSTextView {
         super.setSelectedRange(charRange)
         guard !NSEqualRanges(oldRange, selectedRange()) else { return }
         updateFormattingSampleLocation(nil)
-        if !isAcceptingSuggestionWord {
+        if isInlineSuggestionEnabled && !isAcceptingSuggestionWord {
             scheduleSuggestionRefresh()
         }
     }
@@ -192,7 +205,9 @@ final class AutocompleteTextView: NSTextView {
         updatePaperLayout()
         ensurePaperHeightFitsContent()
         requestInitialFocusIfNeeded()
-        refreshSuggestion()
+        if isInlineSuggestionEnabled {
+            refreshSuggestion()
+        }
     }
 
     override func setFrameSize(_ newSize: NSSize) {
