@@ -73,6 +73,56 @@ final class DocumentFileStoreTests: XCTestCase {
         XCTAssertNotNil(loaded.attribute(.foregroundColor, at: 0, effectiveRange: nil))
     }
 
+    func testDocumentFileServiceWritesAndReadsDocumentAsynchronously() {
+        let url = temporaryFileURL(extension: "txt")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let service = DocumentFileService()
+        let document = NSAttributedString(string: "Background document")
+        let writeExpectation = expectation(description: "write")
+        let readExpectation = expectation(description: "read")
+
+        service.writeDocument(document, to: url) { result in
+            do {
+                try result.get()
+            } catch {
+                XCTFail("Write failed: \(error)")
+            }
+            writeExpectation.fulfill()
+
+            service.readDocument(from: url) { result in
+                XCTAssertEqual(try? result.get().string, document.string)
+                readExpectation.fulfill()
+            }
+        }
+
+        wait(for: [writeExpectation, readExpectation], timeout: 2)
+    }
+
+    func testDocumentFileServiceExportsPDFAsynchronously() {
+        let url = temporaryFileURL(extension: "pdf")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let service = DocumentFileService()
+        let document = NSAttributedString(
+            string: "Background PDF",
+            attributes: [.font: NSFont.systemFont(ofSize: 13)]
+        )
+        let exportExpectation = expectation(description: "export")
+
+        service.writePDF(document, to: url) { result in
+            do {
+                try result.get()
+                XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+            } catch {
+                XCTFail("PDF export failed: \(error)")
+            }
+            exportExpectation.fulfill()
+        }
+
+        wait(for: [exportExpectation], timeout: 2)
+    }
+
     func testRTFRoundTripPreservesStringAndBasicAttributes() throws {
         let url = temporaryFileURL(extension: "rtf")
         defer { try? FileManager.default.removeItem(at: url) }

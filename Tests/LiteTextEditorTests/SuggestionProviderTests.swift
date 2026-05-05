@@ -27,6 +27,21 @@ final class SuggestionProviderTests: XCTestCase {
         XCTAssertNil(pipeline.suggestion(for: request))
     }
 
+    func testAsyncPipelineUsesFirstAvailableProvider() async {
+        let request = makeRequest(prefix: "Anything")
+        let pipeline = SuggestionPipeline(
+            providers: [
+                StubSuggestionProvider(suggestion: nil),
+                StubSuggestionProvider(suggestion: "first result"),
+                StubSuggestionProvider(suggestion: "second result")
+            ]
+        )
+
+        let suggestion = await pipeline.suggestion(for: request)
+
+        XCTAssertEqual(suggestion, "first result")
+    }
+
     func testPhraseSuggestionEngineUsesKnownContinuation() {
         let request = makeRequest(prefix: "This is on the")
 
@@ -83,7 +98,10 @@ final class SuggestionProviderTests: XCTestCase {
         try await provider.load()
 
         XCTAssertTrue(provider.isReady)
-        XCTAssertEqual(provider.suggestion(for: request), "should continue with details")
+        let synchronousSuggestion = (provider as SuggestionProviding).suggestion(for: request)
+        let asynchronousSuggestion = await (provider as AsyncSuggestionProviding).suggestion(for: request)
+        XCTAssertEqual(synchronousSuggestion, "should continue with details")
+        XCTAssertEqual(asynchronousSuggestion, "should continue with details")
         XCTAssertEqual(generator.loadCallCount, 1)
         XCTAssertTrue(generator.lastPrompt?.contains("The current draft") == true)
     }
@@ -95,7 +113,8 @@ final class SuggestionProviderTests: XCTestCase {
 
         try await provider.load()
 
-        XCTAssertNil(provider.suggestion(for: request))
+        let suggestion = (provider as SuggestionProviding).suggestion(for: request)
+        XCTAssertNil(suggestion)
     }
 
     func testEditorControllerAcceptsInjectedSuggestionProvider() {

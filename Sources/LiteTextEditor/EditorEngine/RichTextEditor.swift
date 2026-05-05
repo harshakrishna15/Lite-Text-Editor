@@ -226,11 +226,11 @@ struct RichTextEditor: NSViewRepresentable {
         }
 
         @objc private func saveDocument() {
-            controller?.saveDocument()
+            controller?.saveDocumentInBackground()
         }
 
         @objc private func saveDocumentAs() {
-            controller?.saveDocumentAs()
+            controller?.saveDocumentAsInBackground()
         }
 
         @objc private func exportPDF() {

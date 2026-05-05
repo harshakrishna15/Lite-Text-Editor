@@ -154,6 +154,25 @@ final class PageLayoutTests: XCTestCase {
         )
     }
 
+    func testPageRefreshAfterTextChangeReplacesPendingMeasurementWork() {
+        let fixture = makeZoomFixture()
+        let textView = fixture.textView
+
+        textView.contentGeneration = 1
+        textView.schedulePageRefreshAfterTextChange()
+        let firstWorkItem = textView.pendingPageRefreshWorkItem
+
+        textView.contentGeneration = 2
+        textView.schedulePageRefreshAfterTextChange()
+
+        XCTAssertTrue(firstWorkItem?.isCancelled == true)
+        XCTAssertNotNil(textView.pendingPageRefreshWorkItem)
+        XCTAssertFalse(textView.pendingPageRefreshWorkItem?.isCancelled == true)
+
+        textView.pendingPageRefreshWorkItem?.cancel()
+        textView.pendingPageRefreshWorkItem = nil
+    }
+
     func testCenteringAfterViewportResizeKeepsPageHorizontallyCentered() {
         let fixture = makeZoomFixture()
         fixture.scrollView.setFrameSize(NSSize(width: 700, height: 320))

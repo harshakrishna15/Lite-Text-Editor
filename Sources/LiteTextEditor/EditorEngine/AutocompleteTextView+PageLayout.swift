@@ -72,8 +72,8 @@ extension AutocompleteTextView {
     }
 
     func resizeForCurrentPages() {
-        pendingPaperResize = false
-        invalidatePageMeasurementCache()
+        pendingPageRefreshWorkItem?.cancel()
+        pendingPageRefreshWorkItem = nil
         ensurePaperHeightFitsContent()
     }
 
@@ -90,7 +90,8 @@ extension AutocompleteTextView {
     }
 
     func prepareForUserScroll() {
-        pendingPaperResize = false
+        pendingPageRefreshWorkItem?.cancel()
+        pendingPageRefreshWorkItem = nil
         updatePaperLayout()
         ensurePaperHeightFitsContent()
     }
@@ -145,18 +146,26 @@ extension AutocompleteTextView {
     }
 
     func schedulePageRefreshAfterTextChange() {
-        guard !pendingPaperResize else { return }
-        pendingPaperResize = true
+        pendingPageRefreshWorkItem?.cancel()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.pageRefreshDelay) { [weak self] in
-            guard let self, self.pendingPaperResize else { return }
-            self.pendingPaperResize = false
+        let scheduledGeneration = contentGeneration
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.pendingPageRefreshWorkItem = nil
+            guard self.contentGeneration == scheduledGeneration else {
+                self.schedulePageRefreshAfterTextChange()
+                return
+            }
             self.updatePagesAfterTextChange()
         }
+
+        pendingPageRefreshWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.pageRefreshDelay, execute: workItem)
     }
 
     func ensurePaperHeightFitsContent() {
-        pendingPaperResize = false
+        pendingPageRefreshWorkItem?.cancel()
+        pendingPageRefreshWorkItem = nil
         guard let pageCount = measuredPageCount() else { return }
         let oldRenderedPageCount = renderedPageCount
         renderedPageCount = pageCount

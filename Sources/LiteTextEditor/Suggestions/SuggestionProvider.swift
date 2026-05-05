@@ -20,12 +20,36 @@ protocol SuggestionProviding {
     func suggestion(for request: SuggestionRequest) -> String?
 }
 
-struct SuggestionPipeline: SuggestionProviding {
+protocol AsyncSuggestionProviding: SuggestionProviding {
+    func suggestion(for request: SuggestionRequest) async -> String?
+}
+
+extension SuggestionProviding {
+    func asyncSuggestion(for request: SuggestionRequest) async -> String? {
+        if let asyncProvider = self as? AsyncSuggestionProviding {
+            return await asyncProvider.suggestion(for: request)
+        }
+
+        return suggestion(for: request)
+    }
+}
+
+struct SuggestionPipeline: AsyncSuggestionProviding {
     let providers: [SuggestionProviding]
 
     func suggestion(for request: SuggestionRequest) -> String? {
         for provider in providers {
             if let suggestion = provider.suggestion(for: request) {
+                return suggestion
+            }
+        }
+
+        return nil
+    }
+
+    func suggestion(for request: SuggestionRequest) async -> String? {
+        for provider in providers {
+            if let suggestion = await provider.asyncSuggestion(for: request) {
                 return suggestion
             }
         }

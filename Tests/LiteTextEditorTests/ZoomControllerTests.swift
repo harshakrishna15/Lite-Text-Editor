@@ -75,19 +75,19 @@ final class ZoomControllerTests: XCTestCase {
         )
     }
 
-    func testZoomRefreshesTextLayoutAndInsertionPointState() {
+    func testCommittedZoomUpdatesDisplayWithoutForcingTextLayout() {
         let fixture = makeControllerFixture()
         let initialRefreshCount = fixture.textView.zoomLayoutRefreshCount
 
         fixture.controller.setZoomMagnification(1.4)
 
-        XCTAssertGreaterThan(fixture.textView.zoomLayoutRefreshCount, initialRefreshCount)
-
-        let refreshCountAfterCommittedZoom = fixture.textView.zoomLayoutRefreshCount
+        XCTAssertEqual(fixture.textView.zoomLayoutRefreshCount, initialRefreshCount)
+        XCTAssertTrue(fixture.textView.needsDisplay)
 
         fixture.controller.setZoomMagnification(1.2)
 
-        XCTAssertGreaterThan(fixture.textView.zoomLayoutRefreshCount, refreshCountAfterCommittedZoom)
+        XCTAssertEqual(fixture.textView.zoomLayoutRefreshCount, initialRefreshCount)
+        XCTAssertTrue(fixture.textView.needsDisplay)
     }
 
     func testRepeatingSameZoomSkipsTextLayoutRefresh() {

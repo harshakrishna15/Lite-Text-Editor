@@ -126,9 +126,7 @@ extension EditorController {
         textView.resizeForCachedPages(at: clampedMagnification)
         keepPageCentered()
 
-        if shouldResizePages && shouldRefreshTextLayout {
-            textView.refreshLayoutAfterZoomChange()
-        } else if shouldRefreshTextLayout {
+        if shouldRefreshTextLayout {
             textView.refreshDisplayAfterZoomFrameChange()
         }
     }

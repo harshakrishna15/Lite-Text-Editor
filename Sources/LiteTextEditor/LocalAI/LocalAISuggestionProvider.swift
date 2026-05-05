@@ -1,6 +1,6 @@
 import Foundation
 
-protocol LocalModelSuggestionProviding: SuggestionProviding {
+protocol LocalModelSuggestionProviding: AsyncSuggestionProviding {
     var isReady: Bool { get }
     func load() async throws
 }
@@ -30,6 +30,19 @@ final class LocalAISuggestionProvider: LocalModelSuggestionProviding {
         let prompt = prompt(for: request)
         guard let completion = generator.completion(for: prompt) else { return nil }
         return postProcessor.suggestion(from: completion, request: request)
+    }
+
+    func suggestion(for request: SuggestionRequest) async -> String? {
+        guard isReady else { return nil }
+
+        let prompt = prompt(for: request)
+        let generator = generator
+        let postProcessor = postProcessor
+
+        return await Task.detached(priority: .userInitiated) {
+            guard let completion = generator.completion(for: prompt) else { return nil }
+            return postProcessor.suggestion(from: completion, request: request)
+        }.value
     }
 
     func prompt(for request: SuggestionRequest) -> String {

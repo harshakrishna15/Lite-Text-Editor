@@ -34,9 +34,13 @@ final class EditorController: ObservableObject {
     var pendingOutlineRefresh: DispatchWorkItem?
     var pendingFormattingStateRefresh: DispatchWorkItem?
     var pendingAutosaveWorkItem: DispatchWorkItem?
+    var documentOperationID = UUID()
+    var autosaveOperationID = UUID()
+    var exportOperationID = UUID()
     var copiedFormattingAttributes: [NSAttributedString.Key: Any]?
     var hasRestoredLastSession = false
     let documentFileStore = DocumentFileStore()
+    let documentFileService = DocumentFileService()
     let recentDocumentStore = RecentDocumentStore()
     let autosavePolicy = AutosavePolicy()
     let spellingReviewController = SpellingReviewController()

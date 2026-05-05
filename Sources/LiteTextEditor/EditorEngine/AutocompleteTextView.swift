@@ -13,7 +13,7 @@ final class AutocompleteTextView: NSTextView {
     static let textLayoutDimensionLimit: CGFloat = 1_000_000
     static let minimumStableCanvasMagnification: CGFloat = 0.5
     static let suggestionRefreshDelay: TimeInterval = 0.12
-    static let pageRefreshDelay: TimeInterval = 0.04
+    static let pageRefreshDelay: TimeInterval = 0.1
 
     struct SuggestionRefreshKey: Equatable {
         let selectionLocation: Int
@@ -57,8 +57,9 @@ final class AutocompleteTextView: NSTextView {
     var currentSuggestion: String?
     var didRequestInitialFocus = false
     var isAcceptingSuggestionWord = false
-    var pendingPaperResize = false
+    var pendingPageRefreshWorkItem: DispatchWorkItem?
     var pendingSuggestionRefreshWorkItem: DispatchWorkItem?
+    var pendingSuggestionTask: Task<Void, Never>?
     var contentGeneration = 0
     var lastSuggestionRefreshKey: SuggestionRefreshKey?
     var renderedPageCount = 1

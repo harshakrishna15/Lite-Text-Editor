@@ -69,25 +69,25 @@ extension EditorController {
         guard !hasRestoredLastSession, let textView else { return }
         hasRestoredLastSession = true
 
-        do {
-            if let url = AutosaveStore.lastDocumentURL, FileManager.default.fileExists(atPath: url.path) {
-                try loadDocument(from: url, into: textView)
-                currentDocumentURL = url
-                AutosaveStore.saveLastDocumentURL(url)
-                noteRecentDocument(url)
-                clearDocumentEdited()
-                setDocumentStatus("Opened last document")
-                return
-            }
-
-            setDocumentStatus("Ready")
-            updateAutosaveStatusForCurrentState()
-        } catch {
-            AutosaveStore.clearLastDocumentURL()
-            resetToBlankDocument()
-            setDocumentStatus("Could not restore last document")
-            updateAutosaveStatusForCurrentState()
+        if let url = AutosaveStore.lastDocumentURL, FileManager.default.fileExists(atPath: url.path) {
+            loadDocumentInBackground(
+                from: url,
+                into: textView,
+                successStatus: "Opened last document",
+                failureMessage: "The last document could not be restored.",
+                showsErrorOnFailure: false,
+                onFailure: { [weak self] in
+                    AutosaveStore.clearLastDocumentURL()
+                    self?.resetToBlankDocument()
+                    self?.setDocumentStatus("Could not restore last document")
+                    self?.updateAutosaveStatusForCurrentState()
+                }
+            )
+            return
         }
+
+        setDocumentStatus("Ready")
+        updateAutosaveStatusForCurrentState()
     }
 
     func prepareTitleForLastRestorableDocument() {
@@ -101,7 +101,7 @@ extension EditorController {
 
     func flushAutosave() {
         cancelPendingAutosave()
-        performAutosave()
+        performAutosaveSynchronously()
     }
 
     func confirmQuit() -> NSApplication.TerminateReply {
@@ -131,36 +131,28 @@ extension EditorController {
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
-        do {
-            try loadDocument(from: url, into: textView)
-            currentDocumentURL = url
-            pendingDocumentDirectoryURL = nil
-            AutosaveStore.saveLastDocumentURL(url)
-            noteRecentDocument(url)
-            clearDocumentEdited()
-            setDocumentStatus("Opened")
-        } catch {
-            showError(error, message: "The document could not be opened.")
-        }
+        loadDocumentInBackground(
+            from: url,
+            into: textView,
+            successStatus: "Opened",
+            failureMessage: "The document could not be opened."
+        )
     }
 
     func openRecentDocument(_ url: URL) {
         guard let textView else { return }
         guard confirmUnsavedChanges(messageText: "Do you want to save changes before opening \(url.lastPathComponent)?") else { return }
 
-        do {
-            try loadDocument(from: url, into: textView)
-            currentDocumentURL = url
-            pendingDocumentDirectoryURL = nil
-            AutosaveStore.saveLastDocumentURL(url)
-            noteRecentDocument(url)
-            clearDocumentEdited()
-            setDocumentStatus("Opened")
-        } catch {
-            recentDocumentStore.remove(url)
-            postRecentDocumentsChanged()
-            showError(error, message: "The recent document could not be opened.")
-        }
+        loadDocumentInBackground(
+            from: url,
+            into: textView,
+            successStatus: "Opened",
+            failureMessage: "The recent document could not be opened.",
+            onFailure: { [weak self] in
+                self?.recentDocumentStore.remove(url)
+                self?.postRecentDocumentsChanged()
+            }
+        )
     }
 
     func commitDocumentTitle(_ title: String) {
@@ -295,6 +287,21 @@ extension EditorController {
         }
     }
 
+    func saveDocumentInBackground() {
+        guard let url = currentDocumentURL else {
+            saveDocumentAsInBackground()
+            return
+        }
+
+        guard let snapshot = documentSnapshot() else { return }
+        beginBackgroundDocumentWrite(
+            snapshot.attributedString,
+            to: url,
+            generation: snapshot.generation,
+            updatesDocumentURL: false
+        )
+    }
+
     @discardableResult
     func saveDocumentAs() -> Bool {
         let panel = NSSavePanel()
@@ -326,6 +333,25 @@ extension EditorController {
         }
     }
 
+    func saveDocumentAsInBackground() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = editableDocumentContentTypes
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = suggestedDocumentName(fileExtension: "rtf")
+        panel.directoryURL = documentDirectoryURLForPanels
+
+        guard panel.runModal() == .OK, let selectedURL = panel.url else { return }
+
+        let url = documentFileStore.normalizedTextDocumentURL(selectedURL)
+        guard let snapshot = documentSnapshot() else { return }
+        beginBackgroundDocumentWrite(
+            snapshot.attributedString,
+            to: url,
+            generation: snapshot.generation,
+            updatesDocumentURL: true
+        )
+    }
+
     func exportPDF() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.pdf]
@@ -336,13 +362,21 @@ extension EditorController {
         guard panel.runModal() == .OK, let selectedURL = panel.url else { return }
 
         let url = documentFileStore.normalizedPDFURL(selectedURL)
+        guard let snapshot = documentSnapshot() else { return }
+        let operationID = UUID()
+        exportOperationID = operationID
+        setDocumentStatus("Exporting PDF...")
 
-        do {
-            try writePDF(to: url)
-            setDocumentStatus("Exported PDF")
-        } catch {
-            showError(error, message: "The PDF could not be exported.")
-            setDocumentStatus("Export failed")
+        documentFileService.writePDF(snapshot.attributedString, to: url) { [weak self] result in
+            guard let self, self.exportOperationID == operationID else { return }
+
+            switch result {
+            case .success:
+                self.setDocumentStatus("Exported PDF")
+            case .failure(let error):
+                self.showError(error, message: "The PDF could not be exported.")
+                self.setDocumentStatus("Export failed")
+            }
         }
     }
 
@@ -361,6 +395,54 @@ extension EditorController {
     }
 
     private func performAutosave() {
+        guard let textView else { return }
+
+        let decision = autosavePolicy.runDecision(for: currentAutosaveState)
+        guard decision.shouldWriteDocument else {
+            if let statusText = decision.statusTextIfSkipped {
+                setDocumentStatus(statusText)
+            }
+            updateAutosaveStatusForCurrentState()
+            return
+        }
+
+        guard let url = currentDocumentURL else { return }
+        guard let snapshot = documentSnapshot() else { return }
+        let generation = snapshot.generation
+        let operationID = UUID()
+        autosaveOperationID = operationID
+        autosaveStatus = .saving
+
+        documentFileService.writeDocument(snapshot.attributedString, to: url) { [weak self, weak textView] result in
+            guard let self, self.autosaveOperationID == operationID else { return }
+
+            switch result {
+            case .success:
+                AutosaveStore.saveLastDocumentURL(url)
+                self.noteRecentDocument(url)
+                self.updateWindowTitle(for: url)
+
+                guard self.currentDocumentURL == url,
+                      textView?.contentGeneration == generation else {
+                    self.updateAutosaveStatusForCurrentState()
+                    if self.autosavePolicy.editedDocumentDecision(for: self.currentAutosaveState).shouldScheduleAutosave {
+                        self.scheduleAutosave()
+                    }
+                    return
+                }
+
+                self.isDocumentEdited = false
+                textView?.window?.isDocumentEdited = false
+                self.autosaveStatus = .saved
+                self.setDocumentStatus("Autosaved")
+            case .failure:
+                self.autosaveStatus = .failed
+                self.setDocumentStatus("Autosave failed")
+            }
+        }
+    }
+
+    private func performAutosaveSynchronously() {
         guard let textView else { return }
 
         let decision = autosavePolicy.runDecision(for: currentAutosaveState)
@@ -483,9 +565,47 @@ extension EditorController {
         clearDocumentEdited()
     }
 
-    private func loadDocument(from url: URL, into textView: AutocompleteTextView) throws {
-        let attributedString = try documentFileStore.readDocument(from: url)
+    private func loadDocumentInBackground(
+        from url: URL,
+        into textView: AutocompleteTextView,
+        successStatus: String,
+        failureMessage: String,
+        showsErrorOnFailure: Bool = true,
+        onFailure: (() -> Void)? = nil
+    ) {
+        let operationID = UUID()
+        documentOperationID = operationID
+        setDocumentStatus("Opening...")
 
+        documentFileService.readDocument(from: url) { [weak self, weak textView] result in
+            guard let self, self.documentOperationID == operationID, let textView else { return }
+
+            switch result {
+            case .success(let attributedString):
+                self.applyLoadedDocument(attributedString, from: url, into: textView)
+                self.currentDocumentURL = url
+                self.pendingDocumentDirectoryURL = nil
+                AutosaveStore.saveLastDocumentURL(url)
+                self.noteRecentDocument(url)
+                self.clearDocumentEdited()
+                self.setDocumentStatus(successStatus)
+            case .failure(let error):
+                onFailure?()
+                if showsErrorOnFailure {
+                    self.showError(error, message: failureMessage)
+                }
+                if self.documentStatusText == "Opening..." {
+                    self.setDocumentStatus("Open failed")
+                }
+            }
+        }
+    }
+
+    private func applyLoadedDocument(
+        _ attributedString: NSAttributedString,
+        from url: URL,
+        into textView: AutocompleteTextView
+    ) {
         textView.textStorage?.setAttributedString(attributedString)
         textView.contentGeneration &+= 1
         textView.invalidatePageMeasurementCache()
@@ -500,14 +620,68 @@ extension EditorController {
         refreshFormattingState()
     }
 
+    private func beginBackgroundDocumentWrite(
+        _ attributedString: NSAttributedString,
+        to url: URL,
+        generation: Int,
+        updatesDocumentURL: Bool
+    ) {
+        let operationID = UUID()
+        documentOperationID = operationID
+        cancelPendingAutosave()
+        autosaveStatus = .saving
+        setDocumentStatus("Saving...")
+
+        documentFileService.writeDocument(attributedString, to: url) { [weak self] result in
+            guard let self, self.documentOperationID == operationID else { return }
+
+            switch result {
+            case .success:
+                if updatesDocumentURL {
+                    self.currentDocumentURL = url
+                    self.pendingDocumentDirectoryURL = nil
+                    self.documentTitle = self.title(from: url)
+                }
+
+                AutosaveStore.saveLastDocumentURL(url)
+                self.noteRecentDocument(url)
+                self.updateWindowTitle(for: url)
+
+                if self.textView?.contentGeneration == generation {
+                    self.clearDocumentEdited(cleanStatus: .saved)
+                    self.setDocumentStatus("Saved")
+                } else {
+                    self.updateAutosaveStatusForCurrentState()
+                    self.setDocumentStatus("Saved previous changes")
+                    if self.autosavePolicy.editedDocumentDecision(for: self.currentAutosaveState).shouldScheduleAutosave {
+                        self.scheduleAutosave()
+                    }
+                }
+            case .failure(let error):
+                self.showError(error, message: "The document could not be saved.")
+                self.setDocumentStatus("Save failed")
+                self.autosaveStatus = .failed
+            }
+        }
+    }
+
+    private func documentSnapshot() -> (attributedString: NSAttributedString, generation: Int)? {
+        guard let textView,
+              let attributedString = textView.textStorage?.copy() as? NSAttributedString else {
+            return nil
+        }
+
+        return (attributedString, textView.contentGeneration)
+    }
+
     private func writeDocument(to url: URL) throws {
-        guard let textStorage = textView?.textStorage else { return }
-        try documentFileStore.writeDocument(textStorage, to: url)
+        guard let attributedString = documentSnapshot()?.attributedString else { return }
+        try documentFileStore.writeDocument(attributedString, to: url)
     }
 
     private func writePDF(to url: URL) throws {
-        guard let textStorage = textView?.textStorage else { return }
-        try documentFileStore.writePDF(textStorage, to: url)
+        guard let attributedString = documentSnapshot()?.attributedString else { return }
+        try documentFileStore.writePDF(attributedString, to: url)
     }
 
     private func updateWindowTitle(for url: URL) {

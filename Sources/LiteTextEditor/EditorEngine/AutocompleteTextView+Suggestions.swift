@@ -29,7 +29,11 @@ extension AutocompleteTextView {
     func refreshSuggestion() {
         pendingSuggestionRefreshWorkItem?.cancel()
         pendingSuggestionRefreshWorkItem = nil
-        lastSuggestionRefreshKey = suggestionRefreshKey()
+        pendingSuggestionTask?.cancel()
+        pendingSuggestionTask = nil
+
+        let refreshKey = suggestionRefreshKey()
+        lastSuggestionRefreshKey = refreshKey
 
         guard selectedRange().length == 0 else {
             clearSuggestion()
@@ -37,14 +41,26 @@ extension AutocompleteTextView {
         }
 
         let request = makeSuggestionRequest()
-        let suggestion = suggestionProvider.suggestion(for: request)
+        let provider = suggestionProvider
+        clearSuggestion()
 
-        guard let suggestion else {
-            clearSuggestion()
-            return
+        pendingSuggestionTask = Task { [weak self] in
+            let suggestion = await provider.asyncSuggestion(for: request)
+            guard !Task.isCancelled else { return }
+
+            await MainActor.run {
+                guard let self else { return }
+                guard self.suggestionRefreshKey() == refreshKey else { return }
+
+                self.pendingSuggestionTask = nil
+                guard let suggestion else {
+                    self.clearSuggestion()
+                    return
+                }
+
+                self.showSuggestion(suggestion)
+            }
         }
-
-        showSuggestion(suggestion)
     }
 
     func acceptSuggestion() {
@@ -93,6 +109,12 @@ extension AutocompleteTextView {
         let scheduledKey = suggestionRefreshKey()
         guard scheduledKey != lastSuggestionRefreshKey else { return }
 
+        pendingSuggestionTask?.cancel()
+        pendingSuggestionTask = nil
+        if currentSuggestion != nil {
+            clearSuggestion()
+        }
+
         pendingSuggestionRefreshWorkItem?.cancel()
 
         let workItem = DispatchWorkItem { [weak self] in
@@ -107,6 +129,9 @@ extension AutocompleteTextView {
     }
 
     func clearSuggestion() {
+        pendingSuggestionTask?.cancel()
+        pendingSuggestionTask = nil
+
         guard currentSuggestion != nil || !suggestionLabel.isHidden || !suggestionLabel.stringValue.isEmpty else {
             return
         }
