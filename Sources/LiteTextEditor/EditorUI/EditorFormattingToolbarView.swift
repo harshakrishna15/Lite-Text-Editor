@@ -106,6 +106,7 @@ struct EditorFormattingToolbarView: View {
                 previewsFontFamilies: true,
                 onCommit: applyFontName
             )
+            .fixedSize(horizontal: false, vertical: true)
             .frame(width: fontControlWidth)
             .help("Font")
 
@@ -115,6 +116,7 @@ struct EditorFormattingToolbarView: View {
                 visibleItemCount: sizeOptions.count,
                 onCommit: applyFontSizeText
             )
+            .fixedSize(horizontal: false, vertical: true)
             .frame(width: ChromeStyle.toolbarSizeControlWidth)
             .help("Font Size")
 
@@ -213,6 +215,7 @@ struct EditorFormattingToolbarView: View {
                 setSelectedSize(preset.size)
                 editor.applyPreset(preset, fontName: selectedFont)
             }
+            .fixedSize(horizontal: false, vertical: true)
             .frame(width: styleControlWidth)
             .help("Style")
         }

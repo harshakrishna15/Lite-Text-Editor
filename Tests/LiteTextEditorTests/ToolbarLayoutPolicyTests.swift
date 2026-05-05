@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import XCTest
 @testable import LiteTextEditor
 
@@ -31,6 +32,39 @@ final class ToolbarLayoutPolicyTests: XCTestCase {
 
         XCTAssertEqual(comboBox.intrinsicContentSize.height, ChromeStyle.toolbarDropdownControlHeight)
         XCTAssertEqual(popUpButton.fittingSize.height, ChromeStyle.toolbarDropdownControlHeight)
+    }
+
+    func testToolbarComboBoxUsesNativeHeightInsideTallerToolbarHost() {
+        let view = EditableComboBox(
+            text: .constant("System"),
+            items: ["System", "Helvetica"],
+            visibleItemCount: 2,
+            onCommit: { _ in }
+        )
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(width: 160)
+        .frame(height: ChromeStyle.toolbarControlHeight)
+
+        let host = NSHostingView(rootView: view)
+        host.frame = NSRect(x: 0, y: 0, width: 160, height: ChromeStyle.toolbarControlHeight)
+        host.layoutSubtreeIfNeeded()
+
+        let comboBox = firstSubview(of: NSComboBox.self, in: host)
+        XCTAssertEqual(comboBox?.frame.height, ChromeStyle.toolbarDropdownControlHeight)
+    }
+
+    func testToolbarPresetPickerUsesNativeHeightInsideTallerToolbarHost() {
+        let view = TextPresetPicker(selection: .constant(.body), fontName: "System") { _ in }
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(width: 160)
+            .frame(height: ChromeStyle.toolbarControlHeight)
+
+        let host = NSHostingView(rootView: view)
+        host.frame = NSRect(x: 0, y: 0, width: 160, height: ChromeStyle.toolbarControlHeight)
+        host.layoutSubtreeIfNeeded()
+
+        let button = firstSubview(of: ToolbarPopUpButton.self, in: host)
+        XCTAssertEqual(button?.frame.height, ChromeStyle.toolbarDropdownControlHeight)
     }
 
     func testInitialModeUsesMiddleBreakpoint() {
@@ -90,4 +124,18 @@ final class ToolbarLayoutPolicyTests: XCTestCase {
             )
         )
     }
+}
+
+private func firstSubview<ViewType: NSView>(of type: ViewType.Type, in view: NSView) -> ViewType? {
+    if let view = view as? ViewType {
+        return view
+    }
+
+    for subview in view.subviews {
+        if let match = firstSubview(of: type, in: subview) {
+            return match
+        }
+    }
+
+    return nil
 }
