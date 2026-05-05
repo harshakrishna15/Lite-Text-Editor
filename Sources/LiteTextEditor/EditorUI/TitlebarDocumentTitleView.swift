@@ -71,10 +71,6 @@ struct TitlebarDocumentTitleView: View {
         if isPopoverPresented || isHovered {
             Color.clear
                 .chromeGlassBackground(.titlebarControl, in: RoundedRectangle(cornerRadius: TitlebarDocumentTitleLayout.cornerRadius, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: TitlebarDocumentTitleLayout.cornerRadius, style: .continuous)
-                        .stroke(Color(nsColor: .separatorColor).opacity(isPopoverPresented ? 0.62 : 0.34), lineWidth: 1)
-                )
         }
     }
 

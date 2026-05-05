@@ -109,11 +109,7 @@ struct SpellingCorrectionCard: View {
         .padding(12)
         .frame(width: 292)
         .chromeGlassBackground(.panel, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.black.opacity(0.12), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.18), radius: 18, x: 0, y: 8)
+        .chromeFloatingPanelShadow()
     }
 }
 
@@ -129,13 +125,13 @@ private struct SpellingCloseButton: View {
                 .foregroundStyle(isHovered ? ChromeStyle.controlTextColor : ChromeStyle.secondaryTextColor)
                 .frame(width: 22, height: 22)
                 .chromeGlassControlBackground(
-                    isActive: true,
+                    isActive: isHovered,
                     fallbackColor: isHovered ? ChromeStyle.toolbarHoverFill : Color.clear,
                     in: RoundedRectangle(cornerRadius: ChromeStyle.toolbarControlCornerRadius, style: .continuous)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: ChromeStyle.toolbarControlCornerRadius, style: .continuous)
-                        .stroke(isHovered ? ChromeStyle.toolbarHoverBorder : Color.clear, lineWidth: isHovered ? 1 : 0)
+                        .strokeBorder(isHovered ? ChromeStyle.toolbarHoverBorder : Color.clear, lineWidth: isHovered ? 1 : 0)
                 )
                 .contentShape(RoundedRectangle(cornerRadius: ChromeStyle.toolbarControlCornerRadius, style: .continuous))
         }

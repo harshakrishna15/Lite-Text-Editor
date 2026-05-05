@@ -39,6 +39,107 @@ final class PageLayoutTests: XCTestCase {
         )
     }
 
+    func testVisiblePageRangeReturnsOnlyDirtyPageInLongDocument() {
+        let pageOriginY: CGFloat = 56
+        let pageStride = AutocompleteTextView.pageHeight + AutocompleteTextView.pageGap
+        let dirtyPage = 500
+        let dirtyRect = NSRect(
+            x: 0,
+            y: pageOriginY + (CGFloat(dirtyPage) * pageStride) + 120,
+            width: 100,
+            height: 24
+        )
+
+        XCTAssertEqual(
+            AutocompleteTextView.visiblePageRange(
+                for: dirtyRect,
+                pageOriginY: pageOriginY,
+                renderedPageCount: 1_000
+            ),
+            dirtyPage...dirtyPage
+        )
+    }
+
+    func testVisiblePageRangeClampsToLastRenderedPage() {
+        let pageOriginY: CGFloat = 56
+        let pageStride = AutocompleteTextView.pageHeight + AutocompleteTextView.pageGap
+        let dirtyRect = NSRect(
+            x: 0,
+            y: pageOriginY + (2 * pageStride) + AutocompleteTextView.pageHeight - 10,
+            width: 100,
+            height: 2_000
+        )
+
+        XCTAssertEqual(
+            AutocompleteTextView.visiblePageRange(
+                for: dirtyRect,
+                pageOriginY: pageOriginY,
+                renderedPageCount: 3
+            ),
+            2...2
+        )
+    }
+
+    func testVisiblePageRangeReturnsNilOutsideRenderedPages() {
+        let pageOriginY: CGFloat = 56
+        let pageCount = 3
+        let shadowOutset = AutocompleteTextView.PageDrawingStyle.shadowOutset
+            + abs(AutocompleteTextView.PageDrawingStyle.shadowYOffset)
+        let beforePages = NSRect(
+            x: 0,
+            y: pageOriginY - shadowOutset - 20,
+            width: 100,
+            height: 4
+        )
+        let afterPages = NSRect(
+            x: 0,
+            y: pageOriginY + AutocompleteTextView.pageStackHeight(forPageCount: pageCount) + shadowOutset + 20,
+            width: 100,
+            height: 4
+        )
+
+        XCTAssertNil(
+            AutocompleteTextView.visiblePageRange(
+                for: beforePages,
+                pageOriginY: pageOriginY,
+                renderedPageCount: pageCount
+            )
+        )
+        XCTAssertNil(
+            AutocompleteTextView.visiblePageRange(
+                for: afterPages,
+                pageOriginY: pageOriginY,
+                renderedPageCount: pageCount
+            )
+        )
+    }
+
+    func testPageChromeDrawRectIncludesShadowButStaysTight() {
+        let pageRect = NSRect(x: 100, y: 56, width: AutocompleteTextView.paperWidth, height: AutocompleteTextView.pageHeight)
+        let chromeRect = AutocompleteTextView.pageChromeDrawRect(for: pageRect)
+
+        XCTAssertLessThan(chromeRect.minX, pageRect.minX)
+        XCTAssertGreaterThan(chromeRect.maxX, pageRect.maxX)
+        XCTAssertGreaterThan(chromeRect.maxY, pageRect.maxY)
+        XCTAssertLessThanOrEqual(
+            chromeRect.width - pageRect.width,
+            (AutocompleteTextView.PageDrawingStyle.shadowOutset * 2) + 2
+        )
+    }
+
+    func testPageDrawingUsesSingleBoundedSoftShadowPass() {
+        XCTAssertEqual(AutocompleteTextView.PageDrawingStyle.blurredShadowPassCount, 1)
+        XCTAssertLessThanOrEqual(AutocompleteTextView.PageDrawingStyle.shadowBlurRadius, 12)
+        XCTAssertLessThanOrEqual(AutocompleteTextView.PageDrawingStyle.shadowOutset, 14)
+        XCTAssertLessThanOrEqual(AutocompleteTextView.PageDrawingStyle.maximumShadowAlpha, 0.11)
+    }
+
+    func testPageShadowUsesSubtleOffsetDepth() {
+        XCTAssertEqual(AutocompleteTextView.PageDrawingStyle.shadowXOffset, 0)
+        XCTAssertGreaterThan(AutocompleteTextView.PageDrawingStyle.shadowYOffset, 0)
+        XCTAssertLessThan(AutocompleteTextView.PageDrawingStyle.shadowAlpha, 0.12)
+    }
+
     func testFitPageMagnificationRespectsMinimumZoom() {
         let tinyViewport = NSSize(width: 120, height: 120)
         let magnification = ZoomViewportCalculator.fitPageMagnification(

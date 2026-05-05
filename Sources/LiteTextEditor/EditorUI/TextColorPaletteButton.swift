@@ -86,7 +86,7 @@ private struct ToolbarPaletteButton<Content: View>: View {
                     .frame(width: 16, height: 3)
                     .overlay(
                         RoundedRectangle(cornerRadius: 1)
-                            .stroke(indicatorStrokeColor, lineWidth: 0.5)
+                            .strokeBorder(indicatorStrokeColor, lineWidth: 0.5)
                     )
             }
             .frame(width: ChromeStyle.toolbarIconWidth, height: ChromeStyle.toolbarControlHeight)
@@ -241,7 +241,7 @@ private struct PaletteSwatchButton: View {
                 .frame(width: 24, height: 18)
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
-                        .stroke(isSelected ? Color.accentColor : Color.black.opacity(0.18), lineWidth: isSelected ? 2 : 1)
+                        .strokeBorder(isSelected ? Color.accentColor : Color.black.opacity(0.18), lineWidth: isSelected ? 2 : 1)
                 )
                 .contentShape(Rectangle())
         }

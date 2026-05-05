@@ -34,10 +34,11 @@ struct ToolbarIconButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         let shape = RoundedRectangle(cornerRadius: ChromeStyle.toolbarControlCornerRadius, style: .continuous)
+        let usesGlass = isSelected || isHovered || configuration.isPressed
 
         configuration.label
             .chromeGlassControlBackground(
-                isActive: true,
+                isActive: usesGlass,
                 isSelected: isSelected,
                 isPressed: configuration.isPressed,
                 fallbackColor: backgroundColor(isPressed: configuration.isPressed),
@@ -50,7 +51,7 @@ struct ToolbarIconButtonStyle: ButtonStyle {
             )
             .overlay(
                 shape
-                    .stroke(
+                    .strokeBorder(
                         borderColor(isPressed: configuration.isPressed),
                         lineWidth: borderWidth(isPressed: configuration.isPressed)
                     )
@@ -178,7 +179,7 @@ struct ToolbarPopoverButton<Content: View>: View {
             .foregroundStyle(isHovered ? ChromeStyle.controlTextColor : ChromeStyle.glassControlTextColor)
             .frame(width: ChromeStyle.toolbarIconWidth + 8, height: ChromeStyle.toolbarControlHeight)
             .chromeGlassControlBackground(
-                isActive: true,
+                isActive: isPresented || isHovered,
                 isSelected: isPresented,
                 fallbackColor: isPresented || isHovered ? ChromeStyle.toolbarHoverFill : Color.clear,
                 in: shape
@@ -190,7 +191,7 @@ struct ToolbarPopoverButton<Content: View>: View {
             )
             .overlay(
                 shape
-                    .stroke(
+                    .strokeBorder(
                         isPresented || isHovered ? ChromeStyle.toolbarSelectedBorder : Color.clear,
                         lineWidth: isPresented || isHovered ? 1 : 0
                     )

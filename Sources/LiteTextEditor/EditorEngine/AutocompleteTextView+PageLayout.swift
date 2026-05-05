@@ -1,11 +1,26 @@
 import AppKit
 
 extension AutocompleteTextView {
+    struct PageDrawingStyle {
+        static let cornerRadius: CGFloat = 2
+        static let shadowBlurRadius: CGFloat = 12
+        static let shadowXOffset: CGFloat = 0
+        static let shadowYOffset: CGFloat = 2
+        static let shadowAlpha: CGFloat = 0.11
+        static let shadowOutset = shadowBlurRadius + max(abs(shadowXOffset), abs(shadowYOffset))
+        static let maximumShadowAlpha = shadowAlpha
+        static let blurredShadowPassCount = 1
+        static let borderAlpha: CGFloat = 0.08
+    }
+
     private static let pageShadow: NSShadow = {
         let shadow = NSShadow()
-        shadow.shadowColor = NSColor.black.withAlphaComponent(0.14)
-        shadow.shadowOffset = NSSize(width: 0, height: -2)
-        shadow.shadowBlurRadius = 14
+        shadow.shadowColor = NSColor.black.withAlphaComponent(PageDrawingStyle.shadowAlpha)
+        shadow.shadowOffset = NSSize(
+            width: PageDrawingStyle.shadowXOffset,
+            height: -PageDrawingStyle.shadowYOffset
+        )
+        shadow.shadowBlurRadius = PageDrawingStyle.shadowBlurRadius
         return shadow
     }()
 
@@ -53,6 +68,30 @@ extension AutocompleteTextView {
     static func pageStackHeight(forPageCount pageCount: Int) -> CGFloat {
         let clampedPageCount = max(1, pageCount)
         return (CGFloat(clampedPageCount) * pageHeight) + (CGFloat(clampedPageCount - 1) * pageGap)
+    }
+
+    static func visiblePageRange(
+        for dirtyRect: NSRect,
+        pageOriginY: CGFloat,
+        renderedPageCount: Int
+    ) -> ClosedRange<Int>? {
+        guard renderedPageCount > 0, !dirtyRect.isEmpty else { return nil }
+
+        let shadowOutset = PageDrawingStyle.shadowOutset + abs(PageDrawingStyle.shadowYOffset)
+        let pageStackMinY = pageOriginY - shadowOutset
+        let pageStackMaxY = pageOriginY + pageStackHeight(forPageCount: renderedPageCount) + shadowOutset
+        guard dirtyRect.maxY >= pageStackMinY, dirtyRect.minY <= pageStackMaxY else { return nil }
+
+        let pageStride = pageHeight + pageGap
+        let visibleMinY = max(dirtyRect.minY - pageOriginY - shadowOutset, 0)
+        let visibleMaxY = max(dirtyRect.maxY - pageOriginY + shadowOutset, 0)
+        let firstPage = max(0, Int(floor(visibleMinY / pageStride)))
+        let lastVisiblePage = max(firstPage, Int(floor(visibleMaxY / pageStride)))
+        let lastRenderedPage = renderedPageCount - 1
+        let lastPage = min(lastVisiblePage, lastRenderedPage)
+
+        guard firstPage <= lastPage else { return nil }
+        return firstPage...lastPage
     }
 
     static func documentWidth(forViewportWidth viewportWidth: CGFloat) -> CGFloat {
@@ -246,18 +285,14 @@ extension AutocompleteTextView {
         let pageX = pageHorizontalOrigin(forBoundsWidth: bounds.width)
         let pageY = pageOriginY(forPageCount: renderedPageCount, boundsHeight: bounds.height)
         let pageStride = Self.pageHeight + Self.pageGap
-        let visibleMinY = max(dirtyRect.minY - pageY, 0)
-        let visibleMaxY = max(dirtyRect.maxY - pageY, 0)
-        let firstPage = max(0, Int(floor(visibleMinY / pageStride)))
-        let lastVisiblePage = max(firstPage, Int(floor(visibleMaxY / pageStride)))
-        let lastRenderedPage = max(0, renderedPageCount - 1)
-        let lastPage = min(lastVisiblePage, lastRenderedPage)
 
-        guard firstPage <= lastPage else {
-            return
-        }
+        guard let visiblePages = Self.visiblePageRange(
+            for: dirtyRect,
+            pageOriginY: pageY,
+            renderedPageCount: renderedPageCount
+        ) else { return }
 
-        for pageIndex in firstPage...lastPage {
+        for pageIndex in visiblePages {
             let pageRect = NSRect(
                 x: pageX,
                 y: pageY + (CGFloat(pageIndex) * pageStride),
@@ -265,20 +300,39 @@ extension AutocompleteTextView {
                 height: Self.pageHeight
             )
 
-            guard pageRect.intersects(bounds) else { continue }
+            let chromeRect = Self.pageChromeDrawRect(for: pageRect)
+            guard chromeRect.intersects(dirtyRect), chromeRect.intersects(bounds) else { continue }
 
-            let path = NSBezierPath(roundedRect: pageRect, xRadius: 2, yRadius: 2)
-
-            NSGraphicsContext.saveGraphicsState()
-            Self.pageShadow.set()
-            NSColor.white.setFill()
-            path.fill()
-            NSGraphicsContext.restoreGraphicsState()
-
-            NSColor.black.withAlphaComponent(0.08).setStroke()
-            path.lineWidth = 1
-            path.stroke()
+            Self.drawPageChrome(in: pageRect)
         }
+    }
+
+    static func pageChromeDrawRect(for pageRect: NSRect) -> NSRect {
+        let shadowRect = pageRect
+            .offsetBy(dx: PageDrawingStyle.shadowXOffset, dy: -PageDrawingStyle.shadowYOffset)
+            .insetBy(dx: -PageDrawingStyle.shadowOutset, dy: -PageDrawingStyle.shadowOutset)
+        return pageRect.insetBy(dx: -1, dy: -1).union(shadowRect)
+    }
+
+    private static func drawPageChrome(in pageRect: NSRect) {
+        let path = NSBezierPath(
+            roundedRect: pageRect,
+            xRadius: PageDrawingStyle.cornerRadius,
+            yRadius: PageDrawingStyle.cornerRadius
+        )
+
+        NSGraphicsContext.saveGraphicsState()
+        pageShadow.set()
+        NSColor.white.setFill()
+        path.fill()
+        NSGraphicsContext.restoreGraphicsState()
+
+        NSColor.white.setFill()
+        path.fill()
+
+        NSColor.black.withAlphaComponent(PageDrawingStyle.borderAlpha).setStroke()
+        path.lineWidth = 1
+        path.stroke()
     }
 
     func keepInsertionPointVisible() {

@@ -297,7 +297,6 @@ final class AutocompleteTextView: NSTextView {
             guard let self else { return }
             self.updatePaperLayout()
             self.ensurePaperHeightFitsContent()
-            self.needsDisplay = true
         }
     }
 
@@ -317,7 +316,6 @@ final class AutocompleteTextView: NSTextView {
 
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.needsDisplay = true
             self.updateInsertionPointStateAndRestartTimer(true)
         }
     }
@@ -345,7 +343,6 @@ final class AutocompleteTextView: NSTextView {
             didChangeText()
             updatePaperLayout()
             ensurePaperHeightFitsContent()
-            needsDisplay = true
         }
 
         if didEdit {
@@ -732,7 +729,9 @@ final class AutocompleteTextView: NSTextView {
             typingAttributes[.paragraphStyle] = paragraphStyle
         }
 
-        enclosingScrollView?.verticalRulerView?.needsDisplay = true
+        if enclosingScrollView?.rulersVisible == true {
+            enclosingScrollView?.verticalRulerView?.needsDisplay = true
+        }
     }
 
     func currentParagraphIndents() -> (firstLine: CGFloat, head: CGFloat) {
@@ -764,7 +763,9 @@ final class AutocompleteTextView: NSTextView {
             typingAttributes[.paragraphStyle] = paragraphStyle
         }
 
-        enclosingScrollView?.horizontalRulerView?.needsDisplay = true
+        if enclosingScrollView?.rulersVisible == true {
+            enclosingScrollView?.horizontalRulerView?.needsDisplay = true
+        }
     }
 
     @discardableResult
@@ -821,7 +822,9 @@ final class AutocompleteTextView: NSTextView {
         didChangeText()
         undoManager?.setActionName("Alignment")
         breakUndoCoalescing()
-        enclosingScrollView?.horizontalRulerView?.needsDisplay = true
+        if enclosingScrollView?.rulersVisible == true {
+            enclosingScrollView?.horizontalRulerView?.needsDisplay = true
+        }
         return true
     }
 

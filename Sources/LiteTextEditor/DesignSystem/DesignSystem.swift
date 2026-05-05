@@ -15,8 +15,13 @@ enum ChromeStyle {
     static let toolbarControlCornerRadius: CGFloat = 5
     static let toolbarPopoverRowCornerRadius: CGFloat = 6
     static let toolbarPickerCornerRadius: CGFloat = 6
-    static let regularToolbarHeight: CGFloat = 40
-    static let compactToolbarHeight: CGFloat = 40
+    static let toolbarPanelHeight: CGFloat = 40
+    static let toolbarFloatingTopPadding: CGFloat = 8
+    static let toolbarFloatingBottomPadding: CGFloat = 6
+    static let toolbarFloatingHorizontalMargin: CGFloat = 16
+    static let toolbarPanelCornerRadius: CGFloat = 12
+    static let regularToolbarHeight: CGFloat = toolbarPanelHeight + toolbarFloatingTopPadding + toolbarFloatingBottomPadding
+    static let compactToolbarHeight: CGFloat = toolbarPanelHeight + toolbarFloatingTopPadding + toolbarFloatingBottomPadding
     static let toolbarCompactBreakpoint: CGFloat = 1_545
     static let toolbarRegularBreakpoint: CGFloat = 1_595
     static let toolbarModeInitialBreakpoint: CGFloat = 1_570
@@ -46,13 +51,20 @@ enum ChromeStyle {
     static let glassControlTextColor = Color.black.opacity(0.82)
     static let glassSecondaryTextColor = Color.black.opacity(0.58)
     static let nsGlassControlTextColor = NSColor(calibratedWhite: 0.12, alpha: 0.92)
-    static let toolbarHoverFill = Color.white.opacity(0.10)
-    static let toolbarPressedFill = Color.accentColor.opacity(0.22)
-    static let toolbarSelectedFill = Color.accentColor.opacity(0.18)
+    static let chromeBarBackground = Color(nsColor: .controlBackgroundColor)
+    static let chromePanelBackground = Color(nsColor: .windowBackgroundColor).opacity(0.98)
+    static let chromeControlBackground = Color(nsColor: .controlColor).opacity(0.72)
+    static let chromeControlBorder = Color(nsColor: .separatorColor).opacity(0.64)
+    static let chromePanelBorder = Color(nsColor: .separatorColor).opacity(0.56)
+    static let chromeBarBorder = Color(nsColor: .separatorColor).opacity(0.50)
+    static let chromeSelectedControlBackground = Color.accentColor.opacity(0.14)
+    static let chromePressedControlBackground = Color.accentColor.opacity(0.18)
+    static let toolbarHoverFill = Color(nsColor: .controlColor).opacity(0.72)
+    static let toolbarPressedFill = chromePressedControlBackground
+    static let toolbarSelectedFill = chromeSelectedControlBackground
     static let toolbarSelectedBorder = Color.accentColor.opacity(0.62)
     static let toolbarHoverBorder = Color.accentColor.opacity(0.40)
-    static let toolbarHoverOverlay = Color.accentColor.opacity(0.10)
-    static let outlinePanelStroke = Color.white.opacity(0.20)
+    static let toolbarHoverOverlay = Color.accentColor.opacity(0.055)
 
     static var appearance: NSAppearance? {
         NSAppearance(named: appearanceName)

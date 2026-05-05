@@ -18,11 +18,7 @@ struct OutlineSidebarView: View {
         }
         .frame(width: ChromeStyle.outlinePanelWidth, height: height, alignment: .top)
         .chromeGlassBackground(.panel, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(ChromeStyle.outlinePanelStroke, lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.20), radius: 24, x: 0, y: 14)
+        .chromeFloatingPanelShadow()
     }
 
     private var header: some View {
@@ -172,15 +168,13 @@ private struct OutlineRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .chromeGlassControlBackground(
-            isActive: true,
-            isSelected: isActive,
-            fallbackColor: rowBackground,
-            in: RoundedRectangle(cornerRadius: 5, style: .continuous)
+        .background(
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .fill(rowBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .stroke(isActive ? ChromeStyle.toolbarSelectedBorder : Color.clear, lineWidth: isActive ? 1 : 0)
+                .strokeBorder(isActive ? ChromeStyle.toolbarSelectedBorder : Color.clear, lineWidth: isActive ? 1 : 0)
         )
         .padding(.horizontal, 6)
         .onHover { isHovered = $0 }
@@ -220,13 +214,13 @@ private struct OutlineCloseButton: View {
                 .foregroundStyle(isHovered ? ChromeStyle.controlTextColor : ChromeStyle.secondaryTextColor)
                 .frame(width: 22, height: 22)
                 .chromeGlassControlBackground(
-                    isActive: true,
+                    isActive: isHovered,
                     fallbackColor: isHovered ? ChromeStyle.toolbarHoverFill : Color.clear,
                     in: RoundedRectangle(cornerRadius: 5, style: .continuous)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .stroke(isHovered ? ChromeStyle.toolbarHoverBorder : Color.clear, lineWidth: isHovered ? 1 : 0)
+                        .strokeBorder(isHovered ? ChromeStyle.toolbarHoverBorder : Color.clear, lineWidth: isHovered ? 1 : 0)
                 )
                 .contentShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
         }

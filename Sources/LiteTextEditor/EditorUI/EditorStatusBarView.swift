@@ -36,7 +36,7 @@ struct EditorStatusBarView: View {
             .padding(.horizontal, 12)
         }
         .frame(height: 28)
-        .background(ChromeBlurBackground())
+        .background(ChromeBarBackground(separatorEdge: .top))
     }
 
     @ViewBuilder
@@ -73,7 +73,7 @@ struct EditorStatusBarView: View {
             .padding(.horizontal, 6)
             .frame(height: 22)
             .chromeGlassControlBackground(
-                isActive: true,
+                isActive: isCountMenuHovered || isCountPopoverPresented,
                 isSelected: isCountPopoverPresented,
                 fallbackColor: isCountMenuHovered || isCountPopoverPresented ? ChromeStyle.toolbarHoverFill : Color.clear,
                 in: RoundedRectangle(cornerRadius: 6, style: .continuous)
@@ -85,7 +85,7 @@ struct EditorStatusBarView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .stroke(
+                    .strokeBorder(
                         isCountMenuHovered || isCountPopoverPresented ? ChromeStyle.toolbarHoverBorder : Color.clear,
                         lineWidth: isCountMenuHovered || isCountPopoverPresented ? 1 : 0
                     )
@@ -137,7 +137,7 @@ struct EditorStatusBarView: View {
                 .padding(.horizontal, 5)
                 .frame(height: 20)
                 .chromeGlassControlBackground(
-                    isActive: true,
+                    isActive: isZoomMenuHovered || isZoomPopoverPresented,
                     isSelected: isZoomPopoverPresented,
                     fallbackColor: isZoomMenuHovered || isZoomPopoverPresented ? ChromeStyle.toolbarHoverFill : Color.clear,
                     in: RoundedRectangle(cornerRadius: 5, style: .continuous)
@@ -149,7 +149,7 @@ struct EditorStatusBarView: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .stroke(
+                        .strokeBorder(
                             isZoomMenuHovered || isZoomPopoverPresented ? ChromeStyle.toolbarHoverBorder : Color.clear,
                             lineWidth: isZoomMenuHovered || isZoomPopoverPresented ? 1 : 0
                         )
