@@ -106,14 +106,8 @@ struct DocumentTextStatistics: Equatable {
     static func make(from text: String, pages: Int) -> DocumentTextStatistics {
         let words = countSubstrings(in: text, by: .byWords)
         let sentences = countSubstrings(in: text, by: .bySentences)
-        let paragraphs = text
-            .components(separatedBy: .newlines)
-            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-            .count
-        let lines = text.isEmpty ? 0 : text.components(separatedBy: .newlines).count
-        let charactersNoSpaces = text.reduce(0) { count, character in
-            character.isDocumentWhitespace ? count : count + 1
-        }
+        let lineCounts = lineAndParagraphCounts(in: text)
+        let charactersNoSpaces = countNonWhitespaceCharacters(in: text)
         let readingMinutes = words == 0 ? 0 : max(1, Int(ceil(Double(words) / 225.0)))
 
         return DocumentTextStatistics(
@@ -121,8 +115,8 @@ struct DocumentTextStatistics: Equatable {
             characters: text.count,
             charactersNoSpaces: charactersNoSpaces,
             sentences: sentences,
-            paragraphs: paragraphs,
-            lines: lines,
+            paragraphs: lineCounts.paragraphs,
+            lines: lineCounts.lines,
             pages: max(1, pages),
             estimatedReadingMinutes: readingMinutes
         )
@@ -143,6 +137,38 @@ struct DocumentTextStatistics: Equatable {
             }
         }
         return count
+    }
+
+    private static func lineAndParagraphCounts(in text: String) -> (lines: Int, paragraphs: Int) {
+        guard !text.isEmpty else { return (lines: 0, paragraphs: 0) }
+
+        var lines = 1
+        var paragraphs = 0
+        var currentLineHasContent = false
+
+        for scalar in text.unicodeScalars {
+            if CharacterSet.newlines.contains(scalar) {
+                if currentLineHasContent {
+                    paragraphs += 1
+                }
+                currentLineHasContent = false
+                lines += 1
+            } else if !CharacterSet.whitespacesAndNewlines.contains(scalar) {
+                currentLineHasContent = true
+            }
+        }
+
+        if currentLineHasContent {
+            paragraphs += 1
+        }
+
+        return (lines: lines, paragraphs: paragraphs)
+    }
+
+    private static func countNonWhitespaceCharacters(in text: String) -> Int {
+        text.reduce(0) { count, character in
+            character.isDocumentWhitespace ? count : count + 1
+        }
     }
 }
 

@@ -487,12 +487,12 @@ extension EditorController {
 
     private func writeDocument(to url: URL) throws {
         guard let textStorage = textView?.textStorage else { return }
-        try documentFileStore.writeDocument(NSAttributedString(attributedString: textStorage), to: url)
+        try documentFileStore.writeDocument(textStorage, to: url)
     }
 
     private func writePDF(to url: URL) throws {
         guard let textStorage = textView?.textStorage else { return }
-        try documentFileStore.writePDF(NSAttributedString(attributedString: textStorage), to: url)
+        try documentFileStore.writePDF(textStorage, to: url)
     }
 
     private func updateWindowTitle(for url: URL) {

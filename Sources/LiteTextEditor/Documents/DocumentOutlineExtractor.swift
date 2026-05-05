@@ -32,7 +32,7 @@ struct DocumentOutlineExtractor {
             }?.location ?? string.length
             let sectionLength = max(0, sectionEnd - candidate.location)
             let sectionBodyRange = bodyRange(for: candidate, sectionEnd: sectionEnd, stringLength: string.length)
-            let sectionBodyText = sectionBodyRange.length > 0 ? string.substring(with: sectionBodyRange) : ""
+            let sectionMetrics = metrics(in: sectionBodyRange, string: string)
             let childCount = candidates[(index + 1)...].prefix { nextCandidate in
                 nextCandidate.level > candidate.level
             }
@@ -48,9 +48,9 @@ struct DocumentOutlineExtractor {
                     sectionNumber: sectionNumber,
                     sectionLength: sectionLength,
                     headingWordCount: wordCount(in: candidate.title),
-                    wordCount: wordCount(in: sectionBodyText),
-                    characterCount: characterCount(in: sectionBodyText),
-                    paragraphCount: paragraphCount(in: sectionBodyText),
+                    wordCount: sectionMetrics.wordCount,
+                    characterCount: sectionMetrics.characterCount,
+                    paragraphCount: sectionMetrics.paragraphCount,
                     childCount: childCount
                 )
             )
@@ -138,17 +138,69 @@ struct DocumentOutlineExtractor {
         return count
     }
 
-    private func paragraphCount(in text: String) -> Int {
-        text
-            .components(separatedBy: .newlines)
-            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-            .count
+    private func metrics(in range: NSRange, string: NSString) -> DocumentOutlineSectionMetrics {
+        guard range.length > 0 else {
+            return DocumentOutlineSectionMetrics(wordCount: 0, characterCount: 0, paragraphCount: 0)
+        }
+
+        return DocumentOutlineSectionMetrics(
+            wordCount: wordCount(in: range, string: string),
+            characterCount: characterCount(in: range, string: string),
+            paragraphCount: paragraphCount(in: range, string: string)
+        )
     }
 
-    private func characterCount(in text: String) -> Int {
-        text.reduce(0) { count, character in
-            character.isDocumentStructureWhitespace ? count : count + 1
+    private func wordCount(in range: NSRange, string: NSString) -> Int {
+        var count = 0
+        string.enumerateSubstrings(
+            in: range,
+            options: [.byWords, .localized]
+        ) { substring, _, _, _ in
+            if let substring, !substring.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                count += 1
+            }
         }
+        return count
+    }
+
+    private func paragraphCount(in range: NSRange, string: NSString) -> Int {
+        var count = 0
+        var currentLineHasContent = false
+        let end = NSMaxRange(range)
+
+        for index in range.location..<end {
+            let character = string.character(at: index)
+            guard let scalar = UnicodeScalar(character) else { continue }
+
+            if CharacterSet.newlines.contains(scalar) {
+                if currentLineHasContent {
+                    count += 1
+                }
+                currentLineHasContent = false
+            } else if !CharacterSet.whitespacesAndNewlines.contains(scalar) {
+                currentLineHasContent = true
+            }
+        }
+
+        if currentLineHasContent {
+            count += 1
+        }
+
+        return count
+    }
+
+    private func characterCount(in range: NSRange, string: NSString) -> Int {
+        var count = 0
+        string.enumerateSubstrings(
+            in: range,
+            options: [.byComposedCharacterSequences]
+        ) { substring, _, _, _ in
+            guard let substring else { return }
+            if !substring.allSatisfy({ $0.isDocumentStructureWhitespace }) {
+                count += 1
+            }
+        }
+        return count
     }
 
     private func makeMetadata(from items: [DocumentOutlineItem]) -> DocumentStructureMetadata {
@@ -205,6 +257,12 @@ private struct DocumentOutlineCandidate {
     let level: Int
     let location: Int
     let headingLength: Int
+}
+
+private struct DocumentOutlineSectionMetrics {
+    let wordCount: Int
+    let characterCount: Int
+    let paragraphCount: Int
 }
 
 private extension Character {
