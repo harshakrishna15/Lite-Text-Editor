@@ -103,6 +103,20 @@ final class DocumentOutlineExtractorTests: XCTestCase {
         XCTAssertEqual(items.map(\.childCount), [2, 0, 0, 1, 0])
     }
 
+    func testOutlineMetricsCountEmojiOnlyParagraphAsContent() {
+        let document = NSMutableAttributedString(string: """
+        First Section
+        😀
+        """)
+
+        apply(font: .systemFont(ofSize: TextPreset.heading.size, weight: TextPreset.heading.weight), to: "First Section", in: document)
+
+        let item = DocumentOutlineExtractor().makeOutlineItems(from: document).first
+
+        XCTAssertEqual(item?.paragraphCount, 1)
+        XCTAssertEqual(item?.characterCount, 1)
+    }
+
     private func apply(font: NSFont, to substring: String, in document: NSMutableAttributedString) {
         let range = (document.string as NSString).range(of: substring)
         XCTAssertNotEqual(range.location, NSNotFound, "Missing substring: \(substring)")

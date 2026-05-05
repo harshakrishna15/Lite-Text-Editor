@@ -583,18 +583,27 @@ extension EditorController {
         if range.length > 0 {
             let actionName = trait == .bold ? "Bold" : "Italic"
             textView.performUndoableAttributeEdit(in: range, actionName: actionName) { textStorage, editRange in
-                var updates: [(range: NSRange, font: NSFont)] = []
+                var runs: [(range: NSRange, font: NSFont)] = []
+                var allRunsHaveTrait = true
 
                 textStorage.enumerateAttribute(.font, in: editRange) { value, effectiveRange, _ in
                     let font = value as? NSFont ?? NSFont.systemFont(ofSize: 11)
-                    updates.append((effectiveRange, font.togglingSymbolicTrait(trait)))
+                    if !font.fontDescriptor.symbolicTraits.contains(trait) {
+                        allRunsHaveTrait = false
+                    }
+                    runs.append((effectiveRange, font))
                 }
 
-                updates.forEach { update in
-                    textStorage.addAttribute(.font, value: update.font, range: update.range)
+                let shouldEnableTrait = !allRunsHaveTrait
+                runs.forEach { run in
+                    textStorage.addAttribute(
+                        .font,
+                        value: run.font.settingSymbolicTrait(trait, enabled: shouldEnableTrait),
+                        range: run.range
+                    )
                 }
 
-                return !updates.isEmpty
+                return !runs.isEmpty
             }
         } else {
             let font = textView.typingAttributes[.font] as? NSFont ?? NSFont.systemFont(ofSize: 11)
@@ -790,12 +799,19 @@ extension EditorController {
 
 private extension NSFont {
     func togglingSymbolicTrait(_ trait: NSFontDescriptor.SymbolicTraits) -> NSFont {
+        settingSymbolicTrait(
+            trait,
+            enabled: !fontDescriptor.symbolicTraits.contains(trait)
+        )
+    }
+
+    func settingSymbolicTrait(_ trait: NSFontDescriptor.SymbolicTraits, enabled: Bool) -> NSFont {
         var traits = fontDescriptor.symbolicTraits
 
-        if traits.contains(trait) {
-            traits.remove(trait)
-        } else {
+        if enabled {
             traits.insert(trait)
+        } else {
+            traits.remove(trait)
         }
 
         let descriptor = fontDescriptor.withSymbolicTraits(traits)

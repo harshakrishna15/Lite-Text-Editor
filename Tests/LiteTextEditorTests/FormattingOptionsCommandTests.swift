@@ -97,6 +97,27 @@ final class FormattingOptionsCommandTests: XCTestCase {
         XCTAssertNotNil(attribute(.backgroundColor, at: 7, in: textView))
     }
 
+    func testBoldCommandNormalizesMixedSelectionInsteadOfInvertingRuns() {
+        let fixture = makeFixture("mixed style")
+        let controller = fixture.controller
+        let textView = fixture.textView
+
+        textView.setSelectedRange(NSRange(location: 0, length: 5))
+        controller.toggleBold()
+
+        textView.setSelectedRange(NSRange(location: 0, length: textView.string.utf16.count))
+        controller.toggleBold()
+
+        XCTAssertTrue(font(at: 0, in: textView).fontDescriptor.symbolicTraits.contains(.bold))
+        XCTAssertTrue(font(at: 6, in: textView).fontDescriptor.symbolicTraits.contains(.bold))
+
+        textView.setSelectedRange(NSRange(location: 0, length: textView.string.utf16.count))
+        controller.toggleBold()
+
+        XCTAssertFalse(font(at: 0, in: textView).fontDescriptor.symbolicTraits.contains(.bold))
+        XCTAssertFalse(font(at: 6, in: textView).fontDescriptor.symbolicTraits.contains(.bold))
+    }
+
     func testParagraphOptionsApplyExpectedParagraphAttributes() {
         let fixture = makeFixture("First paragraph\nSecond paragraph")
         let controller = fixture.controller
@@ -415,6 +436,11 @@ final class FormattingOptionsCommandTests: XCTestCase {
     private func paragraphStyle(at location: Int, in textView: AutocompleteTextView) -> NSParagraphStyle {
         textView.textStorage?.attribute(.paragraphStyle, at: location, effectiveRange: nil) as? NSParagraphStyle
             ?? NSParagraphStyle.default
+    }
+
+    private func font(at location: Int, in textView: AutocompleteTextView) -> NSFont {
+        textView.textStorage?.attribute(.font, at: location, effectiveRange: nil) as? NSFont
+            ?? NSFont.systemFont(ofSize: 11)
     }
 
     private func leftParagraphStyle() -> NSParagraphStyle {

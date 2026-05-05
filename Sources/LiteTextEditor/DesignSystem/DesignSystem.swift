@@ -20,6 +20,8 @@ enum ChromeStyle {
     static let toolbarCompactBreakpoint: CGFloat = 1_545
     static let toolbarRegularBreakpoint: CGFloat = 1_595
     static let toolbarModeInitialBreakpoint: CGFloat = 1_570
+    static let toolbarHorizontalPadding: CGFloat = 18
+    static let compactToolbarHorizontalPadding: CGFloat = 12
     static let toolbarModeAnimation = Animation.interpolatingSpring(
         mass: 1.0,
         stiffness: 145,
@@ -27,10 +29,10 @@ enum ChromeStyle {
         initialVelocity: 0
     )
     static let toolbarFontControlWidth: CGFloat = 260
-    static let compactToolbarFontControlWidth: CGFloat = 220
+    static let compactToolbarFontControlWidth: CGFloat = 200
     static let toolbarSizeControlWidth: CGFloat = 78
     static let toolbarStyleControlWidth: CGFloat = 170
-    static let compactToolbarStyleControlWidth: CGFloat = 150
+    static let compactToolbarStyleControlWidth: CGFloat = 132
     static let toolbarIconWidth: CGFloat = 28
     static let toolbarItemSpacing: CGFloat = 7
     static let toolbarSectionSpacing: CGFloat = 10

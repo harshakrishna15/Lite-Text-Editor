@@ -200,18 +200,15 @@ struct DocumentOutlineExtractor {
     private func paragraphCount(in range: NSRange, string: NSString) -> Int {
         var count = 0
         var currentLineHasContent = false
-        let end = NSMaxRange(range)
+        let substring = string.substring(with: range)
 
-        for index in range.location..<end {
-            let character = string.character(at: index)
-            guard let scalar = UnicodeScalar(character) else { continue }
-
-            if CharacterSet.newlines.contains(scalar) {
+        for character in substring {
+            if character.unicodeScalars.allSatisfy({ CharacterSet.newlines.contains($0) }) {
                 if currentLineHasContent {
                     count += 1
                 }
                 currentLineHasContent = false
-            } else if !CharacterSet.whitespacesAndNewlines.contains(scalar) {
+            } else if !character.isDocumentStructureWhitespace {
                 currentLineHasContent = true
             }
         }

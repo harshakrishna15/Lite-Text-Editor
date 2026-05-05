@@ -93,7 +93,14 @@ struct PhraseSuggestionEngine: SuggestionProviding {
 
     private func suggestionFromDocumentMemory(for request: SuggestionRequest) -> String? {
         let prefixWords = words(in: request.prefixContext)
-        let documentWords = words(in: request.documentContext)
+        let documentMemoryContext = request.documentContext
+            .components(separatedBy: "[CURSOR]")
+            .first
+            ?? request.documentContext
+        let documentWords = trimmingCurrentTrigger(
+            from: words(in: documentMemoryContext),
+            prefixWords: prefixWords
+        )
 
         guard prefixWords.count >= 2, documentWords.count >= 4 else {
             return nil
@@ -135,6 +142,20 @@ struct PhraseSuggestionEngine: SuggestionProviding {
         normalize(text)
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { !$0.isEmpty }
+    }
+
+    private func trimmingCurrentTrigger(from documentWords: [String], prefixWords: [String]) -> [String] {
+        let triggerLength = min(4, prefixWords.count)
+        guard triggerLength > 0, documentWords.count >= triggerLength else {
+            return documentWords
+        }
+
+        let currentTrigger = Array(prefixWords.suffix(triggerLength))
+        guard Array(documentWords.suffix(triggerLength)) == currentTrigger else {
+            return documentWords
+        }
+
+        return Array(documentWords.dropLast(triggerLength))
     }
 
     private func clipped(_ suggestion: String, maxWords: Int) -> String? {

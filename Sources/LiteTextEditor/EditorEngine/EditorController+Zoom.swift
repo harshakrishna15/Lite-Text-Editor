@@ -40,7 +40,12 @@ extension EditorController {
 
         let boundedDelta = min(max(delta, -0.2), 0.2)
         let nextMagnification = zoomMagnification * Double(1 + boundedDelta)
-        setZoomMagnification(nextMagnification)
+        let clampedMagnification = min(max(nextMagnification, minimumZoomMagnification), maximumZoomMagnification)
+        let nextPreset = matchingPreset(for: CGFloat(clampedMagnification)) ?? .actualSize
+        if selectedZoomPreset != nextPreset {
+            selectedZoomPreset = nextPreset
+        }
+        applyZoom(CGFloat(clampedMagnification), shouldResizePages: false)
     }
 
     func setZoomPreset(_ preset: DocumentZoomPreset) {
@@ -123,6 +128,8 @@ extension EditorController {
 
         if shouldResizePages && shouldRefreshTextLayout {
             textView.refreshLayoutAfterZoomChange()
+        } else if shouldRefreshTextLayout {
+            textView.refreshDisplayAfterZoomFrameChange()
         }
     }
 

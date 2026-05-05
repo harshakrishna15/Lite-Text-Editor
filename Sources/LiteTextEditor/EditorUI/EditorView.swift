@@ -25,27 +25,27 @@ struct EditorView: View {
     var body: some View {
         VStack(spacing: 0) {
             ZStack(alignment: .topLeading) {
-                ZStack(alignment: .topTrailing) {
-                    RichTextEditor(
-                        controller: editor,
-                        maxSuggestionWords: Int(suggestionWords),
-                        isAutomaticTextReplacementEnabled: editor.isAutomaticTextReplacementEnabled
-                    )
-
-                    if editor.spellCorrectionState.isPresented {
-                        SpellingCorrectionCard(
-                            state: editor.spellCorrectionState,
-                            onSelectSuggestion: editor.selectSpellingSuggestion,
-                            onApply: editor.applyCurrentSpellingCorrection,
-                            onIgnore: editor.ignoreCurrentSpellingIssue,
-                            onClose: editor.closeSpellingReview
-                        )
-                        .padding(.top, 14)
-                        .padding(.trailing, 18)
-                    }
-                }
+                RichTextEditor(
+                    controller: editor,
+                    maxSuggestionWords: Int(suggestionWords),
+                    isAutomaticTextReplacementEnabled: editor.isAutomaticTextReplacementEnabled
+                )
                 .clipped()
                 .background(Color(nsColor: .liteTextEditorDesk))
+
+                if editor.spellCorrectionState.isPresented {
+                    SpellingCorrectionCard(
+                        state: editor.spellCorrectionState,
+                        onSelectSuggestion: editor.selectSpellingSuggestion,
+                        onApply: editor.applyCurrentSpellingCorrection,
+                        onIgnore: editor.ignoreCurrentSpellingIssue,
+                        onClose: editor.closeSpellingReview
+                    )
+                    .padding(.top, editorOverlayTopInset + 14)
+                    .padding(.trailing, 18)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .zIndex(2)
+                }
 
                 GeometryReader { proxy in
                     if isOutlineVisible {
@@ -65,7 +65,7 @@ struct EditorView: View {
                                 }
                             }
                                 .padding(.leading, ChromeStyle.outlinePanelLeadingOffset)
-                                .padding(.top, ChromeStyle.outlinePanelTopInset)
+                                .padding(.top, editorOverlayTopInset + ChromeStyle.outlinePanelTopInset)
                                 .transition(.move(edge: .leading).combined(with: .opacity))
                                 .zIndex(2)
                         }
@@ -134,7 +134,11 @@ struct EditorView: View {
     }
 
     private func outlinePanelHeight(for editorHeight: CGFloat) -> CGFloat {
-        max(0, editorHeight - ChromeStyle.outlinePanelTopInset - ChromeStyle.outlinePanelBottomInset)
+        max(0, editorHeight - editorOverlayTopInset - ChromeStyle.outlinePanelTopInset - ChromeStyle.outlinePanelBottomInset)
+    }
+
+    private var editorOverlayTopInset: CGFloat {
+        ChromeStyle.regularToolbarHeight
     }
 
     private func isEditorWindowNotification(_ notification: Notification) -> Bool {

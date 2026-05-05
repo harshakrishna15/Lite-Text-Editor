@@ -7,6 +7,7 @@ final class ToolbarLayoutPolicyTests: XCTestCase {
         XCTAssertLessThan(ChromeStyle.toolbarModeInitialBreakpoint, ChromeStyle.toolbarRegularBreakpoint)
         XCTAssertLessThanOrEqual(ChromeStyle.compactToolbarFontControlWidth, ChromeStyle.toolbarFontControlWidth)
         XCTAssertLessThanOrEqual(ChromeStyle.compactToolbarStyleControlWidth, ChromeStyle.toolbarStyleControlWidth)
+        XCTAssertLessThanOrEqual(ChromeStyle.compactToolbarHorizontalPadding, ChromeStyle.toolbarHorizontalPadding)
     }
 
     func testInitialModeUsesMiddleBreakpoint() {

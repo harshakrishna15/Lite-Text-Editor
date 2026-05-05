@@ -16,6 +16,10 @@ enum AutosaveStore {
     static func saveLastDocumentURL(_ url: URL) {
         UserDefaults.standard.set(url.path, forKey: lastDocumentURLKey)
     }
+
+    static func clearLastDocumentURL() {
+        UserDefaults.standard.removeObject(forKey: lastDocumentURLKey)
+    }
 }
 
 enum AutosaveSettingsStore {

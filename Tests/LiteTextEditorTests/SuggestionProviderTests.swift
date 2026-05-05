@@ -39,6 +39,25 @@ final class SuggestionProviderTests: XCTestCase {
         XCTAssertNil(PhraseSuggestionEngine().suggestion(for: request))
     }
 
+    func testDocumentMemoryIgnoresCursorMarkerAndTrailingContext() {
+        let request = SuggestionRequest(
+            documentText: "",
+            cursorLocation: 0,
+            prefixContext: "alpha beta",
+            suffixContext: " cursor should not leak",
+            currentParagraph: "alpha beta cursor should not leak",
+            documentContext: """
+            alpha beta gamma delta
+            alpha beta
+            [CURSOR]
+            cursor should not leak
+            """,
+            maxWords: 4
+        )
+
+        XCTAssertEqual(PhraseSuggestionEngine().suggestion(for: request), "gamma delta")
+    }
+
     func testLocalAIProviderBuildsModelPromptWithoutReturningWhenUnloaded() {
         let request = makeRequest(prefix: "The next point is")
         let provider = LocalAISuggestionProvider()

@@ -5,6 +5,11 @@ private let documentStatisticsQueue = DispatchQueue(
     qos: .userInitiated
 )
 
+private let documentStructureQueue = DispatchQueue(
+    label: "LiteTextEditor.DocumentStructure",
+    qos: .userInitiated
+)
+
 extension EditorController {
     var outlineSummaryText: String {
         documentStructureMetadata.summaryText
@@ -41,30 +46,12 @@ extension EditorController {
         pendingOutlineRefresh = nil
 
         guard let attributedString = textView?.textStorage else {
-            if !outlineItems.isEmpty {
-                outlineItems = []
-            }
-            if documentStructureMetadata != .empty {
-                documentStructureMetadata = .empty
-            }
-            if activeOutlineItemID != nil {
-                activeOutlineItemID = nil
-            }
+            clearOutlineStructure()
             return
         }
 
         let snapshot = DocumentOutlineExtractor().makeStructureSnapshot(from: attributedString)
-        let nextItems = snapshot.items
-
-        if nextItems != outlineItems {
-            outlineItems = nextItems
-        }
-
-        if snapshot.metadata != documentStructureMetadata {
-            documentStructureMetadata = snapshot.metadata
-        }
-
-        refreshActiveOutlineItem()
+        applyStructureSnapshot(snapshot)
     }
 
     func scheduleDocumentStatisticsRefresh() {
@@ -120,7 +107,24 @@ extension EditorController {
             }
 
             self.pendingOutlineRefresh = nil
-            self.refreshOutlineItems()
+            guard let attributedSnapshot = self.textView?.textStorage?.copy() as? NSAttributedString else {
+                self.clearOutlineStructure()
+                return
+            }
+
+            documentStructureQueue.async { [weak self] in
+                let snapshot = DocumentOutlineExtractor().makeStructureSnapshot(from: attributedSnapshot)
+
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    guard self.textView?.contentGeneration == textGeneration else {
+                        self.scheduleOutlineRefresh()
+                        return
+                    }
+
+                    self.applyStructureSnapshot(snapshot)
+                }
+            }
         }
 
         pendingOutlineRefresh = workItem
@@ -137,9 +141,7 @@ extension EditorController {
 
         let textLength = textView.textStorageLength
         let selectionLocation = min(max(textView.selectedRange().location, 0), textLength)
-        let activeItem = outlineItems.last { item in
-            item.location <= selectionLocation
-        }
+        let activeItem = activeOutlineItem(at: selectionLocation)
         let nextID = activeItem?.id
 
         if activeOutlineItemID != nextID {
@@ -159,6 +161,47 @@ extension EditorController {
         textView.showFindIndicator(for: headingRange)
         activeOutlineItemID = item.id
         documentStatusText = "Outline: \(item.displayTitle)"
+    }
+
+    private func applyStructureSnapshot(_ snapshot: DocumentOutlineExtractor.StructureSnapshot) {
+        if snapshot.items != outlineItems {
+            outlineItems = snapshot.items
+        }
+
+        if snapshot.metadata != documentStructureMetadata {
+            documentStructureMetadata = snapshot.metadata
+        }
+
+        refreshActiveOutlineItem()
+    }
+
+    private func clearOutlineStructure() {
+        if !outlineItems.isEmpty {
+            outlineItems = []
+        }
+        if documentStructureMetadata != .empty {
+            documentStructureMetadata = .empty
+        }
+        if activeOutlineItemID != nil {
+            activeOutlineItemID = nil
+        }
+    }
+
+    private func activeOutlineItem(at selectionLocation: Int) -> DocumentOutlineItem? {
+        var low = outlineItems.startIndex
+        var high = outlineItems.endIndex
+
+        while low < high {
+            let mid = low + ((high - low) / 2)
+            if outlineItems[mid].location <= selectionLocation {
+                low = mid + 1
+            } else {
+                high = mid
+            }
+        }
+
+        guard low > outlineItems.startIndex else { return nil }
+        return outlineItems[low - 1]
     }
 
 }

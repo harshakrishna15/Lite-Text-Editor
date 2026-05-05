@@ -39,7 +39,10 @@ struct OutlineSidebarView: View {
                 Text(summaryText)
                     .font(ChromeStyle.smallTextFont)
                     .foregroundStyle(ChromeStyle.secondaryTextColor)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                     .padding(.horizontal, 6)
+                    .frame(maxWidth: 104, alignment: .leading)
                     .frame(height: 18)
                     .background(
                         Capsule()

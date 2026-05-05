@@ -145,6 +145,7 @@ final class ZoomControllerTests: XCTestCase {
 
     func testTrackpadZoomUsesDocumentLayoutScaleWithoutScrollViewMagnification() {
         let fixture = makeControllerFixture()
+        let initialRefreshCount = fixture.textView.zoomLayoutRefreshCount
 
         fixture.controller.applyTrackpadZoom(delta: 0.1, phase: .changed)
 
@@ -152,12 +153,14 @@ final class ZoomControllerTests: XCTestCase {
         XCTAssertEqual(fixture.controller.zoomDisplayText, "138%")
         XCTAssertEqual(fixture.scrollView.magnification, 1.0, accuracy: 0.001)
         XCTAssertEqual(fixture.textView.documentLayoutScale, 1.375, accuracy: 0.001)
+        XCTAssertEqual(fixture.textView.zoomLayoutRefreshCount, initialRefreshCount)
 
         fixture.controller.applyTrackpadZoom(delta: -0.1, phase: .changed)
 
         XCTAssertEqual(fixture.controller.zoomMagnification, 1.2375, accuracy: 0.001)
         XCTAssertEqual(fixture.scrollView.magnification, 1.0, accuracy: 0.001)
         XCTAssertEqual(fixture.textView.documentLayoutScale, 1.2375, accuracy: 0.001)
+        XCTAssertEqual(fixture.textView.zoomLayoutRefreshCount, initialRefreshCount)
     }
 
     func testTrackpadZoomIgnoresEndedAndCancelledEvents() {

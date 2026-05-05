@@ -17,6 +17,20 @@ extension AutocompleteTextView {
         return (pageIndex * (pageHeight + pageGap)) + contentYOnPage
     }
 
+    static func visualLineOriginY(forContentY contentY: CGFloat, usedHeight: CGFloat) -> CGFloat {
+        guard contentY > 0 else { return contentY }
+
+        let pageIndex = floor(contentY / pageContentHeight)
+        let contentYOnPage = contentY - (pageIndex * pageContentHeight)
+        let shouldMoveToNextPage = contentYOnPage > 0
+            && contentYOnPage + max(usedHeight, 0) > pageContentHeight
+        let adjustedContentY = shouldMoveToNextPage
+            ? (pageIndex + 1) * pageContentHeight
+            : contentY
+
+        return visualContentY(forContentY: adjustedContentY)
+    }
+
     static func contentY(fromPotentialVisualY y: CGFloat) -> CGFloat {
         guard y > 0 else { return y }
 
@@ -167,15 +181,15 @@ extension AutocompleteTextView {
             y: min(max(origin.y, bounds.minY), maxOrigin.y)
         )
 
-        guard abs(clipView.bounds.origin.x - clampedOrigin.x) > 0.5
-            || abs(clipView.bounds.origin.y - clampedOrigin.y) > 0.5 else {
-            return
-        }
-
         let physicalOrigin = NSPoint(
             x: clampedOrigin.x * documentLayoutScale,
             y: clampedOrigin.y * documentLayoutScale
         )
+        guard abs(clipView.bounds.origin.x - physicalOrigin.x) > 0.5
+            || abs(clipView.bounds.origin.y - physicalOrigin.y) > 0.5 else {
+            return
+        }
+
         if let paperScrollView = scrollView as? PaperScrollView {
             paperScrollView.performProgrammaticHorizontalScroll {
                 clipView.scroll(to: physicalOrigin)

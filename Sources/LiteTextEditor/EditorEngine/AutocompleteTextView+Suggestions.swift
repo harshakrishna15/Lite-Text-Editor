@@ -1,5 +1,30 @@
 import AppKit
 
+enum SuggestionLabelLayout {
+    static let leadingOffset: CGFloat = 3
+    static let horizontalPadding: CGFloat = 8
+    static let edgePadding: CGFloat = 6
+    static let verticalOffset: CGFloat = 2
+
+    static func frame(
+        anchorPoint: NSPoint,
+        fittingSize: NSSize,
+        visibleRect: NSRect
+    ) -> NSRect {
+        let availableWidth = max(0, visibleRect.width - (edgePadding * 2))
+        let width = min(fittingSize.width + horizontalPadding, availableWidth)
+        let height = fittingSize.height
+        let minX = visibleRect.minX + edgePadding
+        let maxX = max(minX, visibleRect.maxX - width - edgePadding)
+        let x = min(max(anchorPoint.x + leadingOffset, minX), maxX)
+        let minY = visibleRect.minY
+        let maxY = max(minY, visibleRect.maxY - height)
+        let y = min(max(anchorPoint.y - height + verticalOffset, minY), maxY)
+
+        return NSRect(x: x, y: y, width: width, height: height)
+    }
+}
+
 extension AutocompleteTextView {
     func refreshSuggestion() {
         pendingSuggestionRefreshWorkItem?.cancel()
@@ -58,6 +83,8 @@ extension AutocompleteTextView {
         suggestionLabel.isBordered = false
         suggestionLabel.textColor = .tertiaryLabelColor
         suggestionLabel.font = .systemFont(ofSize: 11)
+        suggestionLabel.cell?.lineBreakMode = .byTruncatingTail
+        suggestionLabel.cell?.usesSingleLineMode = true
         suggestionLabel.wantsLayer = true
         addSubview(suggestionLabel)
     }
@@ -155,11 +182,10 @@ extension AutocompleteTextView {
         let localPoint = convert(windowPoint, from: nil)
         let labelSize = suggestionLabel.fittingSize
 
-        suggestionLabel.frame = NSRect(
-            x: localPoint.x + 3,
-            y: max(localPoint.y - labelSize.height + 2, visibleRect.minY),
-            width: labelSize.width + 8,
-            height: labelSize.height
+        suggestionLabel.frame = SuggestionLabelLayout.frame(
+            anchorPoint: localPoint,
+            fittingSize: labelSize,
+            visibleRect: visibleRect
         )
     }
 }

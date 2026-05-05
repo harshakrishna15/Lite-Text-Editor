@@ -74,7 +74,7 @@ struct EditorFormattingToolbarView: View {
             ToolbarDivider()
             overflowFormattingSection
         }
-        .padding(.horizontal, 18)
+        .padding(.horizontal, toolbarHorizontalPadding)
         .padding(.vertical, 7)
         .fixedSize(horizontal: true, vertical: false)
         .animation(ChromeStyle.toolbarModeAnimation, value: isCompactToolbar)
@@ -634,6 +634,10 @@ struct EditorFormattingToolbarView: View {
 
     private var styleControlWidth: CGFloat {
         isCompactToolbar ? ChromeStyle.compactToolbarStyleControlWidth : ChromeStyle.toolbarStyleControlWidth
+    }
+
+    private var toolbarHorizontalPadding: CGFloat {
+        isCompactToolbar ? ChromeStyle.compactToolbarHorizontalPadding : ChromeStyle.toolbarHorizontalPadding
     }
 
     private func adjustSize(by delta: Double) {

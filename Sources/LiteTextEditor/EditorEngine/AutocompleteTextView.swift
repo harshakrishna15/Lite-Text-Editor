@@ -10,7 +10,7 @@ final class AutocompleteTextView: NSTextView {
     static let pageBottomVisiblePadding: CGFloat = 56
     static let pageTextWidth = paperWidth - (pageMargin * 2)
     static let pageContentHeight = pageHeight - (pageMargin * 2)
-    static let textLayoutDimensionLimit: CGFloat = 100_000
+    static let textLayoutDimensionLimit: CGFloat = 1_000_000
     static let minimumStableCanvasMagnification: CGFloat = 0.5
     static let suggestionRefreshDelay: TimeInterval = 0.12
     static let pageRefreshDelay: TimeInterval = 0.04
@@ -307,6 +307,10 @@ final class AutocompleteTextView: NSTextView {
             layoutManager.ensureLayout(for: textContainer)
         }
 
+        refreshDisplayAfterZoomFrameChange()
+    }
+
+    func refreshDisplayAfterZoomFrameChange() {
         needsDisplay = true
         updateInsertionPointStateAndRestartTimer(true)
 

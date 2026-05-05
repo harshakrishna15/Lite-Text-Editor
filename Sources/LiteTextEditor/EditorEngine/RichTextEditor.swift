@@ -484,7 +484,11 @@ struct RichTextEditor: NSViewRepresentable {
             forGlyphRange glyphRange: NSRange
         ) -> Bool {
             let contentY = AutocompleteTextView.contentY(fromPotentialVisualY: lineFragmentRect.pointee.origin.y)
-            let visualY = AutocompleteTextView.visualContentY(forContentY: contentY)
+            let usedHeight = max(
+                lineFragmentRect.pointee.height,
+                lineFragmentUsedRect.pointee.maxY - lineFragmentRect.pointee.origin.y
+            )
+            let visualY = AutocompleteTextView.visualLineOriginY(forContentY: contentY, usedHeight: usedHeight)
             let deltaY = visualY - lineFragmentRect.pointee.origin.y
 
             guard abs(deltaY) > 0.5 else {

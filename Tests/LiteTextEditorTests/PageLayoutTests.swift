@@ -17,6 +17,19 @@ final class PageLayoutTests: XCTestCase {
         XCTAssertEqual(AutocompleteTextView.contentY(fromPotentialVisualY: expectedVisualY), secondPageContentY)
     }
 
+    func testTallLineNearPageBottomMovesToNextPage() {
+        let nearBottom = AutocompleteTextView.pageContentHeight - 4
+
+        XCTAssertEqual(
+            AutocompleteTextView.visualLineOriginY(forContentY: nearBottom, usedHeight: 20),
+            AutocompleteTextView.pageHeight + AutocompleteTextView.pageGap
+        )
+        XCTAssertEqual(
+            AutocompleteTextView.visualLineOriginY(forContentY: nearBottom - 20, usedHeight: 10),
+            nearBottom - 20
+        )
+    }
+
     func testPageStackHeightIncludesGapsBetweenPagesOnly() {
         XCTAssertEqual(AutocompleteTextView.pageStackHeight(forPageCount: 0), AutocompleteTextView.pageHeight)
         XCTAssertEqual(AutocompleteTextView.pageStackHeight(forPageCount: 1), AutocompleteTextView.pageHeight)
@@ -122,6 +135,23 @@ final class PageLayoutTests: XCTestCase {
             accuracy: 1
         )
         XCTAssertEqual(fixture.scrollView.contentView.documentVisibleRect.minY, 0, accuracy: 1)
+    }
+
+    func testRestoreVisibleOriginComparesPhysicalOriginAtZoomScale() {
+        let fixture = makeZoomFixture()
+        fixture.textView.resizeForCachedPages(at: 2)
+
+        fixture.textView.restoreVisibleOrigin(NSPoint(x: 32, y: 48))
+
+        XCTAssertEqual(fixture.scrollView.contentView.bounds.origin.x, 64, accuracy: 1)
+        XCTAssertEqual(fixture.scrollView.contentView.bounds.origin.y, 96, accuracy: 1)
+    }
+
+    func testTextLayoutDimensionSupportsLongDocumentsBeyondOldCap() {
+        XCTAssertGreaterThanOrEqual(
+            AutocompleteTextView.textLayoutDimensionLimit,
+            AutocompleteTextView.pageContentHeight * 1_000
+        )
     }
 
     func testCenteringAfterViewportResizeKeepsPageHorizontallyCentered() {

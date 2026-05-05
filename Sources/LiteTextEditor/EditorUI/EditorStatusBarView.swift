@@ -23,8 +23,8 @@ struct EditorStatusBarView: View {
                         .foregroundStyle(ChromeStyle.secondaryTextColor)
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .frame(width: 140, alignment: .leading)
-                        .layoutPriority(0)
+                        .frame(minWidth: 80, idealWidth: 180, maxWidth: 280, alignment: .leading)
+                        .layoutPriority(1)
                 }
 
                 Spacer()
@@ -110,7 +110,7 @@ struct EditorStatusBarView: View {
                 }
             }
             .padding(12)
-            .frame(width: 238)
+            .frame(width: 296)
         }
         .fixedSize()
         .help("Document Counts")

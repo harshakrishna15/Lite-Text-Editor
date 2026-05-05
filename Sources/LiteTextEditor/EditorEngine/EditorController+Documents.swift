@@ -83,6 +83,8 @@ extension EditorController {
             setDocumentStatus("Ready")
             updateAutosaveStatusForCurrentState()
         } catch {
+            AutosaveStore.clearLastDocumentURL()
+            resetToBlankDocument()
             setDocumentStatus("Could not restore last document")
             updateAutosaveStatusForCurrentState()
         }
@@ -428,6 +430,11 @@ extension EditorController {
 
     private func confirmUnsavedChanges(messageText: String) -> Bool {
         guard isDocumentEdited else { return true }
+        let suspendedAutosave = pendingAutosaveWorkItem != nil
+        if suspendedAutosave {
+            cancelPendingAutosave()
+            updateAutosaveStatusForCurrentState()
+        }
 
         let alert = NSAlert()
         alert.alertStyle = .warning
@@ -439,10 +446,17 @@ extension EditorController {
 
         switch alert.runModal() {
         case .alertFirstButtonReturn:
-            return saveDocument()
+            let didSave = saveDocument()
+            if !didSave, suspendedAutosave {
+                scheduleAutosave()
+            }
+            return didSave
         case .alertSecondButtonReturn:
             return true
         default:
+            if suspendedAutosave {
+                scheduleAutosave()
+            }
             return false
         }
     }
@@ -457,6 +471,7 @@ extension EditorController {
         currentDocumentURL = nil
         pendingDocumentDirectoryURL = nil
         documentTitle = "Untitled"
+        AutosaveStore.clearLastDocumentURL()
         textView.window?.title = ChromeStyle.windowTitle
         textView.window?.representedURL = nil
         textView.resizeForCurrentPages()
