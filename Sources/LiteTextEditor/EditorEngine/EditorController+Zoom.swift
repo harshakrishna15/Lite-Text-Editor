@@ -58,7 +58,7 @@ extension EditorController {
             applyZoom(fitPageMagnification(), shouldResizePages: false)
         } else {
             updateZoomDisplayText(for: CGFloat(zoomMagnification))
-            centerPageForCurrentLayout()
+            centerPageForCurrentLayout(queuesFollowUpCentering: !(scrollView?.inLiveResize ?? false))
         }
     }
 
@@ -116,17 +116,22 @@ extension EditorController {
 
         textView.resizeForCachedPages(at: clampedMagnification)
         keepPageCentered()
-        textView.refreshLayoutAfterZoomChange()
+
+        if shouldResizePages {
+            textView.refreshLayoutAfterZoomChange()
+        }
     }
 
     private func keepPageCentered() {
-        centerPageForCurrentLayout()
+        centerPageForCurrentLayout(queuesFollowUpCentering: !(scrollView?.inLiveResize ?? false))
     }
 
-    private func centerPageForCurrentLayout() {
+    private func centerPageForCurrentLayout(queuesFollowUpCentering: Bool = true) {
         guard let textView else { return }
 
         textView.centerPageHorizontallyPreservingVerticalPosition()
+
+        guard queuesFollowUpCentering else { return }
 
         DispatchQueue.main.async { [weak self] in
             self?.textView?.centerPageHorizontallyPreservingVerticalPosition()

@@ -38,6 +38,7 @@ final class PaperScrollView: NSScrollView {
     private var hasPreparedFirstScroll = false
     private var scrollerRevealTrackingArea: NSTrackingArea?
     private var didRecentlyFlashScrollers = false
+    private var isDeferringDocumentResizeDuringLiveResize = false
 
     static func shouldRevealScrollers(for point: NSPoint, in bounds: NSRect, edgeInset: CGFloat = scrollerRevealEdgeInset) -> Bool {
         guard bounds.contains(point) else { return false }
@@ -64,6 +65,20 @@ final class PaperScrollView: NSScrollView {
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         hasPreparedFirstScroll = false
+        resizeDocumentForCurrentViewport()
+        scheduleDocumentResize()
+    }
+
+    override func viewWillStartLiveResize() {
+        super.viewWillStartLiveResize()
+        isDeferringDocumentResizeDuringLiveResize = true
+        pendingDocumentResize = false
+        resizeGeneration += 1
+    }
+
+    override func viewDidEndLiveResize() {
+        super.viewDidEndLiveResize()
+        isDeferringDocumentResizeDuringLiveResize = false
         resizeDocumentForCurrentViewport()
         scheduleDocumentResize()
     }
@@ -121,6 +136,7 @@ final class PaperScrollView: NSScrollView {
     }
 
     private func scheduleDocumentResize() {
+        guard !isDeferringDocumentResizeDuringLiveResize else { return }
         guard !pendingDocumentResize else { return }
         pendingDocumentResize = true
         let generation = resizeGeneration
