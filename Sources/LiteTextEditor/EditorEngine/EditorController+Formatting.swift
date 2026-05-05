@@ -334,20 +334,30 @@ extension EditorController {
         guard let textView else { return }
         let range = textView.effectiveRangeForFormatting()
         let defaultFont = NSFont.systemFont(ofSize: 11)
+        let attributesToRemove: [NSAttributedString.Key] = [
+            .underlineStyle,
+            .strikethroughStyle,
+            .backgroundColor,
+            .kern,
+            .baselineOffset,
+            .superscript,
+            .paragraphStyle,
+            .liteTextEditorKeepParagraphTogether,
+            .liteTextEditorKeepWithNext,
+            .liteTextEditorSmallCaps
+        ]
 
         if range.length > 0 {
             textView.performUndoableAttributeEdit(in: range, actionName: "Clear Formatting") { textStorage, editRange in
                 textStorage.addAttribute(.font, value: defaultFont, range: editRange)
                 textStorage.addAttribute(.foregroundColor, value: NSColor.black, range: editRange)
-                textStorage.removeAttribute(.underlineStyle, range: editRange)
-                textStorage.removeAttribute(.backgroundColor, range: editRange)
+                attributesToRemove.forEach { textStorage.removeAttribute($0, range: editRange) }
                 return true
             }
         } else {
             textView.typingAttributes[.font] = defaultFont
             textView.typingAttributes[.foregroundColor] = NSColor.black
-            textView.typingAttributes.removeValue(forKey: .underlineStyle)
-            textView.typingAttributes.removeValue(forKey: .backgroundColor)
+            attributesToRemove.forEach { textView.typingAttributes.removeValue(forKey: $0) }
         }
 
         refreshFormattingState()
@@ -607,6 +617,7 @@ extension EditorController {
             isBold: traits.contains(.bold),
             isItalic: traits.contains(.italic),
             isUnderline: attributes[.underlineStyle] != nil,
+            isStrikethrough: attributes[.strikethroughStyle] != nil,
             hasHighlight: attributes[.backgroundColor] != nil,
             isBulletedList: listState.isBulleted,
             isNumberedList: listState.isNumbered,
@@ -692,7 +703,7 @@ extension EditorController {
             }
 
             hasListCandidateLine = true
-            allBulleted = allBulleted && line.hasPrefix("- ")
+            allBulleted = allBulleted && (line.hasPrefix("• ") || line.hasPrefix("- ") || line.hasPrefix("☐ "))
             allNumbered = allNumbered && self.lineStartsWithNumberedListMarker(line)
         }
 

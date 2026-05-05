@@ -12,7 +12,8 @@ final class FormattingStateTests: XCTestCase {
                 attributes: [
                     .font: font,
                     .foregroundColor: NSColor.systemRed,
-                    .underlineStyle: NSUnderlineStyle.single.rawValue
+                    .underlineStyle: NSUnderlineStyle.single.rawValue,
+                    .strikethroughStyle: NSUnderlineStyle.single.rawValue
                 ]
             )
         )
@@ -23,6 +24,7 @@ final class FormattingStateTests: XCTestCase {
         XCTAssertEqual(fixture.controller.formattingState.fontSize, 18, accuracy: 0.001)
         XCTAssertEqual(fixture.controller.formattingState.fontFamilyName, expectedFamilyName(for: font))
         XCTAssertTrue(fixture.controller.formattingState.isUnderline)
+        XCTAssertTrue(fixture.controller.formattingState.isStrikethrough)
         XCTAssertTrue(fixture.controller.formattingState.textColor.isEqual(NSColor.systemRed))
     }
 

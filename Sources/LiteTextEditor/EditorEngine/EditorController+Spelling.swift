@@ -18,6 +18,13 @@ extension EditorController {
             return
         }
 
+        let nsString = textView.string as NSString
+        guard NSMaxRange(range) <= nsString.length,
+              nsString.substring(with: range) == spellCorrectionState.originalWord else {
+            advanceToNextSpellingIssue(startingAt: min(range.location, nsString.length), wraps: true)
+            return
+        }
+
         guard textView.shouldChangeText(in: range, replacementString: replacement) else { return }
         textView.textStorage?.replaceCharacters(in: range, with: replacement)
         textView.didChangeText()

@@ -34,9 +34,6 @@ struct ToolbarIconButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         let shape = RoundedRectangle(cornerRadius: 5, style: .continuous)
-        let hoverLift = hoverLift(isPressed: configuration.isPressed)
-        let hoverScale = hoverScale(isPressed: configuration.isPressed)
-        let hoverShadowRadius = hoverShadowRadius(isPressed: configuration.isPressed)
 
         configuration.label
             .chromeGlassControlBackground(
@@ -60,14 +57,6 @@ struct ToolbarIconButtonStyle: ButtonStyle {
                     .allowsHitTesting(false)
             )
             .contentShape(shape)
-            .shadow(
-                color: shadowColor(isPressed: configuration.isPressed),
-                radius: hoverShadowRadius,
-                x: 0,
-                y: hoverLift > 0 ? 1 : 0
-            )
-            .offset(y: -hoverLift)
-            .scaleEffect(configuration.isPressed ? 0.95 : hoverScale)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
             .animation(.easeOut(duration: 0.12), value: isHovered)
             .animation(.easeOut(duration: 0.12), value: isSelected)
@@ -104,26 +93,6 @@ struct ToolbarIconButtonStyle: ButtonStyle {
     private func hoverOverlayColor(isPressed: Bool) -> Color {
         guard isHovered && !isPressed else { return .clear }
         return isSelected ? Color.accentColor.opacity(0.055) : ChromeStyle.toolbarHoverOverlay
-    }
-
-    private func shadowColor(isPressed: Bool) -> Color {
-        guard isHovered && !isPressed else { return .clear }
-        return isSelected ? ChromeStyle.toolbarHoverShadow.opacity(0.55) : ChromeStyle.toolbarHoverShadow
-    }
-
-    private func hoverLift(isPressed: Bool) -> CGFloat {
-        guard isHovered && !isPressed else { return 0 }
-        return isSelected ? 0.5 : 1
-    }
-
-    private func hoverScale(isPressed: Bool) -> CGFloat {
-        guard isHovered && !isPressed else { return 1 }
-        return isSelected ? 1.015 : 1.04
-    }
-
-    private func hoverShadowRadius(isPressed: Bool) -> CGFloat {
-        guard isHovered && !isPressed else { return 0 }
-        return isSelected ? 2 : 4
     }
 }
 
@@ -180,19 +149,21 @@ struct StatusBarIconButton: View {
     }
 }
 
-struct ToolbarMenuButton<Content: View>: View {
+struct ToolbarPopoverButton<Content: View>: View {
     let title: String
     let symbol: String
     let help: String
-    @ViewBuilder let content: () -> Content
+    var width: CGFloat = 240
+    @ViewBuilder let content: (_ dismiss: @escaping () -> Void) -> Content
 
     @State private var isHovered = false
+    @State private var isPresented = false
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 5, style: .continuous)
 
-        Menu {
-            content()
+        Button {
+            isPresented.toggle()
         } label: {
             HStack(spacing: 3) {
                 Image(systemName: symbol)
@@ -206,7 +177,8 @@ struct ToolbarMenuButton<Content: View>: View {
             .frame(width: ChromeStyle.toolbarIconWidth + 8, height: ChromeStyle.toolbarControlHeight)
             .chromeGlassControlBackground(
                 isActive: true,
-                fallbackColor: isHovered ? ChromeStyle.toolbarHoverFill : Color.clear,
+                isSelected: isPresented,
+                fallbackColor: isPresented || isHovered ? ChromeStyle.toolbarHoverFill : Color.clear,
                 in: shape
             )
             .overlay(
@@ -217,26 +189,80 @@ struct ToolbarMenuButton<Content: View>: View {
             .overlay(
                 shape
                     .stroke(
-                        isHovered ? ChromeStyle.toolbarHoverBorder : Color.clear,
-                        lineWidth: isHovered ? 1 : 0
+                        isPresented || isHovered ? ChromeStyle.toolbarSelectedBorder : Color.clear,
+                        lineWidth: isPresented || isHovered ? 1 : 0
                     )
                     .allowsHitTesting(false)
             )
             .contentShape(shape)
-            .shadow(
-                color: isHovered ? ChromeStyle.toolbarHoverShadow : .clear,
-                radius: isHovered ? 4 : 0,
-                x: 0,
-                y: isHovered ? 1 : 0
-            )
-            .offset(y: isHovered ? -1 : 0)
-            .scaleEffect(isHovered ? 1.03 : 1)
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
+        .buttonStyle(.plain)
         .onHover { isHovered = $0 }
-        .help(title)
+        .popover(isPresented: $isPresented, arrowEdge: .bottom) {
+            content { isPresented = false }
+                .padding(12)
+                .frame(width: width)
+        }
+        .help(help)
         .accessibilityLabel(title)
         .animation(.easeOut(duration: 0.12), value: isHovered)
+        .animation(.easeOut(duration: 0.12), value: isPresented)
+    }
+}
+
+struct ToolbarPopoverSection<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(ChromeStyle.smallTextFont)
+                .foregroundStyle(ChromeStyle.secondaryTextColor)
+
+            content()
+        }
+    }
+}
+
+struct ToolbarPopoverActionRow: View {
+    let title: String
+    let symbol: String
+    var isSelected = false
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: symbol)
+                    .font(ChromeStyle.controlSymbolFont)
+                    .frame(width: 18, alignment: .center)
+
+                Text(title)
+                    .font(ChromeStyle.controlTextFont)
+                    .lineLimit(1)
+
+                Spacer(minLength: 8)
+
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+            .foregroundStyle(ChromeStyle.controlTextColor)
+            .padding(.horizontal, 8)
+            .frame(height: 28)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(isHovered || isSelected ? Color.accentColor.opacity(isSelected ? 0.16 : 0.10) : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .accessibilityLabel(title)
     }
 }

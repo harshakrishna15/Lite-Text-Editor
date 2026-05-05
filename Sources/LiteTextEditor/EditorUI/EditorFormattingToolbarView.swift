@@ -62,11 +62,11 @@ struct EditorFormattingToolbarView: View {
             outlineToggleButton
                 .matchedGeometryEffect(id: ToolbarAnimationID.outlineToggle, in: toolbarNamespace)
             ToolbarDivider()
-            fontControlsSection
-                .matchedGeometryEffect(id: ToolbarAnimationID.fontControls, in: toolbarNamespace)
-            ToolbarDivider()
             stylePresetSection
                 .matchedGeometryEffect(id: ToolbarAnimationID.stylePreset, in: toolbarNamespace)
+            ToolbarDivider()
+            fontControlsSection
+                .matchedGeometryEffect(id: ToolbarAnimationID.fontControls, in: toolbarNamespace)
             ToolbarDivider()
             primaryInlineFormattingSection
                 .matchedGeometryEffect(id: ToolbarAnimationID.primaryFormatting, in: toolbarNamespace)
@@ -145,6 +145,15 @@ struct EditorFormattingToolbarView: View {
     }
 
     private var primaryInlineFormattingSection: some View {
+        HStack(alignment: .center, spacing: ChromeStyle.toolbarSectionSpacing) {
+            inlineTextStyleSection
+            ToolbarDivider()
+            inlineColorSection
+        }
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var inlineTextStyleSection: some View {
         ToolbarSection {
             RibbonIconButton(symbol: "bold", help: "Bold", isSelected: editor.formattingState.isBold) {
                 editor.toggleBold()
@@ -158,19 +167,28 @@ struct EditorFormattingToolbarView: View {
                 editor.toggleUnderline()
             }
 
-            RibbonIconButton(symbol: "strikethrough", help: "Strikethrough") {
+            RibbonIconButton(
+                symbol: "strikethrough",
+                help: "Strikethrough",
+                isSelected: editor.formattingState.isStrikethrough
+            ) {
                 editor.toggleStrikethrough()
             }
+        }
+    }
 
+    private var inlineColorSection: some View {
+        ToolbarSection {
             TextColorPaletteButton(
                 selectedColor: $textColor,
                 customColors: $customTextColors,
                 onApplyColor: editor.applyTextColor
             )
 
-            RibbonIconButton(symbol: "paintbrush.pointed", help: "Highlight", isSelected: editor.formattingState.hasHighlight) {
-                editor.toggleHighlight()
-            }
+            HighlightColorPaletteButton(
+                hasHighlight: editor.formattingState.hasHighlight,
+                onApplyHighlight: editor.applyHighlight
+            )
         }
     }
 
@@ -188,50 +206,48 @@ struct EditorFormattingToolbarView: View {
     }
 
     private var moreFormattingMenu: some View {
-        ToolbarMenuButton(title: "More", symbol: "ellipsis.circle", help: "More Formatting") {
-            Section("Text") {
-                textToolMenuItems
+        ToolbarPopoverButton(title: "More", symbol: "ellipsis.circle", help: "More Formatting", width: 286) { dismiss in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    textToolsPopoverContent(dismiss: dismiss, includesCompactOnlyItems: true)
+                    Divider()
+                    paragraphToolsPopoverContent(dismiss: dismiss, includesAlignment: true, includesLineSpacing: true)
+                    Divider()
+                    listToolsPopoverContent(dismiss: dismiss, includesPrimaryListActions: true)
+                }
             }
-
-            Section("Paragraph") {
-                paragraphToolMenuItems
-            }
-
-            Section("Lists") {
-                listToolMenuItems
-            }
+            .frame(maxHeight: 480)
         }
     }
 
-    private func menuIconItemLabel(_ title: String, symbol: String, isSelected: Bool) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: symbol)
-                .frame(width: 16, alignment: .center)
-
-            Text(title)
-
-            if isSelected {
-                Spacer()
-                Image(systemName: "checkmark")
-            }
+    private func popoverActionRow(
+        _ title: String,
+        symbol: String,
+        isSelected: Bool = false,
+        dismiss: @escaping () -> Void,
+        action: @escaping () -> Void
+    ) -> some View {
+        ToolbarPopoverActionRow(title: title, symbol: symbol, isSelected: isSelected) {
+            action()
+            dismiss()
         }
     }
 
     private var textToolsMenu: some View {
-        ToolbarMenuButton(title: "Text", symbol: "textformat", help: "Text Formatting") {
-            regularTextToolMenuItems
+        ToolbarPopoverButton(title: "Text", symbol: "textformat", help: "Text Formatting", width: 260) { dismiss in
+            textToolsPopoverContent(dismiss: dismiss, includesCompactOnlyItems: false)
         }
     }
 
     private var paragraphToolsMenu: some View {
-        ToolbarMenuButton(title: "Paragraph", symbol: "text.alignleft", help: "Paragraph Formatting") {
-            regularParagraphToolMenuItems
+        ToolbarPopoverButton(title: "Paragraph", symbol: "text.alignleft", help: "Paragraph Formatting", width: 264) { dismiss in
+            paragraphToolsPopoverContent(dismiss: dismiss, includesAlignment: false, includesLineSpacing: false)
         }
     }
 
     private var listToolsMenu: some View {
-        ToolbarMenuButton(title: "Lists", symbol: "list.bullet", help: "List Formatting") {
-            regularListToolMenuItems
+        ToolbarPopoverButton(title: "Lists", symbol: "list.bullet", help: "List Formatting", width: 232) { dismiss in
+            listToolsPopoverContent(dismiss: dismiss, includesPrimaryListActions: false)
         }
     }
 
@@ -261,12 +277,12 @@ struct EditorFormattingToolbarView: View {
                 editor.setAlignment(.right)
             }
 
-            ToolbarMenuButton(title: "Line Spacing", symbol: "line.3.horizontal", help: "Line Spacing") {
-                ForEach(LineSpacingOption.allCases, id: \.rawValue) { option in
-                    Button {
-                        editor.setLineSpacing(option)
-                    } label: {
-                        menuIconItemLabel(option.title, symbol: "line.3.horizontal", isSelected: false)
+            ToolbarPopoverButton(title: "Line Spacing", symbol: "line.3.horizontal", help: "Line Spacing", width: 150) { dismiss in
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(LineSpacingOption.allCases, id: \.rawValue) { option in
+                        popoverActionRow(option.title, symbol: "line.3.horizontal", dismiss: dismiss) {
+                            editor.setLineSpacing(option)
+                        }
                     }
                 }
             }
@@ -302,440 +318,222 @@ struct EditorFormattingToolbarView: View {
     }
 
     @ViewBuilder
-    private var regularTextToolMenuItems: some View {
-        Menu {
-            ForEach(TextBaselineOption.allCases, id: \.rawValue) { option in
-                Button {
-                    editor.setBaseline(option)
-                } label: {
-                    menuIconItemLabel(option.title, symbol: baselineSymbol(for: option), isSelected: false)
+    private func textToolsPopoverContent(dismiss: @escaping () -> Void, includesCompactOnlyItems: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ToolbarPopoverSection(title: "Baseline") {
+                ForEach(TextBaselineOption.allCases, id: \.rawValue) { option in
+                    popoverActionRow(option.title, symbol: baselineSymbol(for: option), dismiss: dismiss) {
+                        editor.setBaseline(option)
+                    }
                 }
             }
-        } label: {
-            menuIconItemLabel("Baseline", symbol: "textformat.abc", isSelected: false)
-        }
 
-        Menu {
-            ForEach(HighlightColorOption.allCases, id: \.rawValue) { option in
-                Button {
-                    editor.applyHighlight(option)
-                } label: {
-                    menuIconItemLabel(option.title, symbol: option == .clear ? "xmark.circle" : "paintbrush", isSelected: false)
+            ToolbarPopoverSection(title: "Text Tools") {
+                if includesCompactOnlyItems {
+                    popoverActionRow(
+                        "Strikethrough",
+                        symbol: "strikethrough",
+                        dismiss: dismiss
+                    ) {
+                        editor.toggleStrikethrough()
+                    }
+                }
+
+                popoverActionRow("Clear Text Color", symbol: "textformat", dismiss: dismiss) {
+                    textColor = .black
+                    editor.clearTextColor()
+                }
+
+                popoverActionRow("Copy Formatting", symbol: "paintbrush", dismiss: dismiss) {
+                    editor.copyFormatting()
+                }
+
+                popoverActionRow("Paste Formatting", symbol: "paintbrush.fill", dismiss: dismiss) {
+                    editor.pasteFormatting()
                 }
             }
-        } label: {
-            menuIconItemLabel("Highlight Color", symbol: "paintbrush.pointed", isSelected: editor.formattingState.hasHighlight)
-        }
 
-        Button {
-            textColor = .black
-            editor.clearTextColor()
-        } label: {
-            menuIconItemLabel("Clear Text Color", symbol: "textformat", isSelected: false)
-        }
-
-        Button {
-            editor.copyFormatting()
-        } label: {
-            menuIconItemLabel("Copy Formatting", symbol: "paintbrush", isSelected: false)
-        }
-
-        Button {
-            editor.pasteFormatting()
-        } label: {
-            menuIconItemLabel("Paste Formatting", symbol: "paintbrush.fill", isSelected: false)
-        }
-
-        Menu {
-            ForEach(TextCasingOption.allCases, id: \.rawValue) { option in
-                Button {
-                    editor.applyTextCasing(option)
-                } label: {
-                    menuIconItemLabel(option.title, symbol: "textformat", isSelected: false)
+            ToolbarPopoverSection(title: "Change Case") {
+                ForEach(TextCasingOption.allCases, id: \.rawValue) { option in
+                    popoverActionRow(option.title, symbol: "textformat", dismiss: dismiss) {
+                        editor.applyTextCasing(option)
+                    }
                 }
             }
-        } label: {
-            menuIconItemLabel("Change Case", symbol: "textformat", isSelected: false)
-        }
 
-        Menu {
-            ForEach(CharacterSpacingOption.allCases, id: \.rawValue) { option in
-                Button {
-                    editor.setCharacterSpacing(option)
-                } label: {
-                    menuIconItemLabel(option.title, symbol: "textformat.size", isSelected: false)
+            ToolbarPopoverSection(title: "Character Spacing") {
+                ForEach(CharacterSpacingOption.allCases, id: \.rawValue) { option in
+                    popoverActionRow(option.title, symbol: "textformat.size", dismiss: dismiss) {
+                        editor.setCharacterSpacing(option)
+                    }
                 }
             }
-        } label: {
-            menuIconItemLabel("Character Spacing", symbol: "textformat.size", isSelected: false)
-        }
 
-        Divider()
+            Divider()
 
-        Button {
-            adjustSize(by: 1)
-        } label: {
-            menuIconItemLabel("Increase Size", symbol: "textformat.size.larger", isSelected: false)
-        }
+            ToolbarPopoverSection(title: "Size") {
+                popoverActionRow("Increase Size", symbol: "textformat.size.larger", dismiss: dismiss) {
+                    adjustSize(by: 1)
+                }
 
-        Button {
-            adjustSize(by: -1)
-        } label: {
-            menuIconItemLabel("Decrease Size", symbol: "textformat.size.smaller", isSelected: false)
-        }
+                popoverActionRow("Decrease Size", symbol: "textformat.size.smaller", dismiss: dismiss) {
+                    adjustSize(by: -1)
+                }
 
-        Button {
-            selectedFont = "System"
-            setSelectedSize(11)
-            textColor = .black
-            editor.clearFormatting()
-        } label: {
-            menuIconItemLabel("Clear Formatting", symbol: "eraser", isSelected: false)
+                popoverActionRow("Clear Formatting", symbol: "eraser", dismiss: dismiss) {
+                    selectedFont = "System"
+                    setSelectedSize(11)
+                    textColor = .black
+                    editor.clearFormatting()
+                }
+            }
         }
     }
 
     @ViewBuilder
-    private var textToolMenuItems: some View {
-        Button {
-            editor.toggleStrikethrough()
-        } label: {
-            menuIconItemLabel("Strikethrough", symbol: "strikethrough", isSelected: false)
-        }
-
-        Menu {
-            ForEach(TextBaselineOption.allCases, id: \.rawValue) { option in
-                Button {
-                    editor.setBaseline(option)
-                } label: {
-                    menuIconItemLabel(option.title, symbol: baselineSymbol(for: option), isSelected: false)
+    private func paragraphToolsPopoverContent(
+        dismiss: @escaping () -> Void,
+        includesAlignment: Bool,
+        includesLineSpacing: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if includesLineSpacing {
+                ToolbarPopoverSection(title: "Line Spacing") {
+                    ForEach(LineSpacingOption.allCases, id: \.rawValue) { option in
+                        popoverActionRow(option.title, symbol: "line.3.horizontal", dismiss: dismiss) {
+                            editor.setLineSpacing(option)
+                        }
+                    }
                 }
             }
-        } label: {
-            menuIconItemLabel("Baseline", symbol: "textformat.abc", isSelected: false)
-        }
 
-        Menu {
-            ForEach(HighlightColorOption.allCases, id: \.rawValue) { option in
-                Button {
-                    editor.applyHighlight(option)
-                } label: {
-                    menuIconItemLabel(option.title, symbol: option == .clear ? "xmark.circle" : "paintbrush", isSelected: false)
+            ToolbarPopoverSection(title: "Paragraph Spacing") {
+                ForEach(ParagraphSpacingOption.allCases, id: \.rawValue) { option in
+                    popoverActionRow(option.title, symbol: "arrow.up.and.down.text.horizontal", dismiss: dismiss) {
+                        editor.applyParagraphSpacing(option)
+                    }
                 }
             }
-        } label: {
-            menuIconItemLabel("Highlight Color", symbol: "paintbrush.pointed", isSelected: editor.formattingState.hasHighlight)
-        }
 
-        Button {
-            textColor = .black
-            editor.clearTextColor()
-        } label: {
-            menuIconItemLabel("Clear Text Color", symbol: "textformat", isSelected: false)
-        }
-
-        Button {
-            editor.copyFormatting()
-        } label: {
-            menuIconItemLabel("Copy Formatting", symbol: "paintbrush", isSelected: false)
-        }
-
-        Button {
-            editor.pasteFormatting()
-        } label: {
-            menuIconItemLabel("Paste Formatting", symbol: "paintbrush.fill", isSelected: false)
-        }
-
-        Menu {
-            ForEach(TextCasingOption.allCases, id: \.rawValue) { option in
-                Button {
-                    editor.applyTextCasing(option)
-                } label: {
-                    menuIconItemLabel(option.title, symbol: "textformat", isSelected: false)
+            ToolbarPopoverSection(title: "Indents") {
+                ForEach(ParagraphIndentOption.allCases, id: \.rawValue) { option in
+                    popoverActionRow(option.title, symbol: "increase.indent", dismiss: dismiss) {
+                        editor.applyParagraphIndent(option)
+                    }
                 }
             }
-        } label: {
-            menuIconItemLabel("Change Case", symbol: "textformat", isSelected: false)
-        }
 
-        Menu {
-            ForEach(CharacterSpacingOption.allCases, id: \.rawValue) { option in
-                Button {
-                    editor.setCharacterSpacing(option)
-                } label: {
-                    menuIconItemLabel(option.title, symbol: "textformat.size", isSelected: false)
+            ToolbarPopoverSection(title: "Keep Options") {
+                popoverActionRow("Keep Paragraph Together", symbol: "text.badge.checkmark", dismiss: dismiss) {
+                    editor.toggleKeepParagraphTogether()
+                }
+
+                popoverActionRow("Keep With Next", symbol: "text.append", dismiss: dismiss) {
+                    editor.toggleKeepWithNext()
                 }
             }
-        } label: {
-            menuIconItemLabel("Character Spacing", symbol: "textformat.size", isSelected: false)
-        }
 
-        Divider()
+            Divider()
 
-        Button {
-            adjustSize(by: 1)
-        } label: {
-            menuIconItemLabel("Increase Size", symbol: "textformat.size.larger", isSelected: false)
-        }
+            ToolbarPopoverSection(title: "Alignment") {
+                if includesAlignment {
+                    popoverActionRow(
+                        "Left",
+                        symbol: "text.alignleft",
+                        isSelected: editor.formattingState.alignment == .left,
+                        dismiss: dismiss
+                    ) {
+                        editor.setAlignment(.left)
+                    }
 
-        Button {
-            adjustSize(by: -1)
-        } label: {
-            menuIconItemLabel("Decrease Size", symbol: "textformat.size.smaller", isSelected: false)
-        }
+                    popoverActionRow(
+                        "Center",
+                        symbol: "text.aligncenter",
+                        isSelected: editor.formattingState.alignment == .center,
+                        dismiss: dismiss
+                    ) {
+                        editor.setAlignment(.center)
+                    }
 
-        Button {
-            editor.toggleHighlight()
-        } label: {
-            menuIconItemLabel("Highlight", symbol: "paintbrush", isSelected: editor.formattingState.hasHighlight)
-        }
+                    popoverActionRow(
+                        "Right",
+                        symbol: "text.alignright",
+                        isSelected: editor.formattingState.alignment == .right,
+                        dismiss: dismiss
+                    ) {
+                        editor.setAlignment(.right)
+                    }
+                }
 
-        Button {
-            selectedFont = "System"
-            setSelectedSize(11)
-            textColor = .black
-            editor.clearFormatting()
-        } label: {
-            menuIconItemLabel("Clear Formatting", symbol: "eraser", isSelected: false)
+                popoverActionRow(
+                    "Justify",
+                    symbol: "text.justify",
+                    isSelected: editor.formattingState.alignment == .justified,
+                    dismiss: dismiss
+                ) {
+                    editor.setAlignment(.justified)
+                }
+            }
         }
     }
 
     @ViewBuilder
-    private var regularParagraphToolMenuItems: some View {
-        Menu {
-            ForEach(ParagraphSpacingOption.allCases, id: \.rawValue) { option in
-                Button {
-                    editor.applyParagraphSpacing(option)
-                } label: {
-                    menuIconItemLabel(option.title, symbol: "arrow.up.and.down.text.horizontal", isSelected: false)
+    private func listToolsPopoverContent(
+        dismiss: @escaping () -> Void,
+        includesPrimaryListActions: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ToolbarPopoverSection(title: "List Style") {
+                ForEach(includesPrimaryListActions ? ListStyleOption.allCases : [ListStyleOption.lettered, .roman, .checklist], id: \.rawValue) { option in
+                    popoverActionRow(option.title, symbol: listSymbol(for: option), dismiss: dismiss) {
+                        editor.applyListStyle(option)
+                    }
                 }
             }
-        } label: {
-            menuIconItemLabel("Paragraph Spacing", symbol: "arrow.up.and.down.text.horizontal", isSelected: false)
-        }
 
-        Menu {
-            ForEach(ParagraphIndentOption.allCases, id: \.rawValue) { option in
-                Button {
-                    editor.applyParagraphIndent(option)
-                } label: {
-                    menuIconItemLabel(option.title, symbol: "increase.indent", isSelected: false)
+            if includesPrimaryListActions {
+                ToolbarPopoverSection(title: "Lists") {
+                    popoverActionRow(
+                        "Bulleted List",
+                        symbol: "list.bullet",
+                        isSelected: editor.formattingState.isBulletedList,
+                        dismiss: dismiss
+                    ) {
+                        editor.togglePlainList()
+                    }
+
+                    popoverActionRow(
+                        "Numbered List",
+                        symbol: "list.number",
+                        isSelected: editor.formattingState.isNumberedList,
+                        dismiss: dismiss
+                    ) {
+                        editor.toggleNumberedList()
+                    }
+
+                    popoverActionRow("Checklist", symbol: "checklist", dismiss: dismiss) {
+                        editor.toggleChecklist()
+                    }
+                }
+
+                ToolbarPopoverSection(title: "List Level") {
+                    popoverActionRow("Decrease List Level", symbol: "decrease.indent", dismiss: dismiss) {
+                        editor.decreaseListLevel()
+                    }
+
+                    popoverActionRow("Increase List Level", symbol: "increase.indent", dismiss: dismiss) {
+                        editor.increaseListLevel()
+                    }
                 }
             }
-        } label: {
-            menuIconItemLabel("Paragraph Indents", symbol: "increase.indent", isSelected: false)
-        }
 
-        Button {
-            editor.toggleKeepParagraphTogether()
-        } label: {
-            menuIconItemLabel("Keep Paragraph Together", symbol: "text.badge.checkmark", isSelected: false)
-        }
-
-        Button {
-            editor.toggleKeepWithNext()
-        } label: {
-            menuIconItemLabel("Keep With Next", symbol: "text.append", isSelected: false)
-        }
-
-        Divider()
-
-        Button {
-            editor.setAlignment(.justified)
-        } label: {
-            menuIconItemLabel(
-                "Justify",
-                symbol: "text.justify",
-                isSelected: editor.formattingState.alignment == .justified
-            )
-        }
-    }
-
-    @ViewBuilder
-    private var paragraphToolMenuItems: some View {
-        Menu {
-            ForEach(LineSpacingOption.allCases, id: \.rawValue) { option in
-                Button {
-                    editor.setLineSpacing(option)
-                } label: {
-                    menuIconItemLabel(option.title, symbol: "line.3.horizontal", isSelected: false)
+            ToolbarPopoverSection(title: "Numbering") {
+                ForEach(ListNumberingAction.allCases, id: \.rawValue) { action in
+                    popoverActionRow(action.title, symbol: "list.number", dismiss: dismiss) {
+                        editor.applyListNumberingAction(action)
+                    }
                 }
             }
-        } label: {
-            menuIconItemLabel("Line Spacing", symbol: "line.3.horizontal", isSelected: false)
-        }
-
-        Menu {
-            ForEach(ParagraphSpacingOption.allCases, id: \.rawValue) { option in
-                Button {
-                    editor.applyParagraphSpacing(option)
-                } label: {
-                    menuIconItemLabel(option.title, symbol: "arrow.up.and.down.text.horizontal", isSelected: false)
-                }
-            }
-        } label: {
-            menuIconItemLabel("Paragraph Spacing", symbol: "arrow.up.and.down.text.horizontal", isSelected: false)
-        }
-
-        Menu {
-            ForEach(ParagraphIndentOption.allCases, id: \.rawValue) { option in
-                Button {
-                    editor.applyParagraphIndent(option)
-                } label: {
-                    menuIconItemLabel(option.title, symbol: "increase.indent", isSelected: false)
-                }
-            }
-        } label: {
-            menuIconItemLabel("Paragraph Indents", symbol: "increase.indent", isSelected: false)
-        }
-
-        Button {
-            editor.toggleKeepParagraphTogether()
-        } label: {
-            menuIconItemLabel("Keep Paragraph Together", symbol: "text.badge.checkmark", isSelected: false)
-        }
-
-        Button {
-            editor.toggleKeepWithNext()
-        } label: {
-            menuIconItemLabel("Keep With Next", symbol: "text.append", isSelected: false)
-        }
-
-        Divider()
-
-        Button {
-            editor.setAlignment(.left)
-        } label: {
-            menuIconItemLabel(
-                "Left",
-                symbol: "text.alignleft",
-                isSelected: editor.formattingState.alignment == .left
-            )
-        }
-
-        Button {
-            editor.setAlignment(.center)
-        } label: {
-            menuIconItemLabel(
-                "Center",
-                symbol: "text.aligncenter",
-                isSelected: editor.formattingState.alignment == .center
-            )
-        }
-
-        Button {
-            editor.setAlignment(.right)
-        } label: {
-            menuIconItemLabel(
-                "Right",
-                symbol: "text.alignright",
-                isSelected: editor.formattingState.alignment == .right
-            )
-        }
-
-        Button {
-            editor.setAlignment(.justified)
-        } label: {
-            menuIconItemLabel(
-                "Justify",
-                symbol: "text.justify",
-                isSelected: editor.formattingState.alignment == .justified
-            )
-        }
-    }
-
-    @ViewBuilder
-    private var regularListToolMenuItems: some View {
-        Menu {
-            ForEach([ListStyleOption.lettered, .roman, .checklist], id: \.rawValue) { option in
-                Button {
-                    editor.applyListStyle(option)
-                } label: {
-                    menuIconItemLabel(option.title, symbol: listSymbol(for: option), isSelected: false)
-                }
-            }
-        } label: {
-            menuIconItemLabel("More List Styles", symbol: "list.bullet", isSelected: false)
-        }
-
-        Menu {
-            ForEach(ListNumberingAction.allCases, id: \.rawValue) { action in
-                Button {
-                    editor.applyListNumberingAction(action)
-                } label: {
-                    menuIconItemLabel(action.title, symbol: "list.number", isSelected: false)
-                }
-            }
-        } label: {
-            menuIconItemLabel("Numbering", symbol: "list.number", isSelected: false)
-        }
-    }
-
-    @ViewBuilder
-    private var listToolMenuItems: some View {
-        Menu {
-            ForEach(ListStyleOption.allCases, id: \.rawValue) { option in
-                Button {
-                    editor.applyListStyle(option)
-                } label: {
-                    menuIconItemLabel(option.title, symbol: listSymbol(for: option), isSelected: false)
-                }
-            }
-        } label: {
-            menuIconItemLabel("List Style", symbol: "list.bullet", isSelected: false)
-        }
-
-        Button {
-            editor.toggleChecklist()
-        } label: {
-            menuIconItemLabel("Checklist", symbol: "checklist", isSelected: false)
-        }
-
-        Menu {
-            ForEach(ListNumberingAction.allCases, id: \.rawValue) { action in
-                Button {
-                    editor.applyListNumberingAction(action)
-                } label: {
-                    menuIconItemLabel(action.title, symbol: "list.number", isSelected: false)
-                }
-            }
-        } label: {
-            menuIconItemLabel("Numbering", symbol: "list.number", isSelected: false)
-        }
-
-        Divider()
-
-        Button {
-            editor.togglePlainList()
-        } label: {
-            menuIconItemLabel(
-                "Bulleted List",
-                symbol: "list.bullet",
-                isSelected: editor.formattingState.isBulletedList
-            )
-        }
-
-        Button {
-            editor.toggleNumberedList()
-        } label: {
-            menuIconItemLabel(
-                "Numbered List",
-                symbol: "list.number",
-                isSelected: editor.formattingState.isNumberedList
-            )
-        }
-
-        Divider()
-
-        Button {
-            editor.decreaseListLevel()
-        } label: {
-            menuIconItemLabel("Decrease List Level", symbol: "decrease.indent", isSelected: false)
-        }
-
-        Button {
-            editor.increaseListLevel()
-        } label: {
-            menuIconItemLabel("Increase List Level", symbol: "increase.indent", isSelected: false)
         }
     }
 

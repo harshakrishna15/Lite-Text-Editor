@@ -211,6 +211,40 @@ final class FormattingOptionsCommandTests: XCTestCase {
         XCTAssertEqual(fixture.textView.selectedRange(), NSRange(location: 2, length: 0))
     }
 
+    func testBulletedToolbarCommandUpdatesFormattingState() {
+        let fixture = makeFixture("First")
+        fixture.textView.setSelectedRange(NSRange(location: 0, length: fixture.textView.string.count))
+
+        fixture.controller.togglePlainList()
+        fixture.controller.refreshFormattingState()
+
+        XCTAssertTrue(fixture.controller.formattingState.isBulletedList)
+    }
+
+    func testClearFormattingRemovesInlineAndParagraphFormatting() {
+        let fixture = makeFixture("hello")
+        let controller = fixture.controller
+        let textView = fixture.textView
+        textView.setSelectedRange(NSRange(location: 0, length: textView.string.count))
+
+        controller.toggleStrikethrough()
+        controller.setBaseline(.superscript)
+        controller.setCharacterSpacing(.wider)
+        controller.applyTextCasing(.smallCaps)
+        controller.setAlignment(.center)
+        controller.applyParagraphSpacing(.after)
+
+        textView.setSelectedRange(NSRange(location: 0, length: textView.string.count))
+        controller.clearFormatting()
+
+        XCTAssertNil(attribute(.strikethroughStyle, at: 0, in: textView))
+        XCTAssertNil(attribute(.superscript, at: 0, in: textView))
+        XCTAssertNil(attribute(.baselineOffset, at: 0, in: textView))
+        XCTAssertNil(attribute(.kern, at: 0, in: textView))
+        XCTAssertNil(attribute(.liteTextEditorSmallCaps, at: 0, in: textView))
+        XCTAssertNil(attribute(.paragraphStyle, at: 0, in: textView))
+    }
+
     func testReturnContinuesBulletListAndPreservesIndentation() {
         let fixture = makeFixture("\t• First")
         let textView = fixture.textView

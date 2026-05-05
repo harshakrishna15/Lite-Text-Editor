@@ -132,6 +132,25 @@ final class UndoCorrectnessTests: XCTestCase {
         XCTAssertEqual(textView.string, "the word")
     }
 
+    func testSpellingCorrectionDoesNotReplaceStaleRange() {
+        let controller = EditorController()
+        let fixture = makeTextViewFixture("the word")
+        let textView = fixture.textView
+        controller.textView = textView
+        controller.spellCorrectionState = SpellCorrectionState(
+            isPresented: true,
+            issueRange: NSRange(location: 0, length: 3),
+            originalWord: "teh",
+            suggestions: ["the"],
+            selectedSuggestionIndex: 0,
+            statusText: "Possible spelling issue"
+        )
+
+        controller.applyCurrentSpellingCorrection()
+
+        XCTAssertEqual(textView.string, "the word")
+    }
+
     private struct TextViewFixture {
         let window: NSWindow
         let textView: AutocompleteTextView

@@ -10,30 +10,15 @@ struct TextColorPaletteButton: View {
     @State private var isHovered = false
 
     var body: some View {
-        Button {
-            isPalettePresented.toggle()
-        } label: {
-            VStack(spacing: 1) {
-                Image(systemName: "textformat")
-                    .font(ChromeStyle.controlSymbolFont)
-                    .foregroundStyle(isHovered ? ChromeStyle.controlTextColor : ChromeStyle.glassControlTextColor)
-                    .frame(width: 18, height: 14)
-
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(selectedColor)
-                    .frame(width: 16, height: 3)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 1)
-                            .stroke(Color.black.opacity(0.2), lineWidth: 0.5)
-                    )
-            }
-            .frame(width: ChromeStyle.toolbarIconWidth, height: ChromeStyle.toolbarControlHeight)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(ToolbarIconButtonStyle(isSelected: isPalettePresented, isHovered: isHovered))
-        .onHover { isHovered = $0 }
-        .accessibilityLabel("Text Color")
-        .popover(isPresented: $isPalettePresented, arrowEdge: .bottom) {
+        ToolbarPaletteButton(
+            symbol: "textformat",
+            accessibilityLabel: "Text Color",
+            help: "Text Color",
+            indicatorColor: selectedColor,
+            isSelected: isPalettePresented,
+            isPalettePresented: $isPalettePresented,
+            isHovered: $isHovered
+        ) {
             TextColorPaletteView(
                 selectedColor: $selectedColor,
                 customColors: $customColors,
@@ -42,7 +27,111 @@ struct TextColorPaletteButton: View {
             .padding(12)
             .frame(width: 258)
         }
-        .help("Text Color")
+    }
+}
+
+struct HighlightColorPaletteButton: View {
+    let hasHighlight: Bool
+    let onApplyHighlight: (HighlightColorOption) -> Void
+
+    @State private var isPalettePresented = false
+    @State private var isHovered = false
+
+    var body: some View {
+        ToolbarPaletteButton(
+            symbol: "paintbrush.pointed",
+            accessibilityLabel: "Highlight Color",
+            help: "Highlight Color",
+            indicatorColor: hasHighlight ? Color(nsColor: NSColor.systemYellow.withAlphaComponent(0.65)) : .clear,
+            indicatorStrokeColor: hasHighlight ? Color.black.opacity(0.20) : ChromeStyle.glassSecondaryTextColor.opacity(0.45),
+            isSelected: isPalettePresented || hasHighlight,
+            selectedIconColor: hasHighlight || isPalettePresented ? .accentColor : nil,
+            isPalettePresented: $isPalettePresented,
+            isHovered: $isHovered
+        ) {
+            HighlightColorPaletteView { option in
+                onApplyHighlight(option)
+                isPalettePresented = false
+            }
+            .padding(12)
+            .frame(width: 190)
+        }
+    }
+}
+
+private struct ToolbarPaletteButton<Content: View>: View {
+    let symbol: String
+    let accessibilityLabel: String
+    let help: String
+    let indicatorColor: Color
+    var indicatorStrokeColor = Color.black.opacity(0.20)
+    let isSelected: Bool
+    var selectedIconColor: Color?
+    @Binding var isPalettePresented: Bool
+    @Binding var isHovered: Bool
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        Button {
+            isPalettePresented.toggle()
+        } label: {
+            VStack(spacing: 1) {
+                Image(systemName: symbol)
+                    .font(ChromeStyle.controlSymbolFont)
+                    .foregroundStyle(iconColor)
+                    .frame(width: 18, height: 14)
+
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(indicatorColor)
+                    .frame(width: 16, height: 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 1)
+                            .stroke(indicatorStrokeColor, lineWidth: 0.5)
+                    )
+            }
+            .frame(width: ChromeStyle.toolbarIconWidth, height: ChromeStyle.toolbarControlHeight)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(ToolbarIconButtonStyle(isSelected: isSelected, isHovered: isHovered))
+        .onHover { isHovered = $0 }
+        .accessibilityLabel(accessibilityLabel)
+        .popover(isPresented: $isPalettePresented, arrowEdge: .bottom, content: content)
+        .help(help)
+    }
+
+    private var iconColor: Color {
+        selectedIconColor ?? (isHovered ? ChromeStyle.controlTextColor : ChromeStyle.glassControlTextColor)
+    }
+}
+
+private struct HighlightColorPaletteView: View {
+    let onApplyHighlight: (HighlightColorOption) -> Void
+
+    private let columns = Array(repeating: GridItem(.fixed(24), spacing: 6), count: 5)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Highlight Color")
+                .font(ChromeStyle.smallTextFont)
+                .foregroundStyle(ChromeStyle.secondaryTextColor)
+
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 6) {
+                ForEach(HighlightColorOption.allCases.filter { $0 != .clear }, id: \.rawValue) { option in
+                    PaletteSwatchButton(
+                        title: option.title,
+                        color: option.color.map { Color(nsColor: $0) } ?? Color.clear
+                    ) {
+                        onApplyHighlight(option)
+                    }
+                }
+            }
+
+            Divider()
+
+            ToolbarPopoverActionRow(title: HighlightColorOption.clear.title, symbol: "xmark.circle") {
+                onApplyHighlight(.clear)
+            }
+        }
     }
 }
 
@@ -62,9 +151,9 @@ private struct TextColorPaletteView: View {
 
             LazyVGrid(columns: columns, alignment: .leading, spacing: 6) {
                 ForEach(TextColorPreset.all) { preset in
-                    ColorSwatchButton(
+                    PaletteSwatchButton(
                         title: preset.name,
-                        paletteColor: preset.color,
+                        color: preset.color.color,
                         isSelected: PaletteColor(selectedColor) == preset.color
                     ) {
                         applyColor(preset.color.color)
@@ -94,9 +183,9 @@ private struct TextColorPaletteView: View {
             } else {
                 LazyVGrid(columns: columns, alignment: .leading, spacing: 6) {
                     ForEach(customColors) { customColor in
-                        ColorSwatchButton(
+                        PaletteSwatchButton(
                             title: "Custom Color",
-                            paletteColor: customColor,
+                            color: customColor.color,
                             isSelected: PaletteColor(selectedColor) == customColor
                         ) {
                             applyColor(customColor.color)
@@ -139,16 +228,16 @@ private struct TextColorPaletteView: View {
     }
 }
 
-private struct ColorSwatchButton: View {
+private struct PaletteSwatchButton: View {
     let title: String
-    let paletteColor: PaletteColor
-    let isSelected: Bool
+    let color: Color
+    var isSelected = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             RoundedRectangle(cornerRadius: 4)
-                .fill(paletteColor.color)
+                .fill(color)
                 .frame(width: 24, height: 18)
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)

@@ -4,7 +4,9 @@ struct EditorStatusBarView: View {
     @ObservedObject var editor: EditorController
     @Binding var selectedCountMetric: DocumentCountMetric
     @State private var isCountMenuHovered = false
+    @State private var isCountPopoverPresented = false
     @State private var isZoomMenuHovered = false
+    @State private var isZoomPopoverPresented = false
 
     var body: some View {
         ChromeGlassContainer(spacing: 8) {
@@ -55,21 +57,8 @@ struct EditorStatusBarView: View {
     }
 
     private var documentCountMenu: some View {
-        Menu {
-            ForEach(DocumentCountMetric.allCases) { metric in
-                Button {
-                    selectedCountMetric = metric
-                } label: {
-                    HStack {
-                        Text(metric.menuText(for: editor.documentStatistics))
-
-                        if selectedCountMetric == metric {
-                            Spacer()
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                }
-            }
+        Button {
+            isCountPopoverPresented.toggle()
         } label: {
             HStack(spacing: 4) {
                 Text(selectedCountMetric.statusText(for: editor.documentStatistics))
@@ -86,7 +75,7 @@ struct EditorStatusBarView: View {
             .padding(.horizontal, 6)
             .frame(height: 22)
             .chromeGlassControlBackground(
-                isActive: isCountMenuHovered,
+                isActive: true,
                 fallbackColor: isCountMenuHovered ? ChromeStyle.toolbarHoverFill : Color.clear,
                 in: RoundedRectangle(cornerRadius: 6, style: .continuous)
             )
@@ -98,42 +87,41 @@ struct EditorStatusBarView: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .stroke(
-                        isCountMenuHovered ? ChromeStyle.toolbarHoverBorder : Color.clear,
-                        lineWidth: isCountMenuHovered ? 1 : 0
+                        isCountMenuHovered || isCountPopoverPresented ? ChromeStyle.toolbarHoverBorder : Color.clear,
+                        lineWidth: isCountMenuHovered || isCountPopoverPresented ? 1 : 0
                     )
                     .allowsHitTesting(false)
             )
             .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            .shadow(
-                color: isCountMenuHovered ? ChromeStyle.toolbarHoverShadow : .clear,
-                radius: isCountMenuHovered ? 3 : 0,
-                x: 0,
-                y: isCountMenuHovered ? 1 : 0
-            )
-            .offset(y: isCountMenuHovered ? -1 : 0)
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
+        .buttonStyle(.plain)
         .onHover { isCountMenuHovered = $0 }
+        .popover(isPresented: $isCountPopoverPresented, arrowEdge: .top) {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(DocumentCountMetric.allCases) { metric in
+                    ToolbarPopoverActionRow(
+                        title: metric.menuText(for: editor.documentStatistics),
+                        symbol: "text.word.spacing",
+                        isSelected: selectedCountMetric == metric
+                    ) {
+                        selectedCountMetric = metric
+                        isCountPopoverPresented = false
+                    }
+                }
+            }
+            .padding(12)
+            .frame(width: 238)
+        }
         .fixedSize()
         .help("Document Counts")
         .animation(.easeOut(duration: 0.12), value: isCountMenuHovered)
+        .animation(.easeOut(duration: 0.12), value: isCountPopoverPresented)
     }
 
     private var zoomControls: some View {
         HStack(spacing: 8) {
-            Menu {
-                Button(DocumentZoomPreset.fitPage.title) {
-                    editor.fitPageToScreen()
-                }
-
-                Divider()
-
-                ForEach(DocumentZoomPreset.fixedPresets) { preset in
-                    Button(preset.title) {
-                        editor.setZoomPreset(preset)
-                    }
-                }
+            Button {
+                isZoomPopoverPresented.toggle()
             } label: {
                 HStack(spacing: 4) {
                     Text(editor.zoomDisplayText)
@@ -149,7 +137,7 @@ struct EditorStatusBarView: View {
                 .padding(.horizontal, 5)
                 .frame(height: 20)
                 .chromeGlassControlBackground(
-                    isActive: isZoomMenuHovered,
+                    isActive: true,
                     fallbackColor: isZoomMenuHovered ? ChromeStyle.toolbarHoverFill : Color.clear,
                     in: RoundedRectangle(cornerRadius: 5, style: .continuous)
                 )
@@ -161,26 +149,42 @@ struct EditorStatusBarView: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: 5, style: .continuous)
                         .stroke(
-                            isZoomMenuHovered ? ChromeStyle.toolbarHoverBorder : Color.clear,
-                            lineWidth: isZoomMenuHovered ? 1 : 0
+                            isZoomMenuHovered || isZoomPopoverPresented ? ChromeStyle.toolbarHoverBorder : Color.clear,
+                            lineWidth: isZoomMenuHovered || isZoomPopoverPresented ? 1 : 0
                         )
                         .allowsHitTesting(false)
                 )
                 .contentShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                .shadow(
-                    color: isZoomMenuHovered ? ChromeStyle.toolbarHoverShadow : .clear,
-                    radius: isZoomMenuHovered ? 3 : 0,
-                    x: 0,
-                    y: isZoomMenuHovered ? 1 : 0
-                )
-                .offset(y: isZoomMenuHovered ? -1 : 0)
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
+            .buttonStyle(.plain)
             .onHover { isZoomMenuHovered = $0 }
+            .popover(isPresented: $isZoomPopoverPresented, arrowEdge: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    ToolbarPopoverActionRow(title: DocumentZoomPreset.fitPage.title, symbol: "arrow.up.left.and.down.right.magnifyingglass") {
+                        editor.fitPageToScreen()
+                        isZoomPopoverPresented = false
+                    }
+
+                    Divider()
+
+                    ForEach(DocumentZoomPreset.fixedPresets) { preset in
+                        ToolbarPopoverActionRow(
+                            title: preset.title,
+                            symbol: "magnifyingglass",
+                            isSelected: editor.selectedZoomPreset == preset
+                        ) {
+                            editor.setZoomPreset(preset)
+                            isZoomPopoverPresented = false
+                        }
+                    }
+                }
+                .padding(12)
+                .frame(width: 156)
+            }
             .fixedSize()
             .help("Zoom Size")
             .animation(.easeOut(duration: 0.12), value: isZoomMenuHovered)
+            .animation(.easeOut(duration: 0.12), value: isZoomPopoverPresented)
 
             StatusBarIconButton(symbol: "minus", help: "Zoom Out") {
                 editor.zoomOut()

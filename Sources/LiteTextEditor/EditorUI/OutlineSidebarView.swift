@@ -170,7 +170,7 @@ private struct OutlineRow: View {
         }
         .buttonStyle(.plain)
         .chromeGlassControlBackground(
-            isActive: isActive || isHovered,
+            isActive: true,
             isSelected: isActive,
             fallbackColor: rowBackground,
             in: RoundedRectangle(cornerRadius: 5, style: .continuous)
@@ -217,7 +217,7 @@ private struct OutlineCloseButton: View {
                 .foregroundStyle(isHovered ? ChromeStyle.controlTextColor : ChromeStyle.secondaryTextColor)
                 .frame(width: 22, height: 22)
                 .chromeGlassControlBackground(
-                    isActive: isHovered,
+                    isActive: true,
                     fallbackColor: isHovered ? ChromeStyle.toolbarHoverFill : Color.clear,
                     in: RoundedRectangle(cornerRadius: 5, style: .continuous)
                 )

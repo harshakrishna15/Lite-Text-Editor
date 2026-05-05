@@ -326,6 +326,7 @@ struct FormattingState: Equatable {
     var isBold = false
     var isItalic = false
     var isUnderline = false
+    var isStrikethrough = false
     var hasHighlight = false
     var isBulletedList = false
     var isNumberedList = false
