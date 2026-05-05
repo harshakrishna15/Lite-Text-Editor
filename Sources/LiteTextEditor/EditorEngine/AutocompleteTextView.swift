@@ -6,6 +6,8 @@ final class AutocompleteTextView: NSTextView {
     static let pageMargin: CGFloat = 72
     static let pageGap: CGFloat = 34
     static let deskPadding: CGFloat = 36
+    static let pageTopVisiblePadding: CGFloat = 56
+    static let pageBottomVisiblePadding: CGFloat = 56
     static let pageTextWidth = paperWidth - (pageMargin * 2)
     static let pageContentHeight = pageHeight - (pageMargin * 2)
     static let textLayoutDimensionLimit: CGFloat = 100_000

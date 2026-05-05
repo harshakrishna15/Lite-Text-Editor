@@ -15,6 +15,12 @@ struct RichTextEditor: NSViewRepresentable {
         scrollView.scrollerStyle = .overlay
         scrollView.verticalScrollElasticity = .allowed
         scrollView.horizontalScrollElasticity = .none
+        scrollView.contentInsets = NSEdgeInsets(
+            top: ChromeStyle.regularToolbarHeight,
+            left: 0,
+            bottom: 0,
+            right: 0
+        )
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = true
         scrollView.backgroundColor = .liteTextEditorDesk

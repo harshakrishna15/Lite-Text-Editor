@@ -24,19 +24,6 @@ struct EditorView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            EditorFormattingToolbarView(
-                editor: editor,
-                selectedFont: $selectedFont,
-                selectedSize: $selectedSize,
-                selectedSizeText: $selectedSizeText,
-                selectedStyle: $selectedStyle,
-                textColor: $textColor,
-                customTextColors: $customTextColors,
-                isOutlineVisible: $isOutlineVisible
-            )
-
-            Divider()
-
             ZStack(alignment: .topLeading) {
                 ZStack(alignment: .topTrailing) {
                     RichTextEditor(
@@ -84,6 +71,18 @@ struct EditorView: View {
                         }
                     }
                 }
+
+                EditorFormattingToolbarView(
+                    editor: editor,
+                    selectedFont: $selectedFont,
+                    selectedSize: $selectedSize,
+                    selectedSizeText: $selectedSizeText,
+                    selectedStyle: $selectedStyle,
+                    textColor: $textColor,
+                    customTextColors: $customTextColors,
+                    isOutlineVisible: $isOutlineVisible
+                )
+                .zIndex(3)
             }
             .animation(ChromeStyle.outlinePanelAnimation, value: isOutlineVisible)
 

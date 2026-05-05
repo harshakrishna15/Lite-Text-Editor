@@ -12,9 +12,9 @@ final class EditorController: ObservableObject {
         }
     }
 
-    @Published var selectedZoomPreset: DocumentZoomPreset = .actualSize
-    @Published var zoomDisplayText = "100%"
-    @Published var zoomMagnification = 1.0
+    @Published var selectedZoomPreset: DocumentZoomPreset = .percent125
+    @Published var zoomDisplayText = "125%"
+    @Published var zoomMagnification = 1.25
     @Published var documentStatistics = DocumentTextStatistics.empty
     @Published var outlineItems: [DocumentOutlineItem] = []
     @Published var documentStructureMetadata = DocumentStructureMetadata.empty

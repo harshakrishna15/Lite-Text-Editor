@@ -155,6 +155,48 @@ final class PageLayoutTests: XCTestCase {
         )
     }
 
+    func testSinglePageLayoutLeavesChromeClearanceAroundPageStack() {
+        let fixture = makeZoomFixture()
+
+        fixture.textView.resizeForCurrentPages()
+
+        let pageFrame = fixture.textView.currentPageStackFrame
+        let topGap = pageFrame.minY
+        let bottomGap = fixture.textView.bounds.height - pageFrame.maxY
+
+        XCTAssertEqual(topGap, AutocompleteTextView.pageTopPadding(for: fixture.textView.documentLayoutScale), accuracy: 1)
+        XCTAssertEqual(bottomGap, AutocompleteTextView.pageBottomPadding(for: fixture.textView.documentLayoutScale), accuracy: 1)
+    }
+
+    func testMultiPageLayoutLeavesChromeClearanceAroundPageStack() {
+        let fixture = makeZoomFixture()
+        fixture.textView.renderedPageCount = 3
+
+        fixture.textView.resizeForCachedPages()
+
+        let pageFrame = fixture.textView.currentPageStackFrame
+        let topGap = pageFrame.minY
+        let bottomGap = fixture.textView.bounds.height - pageFrame.maxY
+
+        XCTAssertEqual(topGap, AutocompleteTextView.pageTopPadding(for: fixture.textView.documentLayoutScale), accuracy: 1)
+        XCTAssertEqual(bottomGap, AutocompleteTextView.pageBottomPadding(for: fixture.textView.documentLayoutScale), accuracy: 1)
+    }
+
+    func testPageChromeClearanceStaysVisuallyStableAcrossZoomLevels() {
+        let fixture = makeZoomFixture()
+
+        for magnification in [0.5, 1.0, 2.0] {
+            fixture.textView.resizeForCachedPages(at: magnification)
+
+            let pageFrame = fixture.textView.currentPageStackFrame
+            let topGap = pageFrame.minY
+            let bottomGap = fixture.textView.bounds.height - pageFrame.maxY
+
+            XCTAssertEqual(topGap * magnification, AutocompleteTextView.pageTopVisiblePadding, accuracy: 1)
+            XCTAssertEqual(bottomGap * magnification, AutocompleteTextView.pageBottomVisiblePadding, accuracy: 1)
+        }
+    }
+
     func testTypingAcrossPageBoundaryReportsOneDocumentMetricsChange() {
         let fixture = makeZoomFixture()
         fixture.textView.textStorage?.setAttributedString(

@@ -37,6 +37,7 @@ struct EditorFormattingToolbarView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: isCompactToolbar ? ChromeStyle.compactToolbarHeight : ChromeStyle.regularToolbarHeight)
+        .background(ToolbarBlurBackground())
     }
 
     private func updateToolbarMode(for width: CGFloat, animated: Bool) {
@@ -618,6 +619,26 @@ struct EditorFormattingToolbarView: View {
         size.rounded() == size ? "\(Int(size))" : String(format: "%.1f", size)
     }
 
+}
+
+private struct ToolbarBlurBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        configure(view)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        configure(nsView)
+    }
+
+    private func configure(_ view: NSVisualEffectView) {
+        view.material = .hudWindow
+        view.blendingMode = .withinWindow
+        view.state = .active
+        view.isEmphasized = false
+        view.appearance = NSAppearance(named: .vibrantLight)
+    }
 }
 
 private enum InstalledFontProvider {

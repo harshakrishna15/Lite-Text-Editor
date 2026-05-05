@@ -45,6 +45,18 @@ extension AutocompleteTextView {
         max(viewportWidth, paperWidth)
     }
 
+    static func pageTopPadding(for magnification: CGFloat) -> CGFloat {
+        documentPadding(forVisiblePadding: pageTopVisiblePadding, magnification: magnification)
+    }
+
+    static func pageBottomPadding(for magnification: CGFloat) -> CGFloat {
+        documentPadding(forVisiblePadding: pageBottomVisiblePadding, magnification: magnification)
+    }
+
+    private static func documentPadding(forVisiblePadding visiblePadding: CGFloat, magnification: CGFloat) -> CGFloat {
+        visiblePadding / max(magnification, 0.01)
+    }
+
     func resizeForCurrentPages() {
         pendingPaperResize = false
         invalidatePageMeasurementCache()
@@ -183,11 +195,23 @@ extension AutocompleteTextView {
         let proposedX = pageFrame.midX - (visibleRect.width / 2)
         let maxX = max(bounds.minX, bounds.maxX - visibleRect.width)
         let targetX = min(max(proposedX, bounds.minX), maxX)
+        let targetY: CGFloat
+
+        if pageFrame.intersects(visibleRect) {
+            targetY = visibleRect.origin.y
+        } else {
+            let stableCenter = ZoomViewportCalculator.stableCenter(for: visibleRect, pageFrame: pageFrame)
+            targetY = ZoomViewportCalculator.clampedVisibleOrigin(
+                centeredAt: stableCenter,
+                visibleSize: visibleRect.size,
+                documentBounds: bounds
+            ).y
+        }
 
         restoreVisibleOrigin(
             NSPoint(
                 x: targetX,
-                y: visibleRect.origin.y
+                y: targetY
             )
         )
     }
@@ -262,23 +286,21 @@ extension AutocompleteTextView {
     }
 
     private func targetFrameSize(forPageCount pageCount: Int, magnification: CGFloat? = nil) -> NSSize {
-        let contentHeight = Self.pageStackHeight(forPageCount: pageCount) + (Self.deskPadding * 2)
+        let layoutScale = magnification ?? documentLayoutScale
+        let contentHeight = Self.pageStackHeight(forPageCount: pageCount)
+            + Self.pageTopPadding(for: layoutScale)
+            + Self.pageBottomPadding(for: layoutScale)
         let scale = max(
-            min(magnification ?? documentLayoutScale, Self.minimumStableCanvasMagnification),
+            min(layoutScale, Self.minimumStableCanvasMagnification),
             0.01
-        )
-        let viewportHeight = max(
-            (enclosingScrollView?.contentSize.height ?? 0) / scale,
-            (enclosingScrollView?.contentView.bounds.height ?? 0) / scale
         )
         let viewportWidth = max(
             (enclosingScrollView?.contentSize.width ?? 0) / scale,
             (enclosingScrollView?.contentView.bounds.width ?? 0) / scale
         )
-        let targetHeight = max(contentHeight, viewportHeight)
         let targetWidth = Self.documentWidth(forViewportWidth: viewportWidth)
 
-        return NSSize(width: targetWidth, height: targetHeight)
+        return NSSize(width: targetWidth, height: contentHeight)
     }
 
     func invalidatePageMeasurementCache() {
@@ -342,7 +364,7 @@ extension AutocompleteTextView {
     }
 
     private func pageOriginY(forPageCount pageCount: Int, boundsHeight: CGFloat) -> CGFloat {
-        Self.deskPadding
+        Self.pageTopPadding(for: documentLayoutScale)
     }
 
     private func pageHorizontalOrigin(forBoundsWidth boundsWidth: CGFloat) -> CGFloat {

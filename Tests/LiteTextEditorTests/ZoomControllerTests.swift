@@ -3,6 +3,15 @@ import XCTest
 @testable import LiteTextEditor
 
 final class ZoomControllerTests: XCTestCase {
+    func testDefaultZoomStartsSlightlyZoomedIn() {
+        let fixture = makeControllerFixture()
+
+        XCTAssertEqual(fixture.controller.selectedZoomPreset, .percent125)
+        XCTAssertEqual(fixture.controller.zoomMagnification, 1.25, accuracy: 0.001)
+        XCTAssertEqual(fixture.controller.zoomDisplayText, "125%")
+        XCTAssertEqual(fixture.textView.documentLayoutScale, 1.25, accuracy: 0.001)
+    }
+
     func testSetZoomMagnificationClampsDisplayAndDocumentLayoutScale() {
         let fixture = makeControllerFixture()
 
@@ -139,16 +148,16 @@ final class ZoomControllerTests: XCTestCase {
 
         fixture.controller.applyTrackpadZoom(delta: 0.1, phase: .changed)
 
-        XCTAssertEqual(fixture.controller.zoomMagnification, 1.1, accuracy: 0.001)
-        XCTAssertEqual(fixture.controller.zoomDisplayText, "110%")
+        XCTAssertEqual(fixture.controller.zoomMagnification, 1.375, accuracy: 0.001)
+        XCTAssertEqual(fixture.controller.zoomDisplayText, "138%")
         XCTAssertEqual(fixture.scrollView.magnification, 1.0, accuracy: 0.001)
-        XCTAssertEqual(fixture.textView.documentLayoutScale, 1.1, accuracy: 0.001)
+        XCTAssertEqual(fixture.textView.documentLayoutScale, 1.375, accuracy: 0.001)
 
         fixture.controller.applyTrackpadZoom(delta: -0.1, phase: .changed)
 
-        XCTAssertEqual(fixture.controller.zoomMagnification, 0.99, accuracy: 0.001)
+        XCTAssertEqual(fixture.controller.zoomMagnification, 1.2375, accuracy: 0.001)
         XCTAssertEqual(fixture.scrollView.magnification, 1.0, accuracy: 0.001)
-        XCTAssertEqual(fixture.textView.documentLayoutScale, 0.99, accuracy: 0.001)
+        XCTAssertEqual(fixture.textView.documentLayoutScale, 1.2375, accuracy: 0.001)
     }
 
     func testTrackpadZoomIgnoresEndedAndCancelledEvents() {
@@ -157,8 +166,8 @@ final class ZoomControllerTests: XCTestCase {
         fixture.controller.applyTrackpadZoom(delta: 0.2, phase: .ended)
         fixture.controller.applyTrackpadZoom(delta: 0.2, phase: .cancelled)
 
-        XCTAssertEqual(fixture.controller.zoomMagnification, 1.0, accuracy: 0.001)
-        XCTAssertEqual(fixture.textView.documentLayoutScale, 1.0, accuracy: 0.001)
+        XCTAssertEqual(fixture.controller.zoomMagnification, 1.25, accuracy: 0.001)
+        XCTAssertEqual(fixture.textView.documentLayoutScale, 1.25, accuracy: 0.001)
     }
 
     func testReplacingScrollViewClearsOldTrackpadZoomHandler() {
