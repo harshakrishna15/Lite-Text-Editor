@@ -184,7 +184,9 @@ extension EditorController {
     }
 
     func toggleHighlight() {
-        applyHighlight(.yellow)
+        guard let textView else { return }
+        let attributes = representativeFormattingAttributes(in: textView)
+        applyHighlight(attributes[.backgroundColor] == nil ? .yellow : .clear)
     }
 
     func applyHighlight(_ option: HighlightColorOption) {
@@ -679,19 +681,37 @@ extension EditorController {
             return (false, false)
         }
 
-        let lines = nsString.substring(with: paragraphRange)
-            .components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
+        var hasListCandidateLine = false
+        var allBulleted = true
+        var allNumbered = true
 
-        guard !lines.isEmpty else { return (false, false) }
+        nsString.enumerateSubstrings(in: paragraphRange, options: [.byLines]) { substring, _, _, _ in
+            guard let line = substring?.trimmingCharacters(in: .whitespaces),
+                  !line.isEmpty else {
+                return
+            }
 
-        let isBulleted = lines.allSatisfy { $0.hasPrefix("- ") }
-        let isNumbered = lines.allSatisfy {
-            $0.range(of: #"^\d+\. "#, options: .regularExpression) != nil
+            hasListCandidateLine = true
+            allBulleted = allBulleted && line.hasPrefix("- ")
+            allNumbered = allNumbered && self.lineStartsWithNumberedListMarker(line)
         }
 
-        return (isBulleted, isNumbered)
+        guard hasListCandidateLine else { return (false, false) }
+        return (allBulleted, allNumbered)
+    }
+
+    private func lineStartsWithNumberedListMarker(_ line: String) -> Bool {
+        var index = line.startIndex
+        var sawDigit = false
+
+        while index < line.endIndex, line[index].isNumber {
+            sawDigit = true
+            index = line.index(after: index)
+        }
+
+        guard sawDigit, index < line.endIndex, line[index] == "." else { return false }
+        index = line.index(after: index)
+        return index < line.endIndex && line[index] == " "
     }
 
     private func normalizedAlignment(_ alignment: NSTextAlignment) -> NSTextAlignment {

@@ -96,7 +96,7 @@ struct RichTextEditor: NSViewRepresentable {
             controller?.moveSpellingSuggestionSelection(by: delta)
         }
         textView.onFormattingSampleLocationChanged = { [weak controller] in
-            controller?.refreshFormattingState()
+            controller?.scheduleFormattingStateRefresh()
         }
         textView.typingAttributes = [
             .font: NSFont.systemFont(ofSize: 11),
@@ -144,6 +144,9 @@ struct RichTextEditor: NSViewRepresentable {
         }
         textView.onMoveSpellingCorrectionSelection = { [weak controller] delta in
             controller?.moveSpellingSuggestionSelection(by: delta)
+        }
+        textView.onFormattingSampleLocationChanged = { [weak controller] in
+            controller?.scheduleFormattingStateRefresh()
         }
         if controller.textView !== textView {
             controller.textView = textView
@@ -451,7 +454,7 @@ struct RichTextEditor: NSViewRepresentable {
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {
-            controller?.refreshFormattingState()
+            controller?.scheduleFormattingStateRefresh()
         }
 
         func layoutManager(

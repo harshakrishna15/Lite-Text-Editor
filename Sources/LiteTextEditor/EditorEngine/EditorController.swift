@@ -31,6 +31,7 @@ final class EditorController: ObservableObject {
 
     var currentDocumentURL: URL?
     var pendingDocumentStatisticsRefresh: DispatchWorkItem?
+    var pendingOutlineRefresh: DispatchWorkItem?
     var pendingFormattingStateRefresh: DispatchWorkItem?
     var pendingAutosaveWorkItem: DispatchWorkItem?
     var copiedFormattingAttributes: [NSAttributedString.Key: Any]?

@@ -62,13 +62,11 @@ private struct ChromeGlassBackgroundModifier<S: Shape>: ViewModifier {
     }
 
     private var isChromeGlassLiveResizeActive: Bool {
-        isLiveResizing || NSApp.windows.contains { $0.inLiveResize }
+        isLiveResizing
     }
 }
 
 private struct ChromeGlassControlBackgroundModifier<S: Shape>: ViewModifier {
-    @Environment(\.isChromeGlassLiveResizing) private var isLiveResizing
-
     let isActive: Bool
     let isSelected: Bool
     let isPressed: Bool
@@ -79,7 +77,7 @@ private struct ChromeGlassControlBackgroundModifier<S: Shape>: ViewModifier {
     func body(content: Content) -> some View {
         if isActive {
             #if compiler(>=6.2)
-            if #available(macOS 26.0, *), !isChromeGlassLiveResizeActive {
+            if #available(macOS 26.0, *) {
                 content
                     .glassEffect(surface.nativeGlass, in: shape)
                     .chromeGlassRim(surface: surface, shape: shape)
@@ -107,10 +105,6 @@ private struct ChromeGlassControlBackgroundModifier<S: Shape>: ViewModifier {
             .background(shape.fill(fallbackColor))
             .background(shape.fill(surface.surfaceTint))
             .chromeGlassRim(surface: surface, shape: shape)
-    }
-
-    private var isChromeGlassLiveResizeActive: Bool {
-        isLiveResizing || NSApp.windows.contains { $0.inLiveResize }
     }
 }
 
@@ -167,7 +161,7 @@ struct ChromeGlassContainer<Content: View>: View {
     }
 
     private var isChromeGlassLiveResizeActive: Bool {
-        isLiveResizing || NSApp.windows.contains { $0.inLiveResize }
+        isLiveResizing
     }
 }
 

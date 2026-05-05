@@ -92,18 +92,32 @@ struct EditorStatusBarView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(isCountMenuHovered ? ChromeStyle.toolbarHoverOverlay : Color.clear)
+                    .allowsHitTesting(false)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .stroke(
                         isCountMenuHovered ? ChromeStyle.toolbarHoverBorder : Color.clear,
                         lineWidth: isCountMenuHovered ? 1 : 0
                     )
+                    .allowsHitTesting(false)
             )
             .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .shadow(
+                color: isCountMenuHovered ? ChromeStyle.toolbarHoverShadow : .clear,
+                radius: isCountMenuHovered ? 3 : 0,
+                x: 0,
+                y: isCountMenuHovered ? 1 : 0
+            )
+            .offset(y: isCountMenuHovered ? -1 : 0)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .onHover { isCountMenuHovered = $0 }
         .fixedSize()
         .help("Document Counts")
+        .animation(.easeOut(duration: 0.12), value: isCountMenuHovered)
     }
 
     private var zoomControls: some View {
@@ -141,18 +155,32 @@ struct EditorStatusBarView: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(isZoomMenuHovered ? ChromeStyle.toolbarHoverOverlay : Color.clear)
+                        .allowsHitTesting(false)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
                         .stroke(
                             isZoomMenuHovered ? ChromeStyle.toolbarHoverBorder : Color.clear,
                             lineWidth: isZoomMenuHovered ? 1 : 0
                         )
+                        .allowsHitTesting(false)
                 )
                 .contentShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                .shadow(
+                    color: isZoomMenuHovered ? ChromeStyle.toolbarHoverShadow : .clear,
+                    radius: isZoomMenuHovered ? 3 : 0,
+                    x: 0,
+                    y: isZoomMenuHovered ? 1 : 0
+                )
+                .offset(y: isZoomMenuHovered ? -1 : 0)
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .onHover { isZoomMenuHovered = $0 }
             .fixedSize()
             .help("Zoom Size")
+            .animation(.easeOut(duration: 0.12), value: isZoomMenuHovered)
 
             StatusBarIconButton(symbol: "minus", help: "Zoom Out") {
                 editor.zoomOut()

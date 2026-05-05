@@ -55,6 +55,30 @@ final class FormattingOptionsCommandTests: XCTestCase {
         XCTAssertEqual(attribute(.liteTextEditorSmallCaps, at: 0, in: textView) as? Bool, true)
     }
 
+    func testHighlightToolbarButtonTogglesExistingHighlightOff() {
+        let fixture = makeFixture("hello world")
+        let controller = fixture.controller
+        let textView = fixture.textView
+        textView.setSelectedRange(NSRange(location: 0, length: 5))
+
+        controller.toggleHighlight()
+        XCTAssertNotNil(attribute(.backgroundColor, at: 0, in: textView))
+
+        controller.toggleHighlight()
+        XCTAssertNil(attribute(.backgroundColor, at: 0, in: textView))
+    }
+
+    func testHighlightToolbarButtonTogglesTypingHighlightOff() {
+        let fixture = makeFixture("")
+        let controller = fixture.controller
+
+        controller.toggleHighlight()
+        XCTAssertNotNil(fixture.textView.typingAttributes[.backgroundColor])
+
+        controller.toggleHighlight()
+        XCTAssertNil(fixture.textView.typingAttributes[.backgroundColor])
+    }
+
     func testCopyAndPasteFormattingCopiesRepresentativeAttributes() {
         let fixture = makeFixture("source target")
         let controller = fixture.controller

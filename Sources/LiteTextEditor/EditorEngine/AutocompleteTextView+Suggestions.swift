@@ -95,7 +95,7 @@ extension AutocompleteTextView {
         return SuggestionRefreshKey(
             selectionLocation: selection.location,
             selectionLength: selection.length,
-            stringLength: (string as NSString).length,
+            stringLength: textStorageLength,
             contentGeneration: contentGeneration,
             maxSuggestionWords: maxSuggestionWords
         )

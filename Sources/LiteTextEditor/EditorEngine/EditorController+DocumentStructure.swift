@@ -1,5 +1,10 @@
 import AppKit
 
+private let documentStatisticsQueue = DispatchQueue(
+    label: "LiteTextEditor.DocumentStatistics",
+    qos: .userInitiated
+)
+
 extension EditorController {
     var outlineSummaryText: String {
         documentStructureMetadata.summaryText
@@ -16,6 +21,8 @@ extension EditorController {
     func refreshDocumentStatistics() {
         pendingDocumentStatisticsRefresh?.cancel()
         pendingDocumentStatisticsRefresh = nil
+        pendingOutlineRefresh?.cancel()
+        pendingOutlineRefresh = nil
 
         refreshOutlineItems()
 
@@ -30,6 +37,9 @@ extension EditorController {
     }
 
     func refreshOutlineItems() {
+        pendingOutlineRefresh?.cancel()
+        pendingOutlineRefresh = nil
+
         guard let attributedString = textView?.textStorage else {
             if !outlineItems.isEmpty {
                 outlineItems = []
@@ -59,6 +69,7 @@ extension EditorController {
 
     func scheduleDocumentStatisticsRefresh() {
         pendingDocumentStatisticsRefresh?.cancel()
+        scheduleOutlineRefresh()
 
         let textGeneration = textView?.contentGeneration
         let pageCount = textView?.currentPageCount
@@ -70,11 +81,50 @@ extension EditorController {
                 return
             }
 
-            self.refreshDocumentStatistics()
+            self.pendingDocumentStatisticsRefresh = nil
+
+            let text = self.textView?.string ?? ""
+            let pageCount = self.textView?.currentPageCount ?? 1
+
+            documentStatisticsQueue.async { [weak self] in
+                let nextStatistics = DocumentTextStatistics.make(from: text, pages: pageCount)
+
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    guard self.textView?.contentGeneration == textGeneration,
+                          self.textView?.currentPageCount == pageCount else {
+                        self.scheduleDocumentStatisticsRefresh()
+                        return
+                    }
+
+                    if nextStatistics != self.documentStatistics {
+                        self.documentStatistics = nextStatistics
+                    }
+                }
+            }
         }
 
         pendingDocumentStatisticsRefresh = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: workItem)
+    }
+
+    func scheduleOutlineRefresh() {
+        pendingOutlineRefresh?.cancel()
+
+        let textGeneration = textView?.contentGeneration
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            guard self.textView?.contentGeneration == textGeneration else {
+                self.scheduleOutlineRefresh()
+                return
+            }
+
+            self.pendingOutlineRefresh = nil
+            self.refreshOutlineItems()
+        }
+
+        pendingOutlineRefresh = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
     }
 
     func refreshActiveOutlineItem() {
@@ -85,7 +135,7 @@ extension EditorController {
             return
         }
 
-        let textLength = (textView.string as NSString).length
+        let textLength = textView.textStorageLength
         let selectionLocation = min(max(textView.selectedRange().location, 0), textLength)
         let activeItem = outlineItems.last { item in
             item.location <= selectionLocation
@@ -100,7 +150,7 @@ extension EditorController {
     func selectOutlineItem(_ item: DocumentOutlineItem) {
         guard let textView else { return }
 
-        let textLength = (textView.string as NSString).length
+        let textLength = textView.textStorageLength
         let location = min(max(item.location, 0), textLength)
         textView.window?.makeFirstResponder(textView)
         textView.setSelectedRange(NSRange(location: location, length: 0))

@@ -45,7 +45,9 @@ enum ChromeStyle {
     static let toolbarPressedFill = Color.accentColor.opacity(0.22)
     static let toolbarSelectedFill = Color.accentColor.opacity(0.18)
     static let toolbarSelectedBorder = Color.accentColor.opacity(0.62)
-    static let toolbarHoverBorder = Color.white.opacity(0.22)
+    static let toolbarHoverBorder = Color.accentColor.opacity(0.40)
+    static let toolbarHoverOverlay = Color.accentColor.opacity(0.10)
+    static let toolbarHoverShadow = Color.black.opacity(0.12)
     static let outlinePanelStroke = Color.white.opacity(0.20)
 
     static var appearance: NSAppearance? {

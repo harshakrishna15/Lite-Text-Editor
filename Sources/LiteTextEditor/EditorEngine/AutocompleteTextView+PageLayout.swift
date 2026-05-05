@@ -38,6 +38,7 @@ extension AutocompleteTextView {
     }
 
     func resizeForCurrentPages() {
+        pendingPaperResize = false
         invalidatePageMeasurementCache()
         ensurePaperHeightFitsContent()
     }
@@ -109,7 +110,19 @@ extension AutocompleteTextView {
         )
     }
 
+    func schedulePageRefreshAfterTextChange() {
+        guard !pendingPaperResize else { return }
+        pendingPaperResize = true
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.pageRefreshDelay) { [weak self] in
+            guard let self, self.pendingPaperResize else { return }
+            self.pendingPaperResize = false
+            self.updatePagesAfterTextChange()
+        }
+    }
+
     func ensurePaperHeightFitsContent() {
+        pendingPaperResize = false
         guard let pageCount = measuredPageCount() else { return }
         let oldRenderedPageCount = renderedPageCount
         renderedPageCount = pageCount
@@ -273,7 +286,7 @@ extension AutocompleteTextView {
 
         let measurementKey = PageMeasurementKey(
             contentGeneration: contentGeneration,
-            stringLength: (string as NSString).length
+            stringLength: textStorageLength
         )
 
         if cachedPageMeasurementKey == measurementKey {

@@ -24,15 +24,7 @@ struct EditorFormattingToolbarView: View {
     var body: some View {
         GeometryReader { proxy in
             ChromeGlassContainer(spacing: ChromeStyle.toolbarSectionSpacing) {
-                ZStack(alignment: .topLeading) {
-                    if isCompactToolbar {
-                        compactFormattingBar
-                            .transition(.identity)
-                    } else {
-                        regularFormattingBar
-                            .transition(.identity)
-                    }
-                }
+                formattingBar
                 .clipped()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
@@ -65,7 +57,7 @@ struct EditorFormattingToolbarView: View {
         }
     }
 
-    private var regularFormattingBar: some View {
+    private var formattingBar: some View {
         HStack(alignment: .center, spacing: ChromeStyle.toolbarSectionSpacing) {
             outlineToggleButton
                 .matchedGeometryEffect(id: ToolbarAnimationID.outlineToggle, in: toolbarNamespace)
@@ -79,34 +71,39 @@ struct EditorFormattingToolbarView: View {
             primaryInlineFormattingSection
                 .matchedGeometryEffect(id: ToolbarAnimationID.primaryFormatting, in: toolbarNamespace)
             ToolbarDivider()
-            regularOverflowFormattingSection
-                .matchedGeometryEffect(id: ToolbarAnimationID.overflowFormatting, in: toolbarNamespace)
+            overflowFormattingSection
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 7)
         .fixedSize(horizontal: true, vertical: false)
+        .animation(ChromeStyle.toolbarModeAnimation, value: isCompactToolbar)
     }
 
-    private var compactFormattingBar: some View {
-        HStack(alignment: .center, spacing: ChromeStyle.toolbarSectionSpacing) {
-            outlineToggleButton
-                .matchedGeometryEffect(id: ToolbarAnimationID.outlineToggle, in: toolbarNamespace)
-            ToolbarDivider()
-            fontControlsSection
-                .matchedGeometryEffect(id: ToolbarAnimationID.fontControls, in: toolbarNamespace)
-            ToolbarDivider()
-            stylePresetSection
-                .matchedGeometryEffect(id: ToolbarAnimationID.stylePreset, in: toolbarNamespace)
-            ToolbarDivider()
-            primaryInlineFormattingSection
-                .matchedGeometryEffect(id: ToolbarAnimationID.primaryFormatting, in: toolbarNamespace)
-            ToolbarDivider()
-            moreFormattingMenu
-                .matchedGeometryEffect(id: ToolbarAnimationID.overflowFormatting, in: toolbarNamespace)
+    private var overflowFormattingSection: some View {
+        ZStack(alignment: .leading) {
+            if isCompactToolbar {
+                moreFormattingMenu
+                    .matchedGeometryEffect(id: ToolbarAnimationID.overflowFormatting, in: toolbarNamespace)
+                    .transition(toolbarOverflowTransition)
+            } else {
+                regularOverflowFormattingSection
+                    .matchedGeometryEffect(id: ToolbarAnimationID.overflowFormatting, in: toolbarNamespace)
+                    .transition(toolbarOverflowTransition)
+            }
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 7)
         .fixedSize(horizontal: true, vertical: false)
+        .clipped()
+    }
+
+    private var toolbarOverflowTransition: AnyTransition {
+        .asymmetric(
+            insertion: .move(edge: .trailing)
+                .combined(with: .opacity)
+                .combined(with: .scale(scale: 0.96, anchor: .leading)),
+            removal: .move(edge: .trailing)
+                .combined(with: .opacity)
+                .combined(with: .scale(scale: 0.98, anchor: .leading))
+        )
     }
 
     private var outlineToggleButton: some View {

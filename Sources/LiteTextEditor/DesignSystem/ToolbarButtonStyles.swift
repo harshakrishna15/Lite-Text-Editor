@@ -34,6 +34,9 @@ struct ToolbarIconButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         let shape = RoundedRectangle(cornerRadius: 5, style: .continuous)
+        let hoverLift = hoverLift(isPressed: configuration.isPressed)
+        let hoverScale = hoverScale(isPressed: configuration.isPressed)
+        let hoverShadowRadius = hoverShadowRadius(isPressed: configuration.isPressed)
 
         configuration.label
             .chromeGlassControlBackground(
@@ -45,13 +48,26 @@ struct ToolbarIconButtonStyle: ButtonStyle {
             )
             .overlay(
                 shape
+                    .fill(hoverOverlayColor(isPressed: configuration.isPressed))
+                    .allowsHitTesting(false)
+            )
+            .overlay(
+                shape
                     .stroke(
                         borderColor(isPressed: configuration.isPressed),
                         lineWidth: borderWidth(isPressed: configuration.isPressed)
                     )
+                    .allowsHitTesting(false)
             )
             .contentShape(shape)
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .shadow(
+                color: shadowColor(isPressed: configuration.isPressed),
+                radius: hoverShadowRadius,
+                x: 0,
+                y: hoverLift > 0 ? 1 : 0
+            )
+            .offset(y: -hoverLift)
+            .scaleEffect(configuration.isPressed ? 0.95 : hoverScale)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
             .animation(.easeOut(duration: 0.12), value: isHovered)
             .animation(.easeOut(duration: 0.12), value: isSelected)
@@ -84,6 +100,31 @@ struct ToolbarIconButtonStyle: ButtonStyle {
     private func borderWidth(isPressed: Bool) -> CGFloat {
         isPressed || isSelected || isHovered ? 1 : 0
     }
+
+    private func hoverOverlayColor(isPressed: Bool) -> Color {
+        guard isHovered && !isPressed else { return .clear }
+        return isSelected ? Color.accentColor.opacity(0.055) : ChromeStyle.toolbarHoverOverlay
+    }
+
+    private func shadowColor(isPressed: Bool) -> Color {
+        guard isHovered && !isPressed else { return .clear }
+        return isSelected ? ChromeStyle.toolbarHoverShadow.opacity(0.55) : ChromeStyle.toolbarHoverShadow
+    }
+
+    private func hoverLift(isPressed: Bool) -> CGFloat {
+        guard isHovered && !isPressed else { return 0 }
+        return isSelected ? 0.5 : 1
+    }
+
+    private func hoverScale(isPressed: Bool) -> CGFloat {
+        guard isHovered && !isPressed else { return 1 }
+        return isSelected ? 1.015 : 1.04
+    }
+
+    private func hoverShadowRadius(isPressed: Bool) -> CGFloat {
+        guard isHovered && !isPressed else { return 0 }
+        return isSelected ? 2 : 4
+    }
 }
 
 struct RibbonIconButton: View {
@@ -98,7 +139,7 @@ struct RibbonIconButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(ChromeStyle.controlSymbolFont)
-                .foregroundStyle(isSelected ? Color.accentColor : ChromeStyle.glassControlTextColor)
+                .foregroundStyle(iconColor)
                 .frame(width: ChromeStyle.toolbarIconWidth, height: ChromeStyle.toolbarControlHeight)
                 .contentShape(Rectangle())
         }
@@ -106,6 +147,14 @@ struct RibbonIconButton: View {
         .onHover { isHovered = $0 }
         .accessibilityLabel(help)
         .help(help)
+    }
+
+    private var iconColor: Color {
+        if isSelected {
+            return Color.accentColor
+        }
+
+        return isHovered ? ChromeStyle.controlTextColor : ChromeStyle.glassControlTextColor
     }
 }
 
@@ -120,7 +169,7 @@ struct StatusBarIconButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(ChromeStyle.controlSymbolFont)
-                .foregroundStyle(ChromeStyle.glassControlTextColor)
+                .foregroundStyle(isHovered ? ChromeStyle.controlTextColor : ChromeStyle.glassControlTextColor)
                 .frame(width: 18, height: 18)
                 .contentShape(Rectangle())
         }
@@ -153,7 +202,7 @@ struct ToolbarMenuButton<Content: View>: View {
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(ChromeStyle.glassSecondaryTextColor)
             }
-            .foregroundStyle(ChromeStyle.glassControlTextColor)
+            .foregroundStyle(isHovered ? ChromeStyle.controlTextColor : ChromeStyle.glassControlTextColor)
             .frame(width: ChromeStyle.toolbarIconWidth + 8, height: ChromeStyle.toolbarControlHeight)
             .chromeGlassControlBackground(
                 isActive: true,
@@ -162,17 +211,32 @@ struct ToolbarMenuButton<Content: View>: View {
             )
             .overlay(
                 shape
+                    .fill(isHovered ? ChromeStyle.toolbarHoverOverlay : Color.clear)
+                    .allowsHitTesting(false)
+            )
+            .overlay(
+                shape
                     .stroke(
                         isHovered ? ChromeStyle.toolbarHoverBorder : Color.clear,
                         lineWidth: isHovered ? 1 : 0
                     )
+                    .allowsHitTesting(false)
             )
             .contentShape(shape)
+            .shadow(
+                color: isHovered ? ChromeStyle.toolbarHoverShadow : .clear,
+                radius: isHovered ? 4 : 0,
+                x: 0,
+                y: isHovered ? 1 : 0
+            )
+            .offset(y: isHovered ? -1 : 0)
+            .scaleEffect(isHovered ? 1.03 : 1)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .onHover { isHovered = $0 }
         .help(title)
         .accessibilityLabel(title)
+        .animation(.easeOut(duration: 0.12), value: isHovered)
     }
 }

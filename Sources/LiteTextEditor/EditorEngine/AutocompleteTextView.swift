@@ -11,6 +11,7 @@ final class AutocompleteTextView: NSTextView {
     static let textLayoutDimensionLimit: CGFloat = 100_000
     static let minimumStableCanvasMagnification: CGFloat = 0.5
     static let suggestionRefreshDelay: TimeInterval = 0.12
+    static let pageRefreshDelay: TimeInterval = 0.04
 
     struct SuggestionRefreshKey: Equatable {
         let selectionLocation: Int
@@ -67,6 +68,9 @@ final class AutocompleteTextView: NSTextView {
     private var preservedVisibleOriginDuringChange: NSPoint?
     private var visibleOriginPreservationDepth = 0
     private var formattingTrackingArea: NSTrackingArea?
+    var textStorageLength: Int {
+        textStorage?.length ?? (string as NSString).length
+    }
 
     override init(frame frameRect: NSRect, textContainer container: NSTextContainer?) {
         super.init(frame: frameRect, textContainer: container)
@@ -131,7 +135,7 @@ final class AutocompleteTextView: NSTextView {
         let preservedVisibleOrigin = preservedVisibleOriginDuringChange
         super.didChangeText()
         contentGeneration &+= 1
-        updatePagesAfterTextChange()
+        schedulePageRefreshAfterTextChange()
         onDocumentMetricsChanged?()
         if let preservedVisibleOrigin {
             restoreVisibleOrigin(preservedVisibleOrigin)
@@ -223,7 +227,7 @@ final class AutocompleteTextView: NSTextView {
     }
 
     func updateFormattingSampleLocation(_ location: Int?) {
-        let textLength = (string as NSString).length
+        let textLength = textStorageLength
         let clampedLocation = location.map { min(max($0, 0), max(textLength - 1, 0)) }
 
         guard formattingSampleLocation != clampedLocation else { return }
@@ -234,7 +238,7 @@ final class AutocompleteTextView: NSTextView {
     private func characterIndexForFormattingSample(from event: NSEvent) -> Int? {
         guard let layoutManager, let textContainer else { return nil }
 
-        let textLength = (string as NSString).length
+        let textLength = textStorageLength
         guard textLength > 0 else { return nil }
 
         let point = convert(event.locationInWindow, from: nil)
