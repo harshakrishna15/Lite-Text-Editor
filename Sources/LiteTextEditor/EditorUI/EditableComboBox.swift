@@ -134,6 +134,7 @@ struct EditableComboBox: NSViewRepresentable {
 
         func controlTextDidEndEditing(_ notification: Notification) {
             guard let comboBox = notification.object as? EditableComboBoxView else { return }
+            comboBox.clearEditorSelection()
             comboBox.setKeyboardFocused(false)
             commit(comboBox.stringValue)
         }
@@ -241,6 +242,14 @@ final class EditableComboBoxView: NSComboBox {
         guard isKeyboardFocused != isFocused else { return }
         isKeyboardFocused = isFocused
         needsDisplay = true
+    }
+
+    func clearEditorSelection() {
+        guard let editor = currentEditor() else { return }
+        let insertionPoint = (editor.string as NSString).length
+        editor.selectedRange = NSRange(location: insertionPoint, length: 0)
+        previousEditorText = editor.string
+        previousSelectionRange = editor.selectedRange
     }
 
     override func keyDown(with event: NSEvent) {

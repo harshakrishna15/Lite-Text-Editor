@@ -219,6 +219,21 @@ struct EditorFormattingToolbarView: View {
                 editor.applyPreset(preset, fontName: selectedFont)
             }
             .frame(width: styleControlWidth, height: ChromeStyle.toolbarControlHeight)
+            .background(
+                RoundedRectangle(cornerRadius: ChromeStyle.toolbarPickerCornerRadius, style: .continuous)
+                    .fill(ChromeStyle.toolbarPickerFill)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: ChromeStyle.toolbarPickerCornerRadius, style: .continuous)
+                    .strokeBorder(ChromeStyle.toolbarPickerTopHighlight, lineWidth: 0.5)
+                    .padding(0.5)
+                    .allowsHitTesting(false)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: ChromeStyle.toolbarPickerCornerRadius, style: .continuous)
+                    .strokeBorder(ChromeStyle.toolbarPickerBorder, lineWidth: 1)
+                    .allowsHitTesting(false)
+            )
             .overlay(alignment: .trailing) {
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 10, weight: .semibold))
@@ -227,10 +242,6 @@ struct EditorFormattingToolbarView: View {
                     .padding(.trailing, ChromeStyle.toolbarPickerChevronTrailingPadding)
                     .allowsHitTesting(false)
             }
-            .background(
-                RoundedRectangle(cornerRadius: ChromeStyle.toolbarPickerCornerRadius, style: .continuous)
-                    .fill(ChromeStyle.toolbarHoverFill.opacity(0.76))
-            )
         }
     }
 

@@ -6,6 +6,7 @@ struct TextPresetPicker: NSViewRepresentable {
     let fontName: String
     let onChange: (TextPreset) -> Void
     private let previewResolver = TextPresetPreviewResolver()
+    private let displayedPresets = TextPreset.allCases.filter { $0 != .script }
 
     func makeNSView(context: Context) -> ToolbarPopUpButton {
         let button = ToolbarPopUpButton()
@@ -34,7 +35,7 @@ struct TextPresetPicker: NSViewRepresentable {
         button.cell?.lineBreakMode = .byTruncatingTail
         (button.cell as? NSPopUpButtonCell)?.arrowPosition = .noArrow
 
-        if button.itemValues != TextPreset.allCases.map(\.rawValue)
+        if button.itemValues != displayedPresets.map(\.rawValue)
             || button.previewFontName != fontName {
             button.previewFontName = fontName
             updateItems(for: button)
@@ -52,17 +53,17 @@ struct TextPresetPicker: NSViewRepresentable {
     private func updateItems(for button: ToolbarPopUpButton) {
         button.removeAllItems()
 
-        TextPreset.allCases.forEach { preset in
+        displayedPresets.forEach { preset in
             button.addItem(withTitle: preset.title)
             button.lastItem?.representedObject = preset.rawValue
             button.lastItem?.attributedTitle = previewResolver.menuTitle(for: preset, fontName: fontName)
         }
 
-        button.itemValues = TextPreset.allCases.map(\.rawValue)
+        button.itemValues = displayedPresets.map(\.rawValue)
     }
 
     private func select(_ preset: TextPreset, in button: ToolbarPopUpButton) {
-        guard let index = TextPreset.allCases.firstIndex(of: preset) else { return }
+        guard let index = displayedPresets.firstIndex(of: preset) else { return }
         button.selectItem(at: index)
         button.selectedItem?.attributedTitle = previewResolver.buttonTitle(for: preset, fontName: fontName)
     }
