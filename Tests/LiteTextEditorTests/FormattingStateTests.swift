@@ -117,10 +117,6 @@ final class FormattingStateTests: XCTestCase {
     }
 
     private func expectedFamilyName(for font: NSFont) -> String {
-        if font.fontName.hasPrefix(".AppleSystem") {
-            return "System"
-        }
-
-        return font.familyName ?? font.displayName ?? font.fontName
+        SystemFontName.displayName(for: font)
     }
 }

@@ -19,7 +19,8 @@ struct TitlebarDocumentTitleView: View {
             titleLabel
         }
         .buttonStyle(.plain)
-            .frame(maxWidth: .infinity, minHeight: 22, maxHeight: 22, alignment: .leading)
+            .fixedSize(horizontal: true, vertical: false)
+            .frame(minHeight: 22, maxHeight: 22, alignment: .leading)
             .padding(.horizontal, 8)
             .background(titleBackground)
             .contentShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
@@ -55,6 +56,7 @@ struct TitlebarDocumentTitleView: View {
             Text(titleState.displayTitle)
                 .lineLimit(1)
                 .truncationMode(.middle)
+                .frame(maxWidth: 240, alignment: .leading)
 
             Image(systemName: "chevron.down")
                 .font(.system(size: 9, weight: .semibold))
@@ -62,7 +64,6 @@ struct TitlebarDocumentTitleView: View {
         }
         .font(.system(size: 13, weight: .semibold))
         .foregroundStyle(ChromeStyle.controlTextColor)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder

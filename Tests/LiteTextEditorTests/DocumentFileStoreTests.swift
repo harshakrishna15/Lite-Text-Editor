@@ -20,6 +20,14 @@ final class DocumentFileStoreTests: XCTestCase {
             store.normalizedTextDocumentURL(folder.appendingPathComponent("draft.rtf")),
             folder.appendingPathComponent("draft.rtf")
         )
+        XCTAssertEqual(
+            store.normalizedTextDocumentURL(folder.appendingPathComponent("draft.docx")),
+            folder.appendingPathComponent("draft.docx")
+        )
+        XCTAssertEqual(
+            store.normalizedTextDocumentURL(folder.appendingPathComponent("draft.odt")),
+            folder.appendingPathComponent("draft.odt")
+        )
     }
 
     func testNormalizesPDFURLs() {
@@ -83,6 +91,28 @@ final class DocumentFileStoreTests: XCTestCase {
         XCTAssertEqual(loaded.string, document.string)
         XCTAssertNotNil(loaded.attribute(.font, at: 0, effectiveRange: nil))
         XCTAssertNotNil(loaded.attribute(.foregroundColor, at: 0, effectiveRange: nil))
+    }
+
+    func testOfficeDocumentRoundTripsPreserveStringAndBasicAttributes() throws {
+        for fileExtension in ["docx", "odt"] {
+            let url = temporaryFileURL(extension: fileExtension)
+            defer { try? FileManager.default.removeItem(at: url) }
+
+            let document = NSAttributedString(
+                string: "Styled document",
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 18, weight: .bold),
+                    .foregroundColor: NSColor.systemBlue
+                ]
+            )
+
+            try store.writeDocument(document, to: url)
+            let loaded = try store.readDocument(from: url)
+
+            XCTAssertEqual(loaded.string.trimmingCharacters(in: .newlines), document.string)
+            XCTAssertNotNil(loaded.attribute(.font, at: 0, effectiveRange: nil))
+            XCTAssertNotNil(loaded.attribute(.foregroundColor, at: 0, effectiveRange: nil))
+        }
     }
 
     func testUnsupportedFileTypeReportsReadableError() {

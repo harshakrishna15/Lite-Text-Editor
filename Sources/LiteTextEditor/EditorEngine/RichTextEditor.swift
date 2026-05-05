@@ -247,17 +247,33 @@ struct RichTextEditor: NSViewRepresentable {
             center.addObserver(self, selector: #selector(toggleBold), name: .liteTextEditorToggleBold, object: nil)
             center.addObserver(self, selector: #selector(toggleItalic), name: .liteTextEditorToggleItalic, object: nil)
             center.addObserver(self, selector: #selector(toggleUnderline), name: .liteTextEditorToggleUnderline, object: nil)
+            center.addObserver(self, selector: #selector(toggleStrikethrough), name: .liteTextEditorToggleStrikethrough, object: nil)
+            center.addObserver(self, selector: #selector(setBaseline), name: .liteTextEditorSetBaseline, object: nil)
             center.addObserver(self, selector: #selector(toggleHighlight), name: .liteTextEditorToggleHighlight, object: nil)
+            center.addObserver(self, selector: #selector(setHighlightColor), name: .liteTextEditorSetHighlightColor, object: nil)
+            center.addObserver(self, selector: #selector(clearTextColor), name: .liteTextEditorClearTextColor, object: nil)
+            center.addObserver(self, selector: #selector(copyFormatting), name: .liteTextEditorCopyFormatting, object: nil)
+            center.addObserver(self, selector: #selector(pasteFormatting), name: .liteTextEditorPasteFormatting, object: nil)
+            center.addObserver(self, selector: #selector(applyTextCasing), name: .liteTextEditorApplyTextCasing, object: nil)
+            center.addObserver(self, selector: #selector(setCharacterSpacing), name: .liteTextEditorSetCharacterSpacing, object: nil)
             center.addObserver(self, selector: #selector(clearFormatting), name: .liteTextEditorClearFormatting, object: nil)
             center.addObserver(self, selector: #selector(setTextPreset), name: .liteTextEditorSetTextPreset, object: nil)
             center.addObserver(self, selector: #selector(toggleBulletedList), name: .liteTextEditorToggleBulletedList, object: nil)
             center.addObserver(self, selector: #selector(toggleNumberedList), name: .liteTextEditorToggleNumberedList, object: nil)
+            center.addObserver(self, selector: #selector(toggleChecklist), name: .liteTextEditorToggleChecklist, object: nil)
+            center.addObserver(self, selector: #selector(setListStyle), name: .liteTextEditorSetListStyle, object: nil)
+            center.addObserver(self, selector: #selector(applyListNumberingAction), name: .liteTextEditorApplyListNumberingAction, object: nil)
             center.addObserver(self, selector: #selector(increaseIndent), name: .liteTextEditorIncreaseIndent, object: nil)
             center.addObserver(self, selector: #selector(decreaseIndent), name: .liteTextEditorDecreaseIndent, object: nil)
             center.addObserver(self, selector: #selector(alignLeft), name: .liteTextEditorAlignLeft, object: nil)
             center.addObserver(self, selector: #selector(alignCenter), name: .liteTextEditorAlignCenter, object: nil)
             center.addObserver(self, selector: #selector(alignRight), name: .liteTextEditorAlignRight, object: nil)
             center.addObserver(self, selector: #selector(justifyText), name: .liteTextEditorJustifyText, object: nil)
+            center.addObserver(self, selector: #selector(setLineSpacing), name: .liteTextEditorSetLineSpacing, object: nil)
+            center.addObserver(self, selector: #selector(applyParagraphSpacing), name: .liteTextEditorApplyParagraphSpacing, object: nil)
+            center.addObserver(self, selector: #selector(applyParagraphIndent), name: .liteTextEditorApplyParagraphIndent, object: nil)
+            center.addObserver(self, selector: #selector(toggleKeepParagraphTogether), name: .liteTextEditorToggleKeepParagraphTogether, object: nil)
+            center.addObserver(self, selector: #selector(toggleKeepWithNext), name: .liteTextEditorToggleKeepWithNext, object: nil)
             center.addObserver(self, selector: #selector(beginSpellingReview), name: .liteTextEditorBeginSpellingReview, object: nil)
         }
 
@@ -281,8 +297,48 @@ struct RichTextEditor: NSViewRepresentable {
             controller?.toggleUnderline()
         }
 
+        @objc private func toggleStrikethrough() {
+            controller?.toggleStrikethrough()
+        }
+
+        @objc private func setBaseline(_ notification: Notification) {
+            guard let rawValue = notification.object as? String,
+                  let option = TextBaselineOption(rawValue: rawValue) else { return }
+            controller?.setBaseline(option)
+        }
+
         @objc private func toggleHighlight() {
             controller?.toggleHighlight()
+        }
+
+        @objc private func setHighlightColor(_ notification: Notification) {
+            guard let rawValue = notification.object as? String,
+                  let option = HighlightColorOption(rawValue: rawValue) else { return }
+            controller?.applyHighlight(option)
+        }
+
+        @objc private func clearTextColor() {
+            controller?.clearTextColor()
+        }
+
+        @objc private func copyFormatting() {
+            controller?.copyFormatting()
+        }
+
+        @objc private func pasteFormatting() {
+            controller?.pasteFormatting()
+        }
+
+        @objc private func applyTextCasing(_ notification: Notification) {
+            guard let rawValue = notification.object as? String,
+                  let option = TextCasingOption(rawValue: rawValue) else { return }
+            controller?.applyTextCasing(option)
+        }
+
+        @objc private func setCharacterSpacing(_ notification: Notification) {
+            guard let rawValue = notification.object as? String,
+                  let option = CharacterSpacingOption(rawValue: rawValue) else { return }
+            controller?.setCharacterSpacing(option)
         }
 
         @objc private func clearFormatting() {
@@ -302,6 +358,22 @@ struct RichTextEditor: NSViewRepresentable {
 
         @objc private func toggleNumberedList() {
             controller?.toggleNumberedList()
+        }
+
+        @objc private func toggleChecklist() {
+            controller?.toggleChecklist()
+        }
+
+        @objc private func setListStyle(_ notification: Notification) {
+            guard let rawValue = notification.object as? String,
+                  let option = ListStyleOption(rawValue: rawValue) else { return }
+            controller?.applyListStyle(option)
+        }
+
+        @objc private func applyListNumberingAction(_ notification: Notification) {
+            guard let rawValue = notification.object as? String,
+                  let action = ListNumberingAction(rawValue: rawValue) else { return }
+            controller?.applyListNumberingAction(action)
         }
 
         @objc private func increaseIndent() {
@@ -326,6 +398,32 @@ struct RichTextEditor: NSViewRepresentable {
 
         @objc private func justifyText() {
             controller?.setAlignment(.justified)
+        }
+
+        @objc private func setLineSpacing(_ notification: Notification) {
+            guard let rawValue = notification.object as? String,
+                  let option = LineSpacingOption(rawValue: rawValue) else { return }
+            controller?.setLineSpacing(option)
+        }
+
+        @objc private func applyParagraphSpacing(_ notification: Notification) {
+            guard let rawValue = notification.object as? String,
+                  let option = ParagraphSpacingOption(rawValue: rawValue) else { return }
+            controller?.applyParagraphSpacing(option)
+        }
+
+        @objc private func applyParagraphIndent(_ notification: Notification) {
+            guard let rawValue = notification.object as? String,
+                  let option = ParagraphIndentOption(rawValue: rawValue) else { return }
+            controller?.applyParagraphIndent(option)
+        }
+
+        @objc private func toggleKeepParagraphTogether() {
+            controller?.toggleKeepParagraphTogether()
+        }
+
+        @objc private func toggleKeepWithNext() {
+            controller?.toggleKeepWithNext()
         }
 
         @objc private func beginSpellingReview() {

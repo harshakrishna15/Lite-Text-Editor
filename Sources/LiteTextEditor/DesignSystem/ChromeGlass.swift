@@ -42,7 +42,7 @@ private struct ChromeGlassBackgroundModifier<S: Shape>: ViewModifier {
     @ViewBuilder
     func body(content: Content) -> some View {
         #if compiler(>=6.2)
-        if #available(macOS 26.0, *), !isLiveResizing {
+        if #available(macOS 26.0, *), !isChromeGlassLiveResizeActive {
             content
                 .glassEffect(surface.nativeGlass, in: shape)
                 .chromeGlassRim(surface: surface, shape: shape)
@@ -60,6 +60,10 @@ private struct ChromeGlassBackgroundModifier<S: Shape>: ViewModifier {
             .background(shape.fill(surface.surfaceTint))
             .chromeGlassRim(surface: surface, shape: shape)
     }
+
+    private var isChromeGlassLiveResizeActive: Bool {
+        isLiveResizing || NSApp.windows.contains { $0.inLiveResize }
+    }
 }
 
 private struct ChromeGlassControlBackgroundModifier<S: Shape>: ViewModifier {
@@ -75,7 +79,7 @@ private struct ChromeGlassControlBackgroundModifier<S: Shape>: ViewModifier {
     func body(content: Content) -> some View {
         if isActive {
             #if compiler(>=6.2)
-            if #available(macOS 26.0, *), !isLiveResizing {
+            if #available(macOS 26.0, *), !isChromeGlassLiveResizeActive {
                 content
                     .glassEffect(surface.nativeGlass, in: shape)
                     .chromeGlassRim(surface: surface, shape: shape)
@@ -103,6 +107,10 @@ private struct ChromeGlassControlBackgroundModifier<S: Shape>: ViewModifier {
             .background(shape.fill(fallbackColor))
             .background(shape.fill(surface.surfaceTint))
             .chromeGlassRim(surface: surface, shape: shape)
+    }
+
+    private var isChromeGlassLiveResizeActive: Bool {
+        isLiveResizing || NSApp.windows.contains { $0.inLiveResize }
     }
 }
 
@@ -146,7 +154,7 @@ struct ChromeGlassContainer<Content: View>: View {
     @ViewBuilder
     var body: some View {
         #if compiler(>=6.2)
-        if #available(macOS 26.0, *), !isLiveResizing {
+        if #available(macOS 26.0, *), !isChromeGlassLiveResizeActive {
             GlassEffectContainer(spacing: spacing) {
                 content()
             }
@@ -156,6 +164,10 @@ struct ChromeGlassContainer<Content: View>: View {
         #else
         content()
         #endif
+    }
+
+    private var isChromeGlassLiveResizeActive: Bool {
+        isLiveResizing || NSApp.windows.contains { $0.inLiveResize }
     }
 }
 

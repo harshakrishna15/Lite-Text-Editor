@@ -4,7 +4,7 @@ struct FontPreviewResolver {
     static let previewSize: CGFloat = NSFont.systemFontSize(for: .regular)
 
     func font(for displayName: String, size: CGFloat = Self.previewSize) -> NSFont {
-        guard displayName != "System" else {
+        guard !SystemFontName.isSystemDisplayName(displayName) else {
             return NSFont.systemFont(ofSize: size)
         }
 

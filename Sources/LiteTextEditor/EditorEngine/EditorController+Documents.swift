@@ -1,6 +1,13 @@
 import AppKit
 import UniformTypeIdentifiers
 
+private let editableDocumentContentTypes: [UTType] = [
+    .rtf,
+    .plainText,
+    .docxTextDocument,
+    .odtTextDocument
+]
+
 extension EditorController {
     func markDocumentEdited() {
         if !isDocumentEdited {
@@ -115,7 +122,7 @@ extension EditorController {
         guard confirmUnsavedChanges(messageText: "Do you want to save changes before opening another document?") else { return }
 
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.rtf, .plainText]
+        panel.allowedContentTypes = editableDocumentContentTypes
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
@@ -289,7 +296,7 @@ extension EditorController {
     @discardableResult
     func saveDocumentAs() -> Bool {
         let panel = NSSavePanel()
-        panel.allowedContentTypes = [.rtf, .plainText]
+        panel.allowedContentTypes = editableDocumentContentTypes
         panel.canCreateDirectories = true
         panel.nameFieldStringValue = suggestedDocumentName(fileExtension: "rtf")
         panel.directoryURL = documentDirectoryURLForPanels
@@ -549,4 +556,12 @@ extension EditorController {
         alert.informativeText = informativeText
         alert.runModal()
     }
+}
+
+private extension UTType {
+    static let docxTextDocument = UTType(filenameExtension: "docx")
+        ?? UTType(importedAs: "org.openxmlformats.wordprocessingml.document")
+
+    static let odtTextDocument = UTType(filenameExtension: "odt")
+        ?? UTType(importedAs: "org.oasis-open.opendocument.text")
 }

@@ -25,7 +25,7 @@ enum ChromeStyle {
     )
     static let toolbarFontControlWidth: CGFloat = 260
     static let compactToolbarFontControlWidth: CGFloat = 220
-    static let toolbarSizeControlWidth: CGFloat = 70
+    static let toolbarSizeControlWidth: CGFloat = 78
     static let toolbarStyleControlWidth: CGFloat = 170
     static let compactToolbarStyleControlWidth: CGFloat = 150
     static let toolbarIconWidth: CGFloat = 28

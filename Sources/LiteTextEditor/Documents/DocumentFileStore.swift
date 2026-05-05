@@ -2,6 +2,8 @@ import AppKit
 import Foundation
 
 struct DocumentFileStore {
+    static let supportedTextFileExtensions = Set(["rtf", "txt", "docx", "odt"])
+
     let defaultTypingAttributes: [NSAttributedString.Key: Any] = [
         .font: NSFont.systemFont(ofSize: 11),
         .foregroundColor: NSColor.black
@@ -9,13 +11,12 @@ struct DocumentFileStore {
 
     func readDocument(from url: URL) throws -> NSAttributedString {
         switch url.pathExtension.lowercased() {
-        case "rtf":
-            let data = try Data(contentsOf: url)
-            return try NSAttributedString(
-                data: data,
-                options: [.documentType: NSAttributedString.DocumentType.rtf],
-                documentAttributes: nil
-            )
+        case "rtf", "docx", "odt":
+            guard let documentType = attributedStringDocumentType(for: url) else {
+                throw DocumentFileStoreError.unsupportedFileType(url.pathExtension)
+            }
+
+            return try readAttributedString(from: url, documentType: documentType)
         case "txt":
             let string = try readPlainText(from: url)
             return NSAttributedString(string: string, attributes: defaultTypingAttributes)
@@ -26,12 +27,16 @@ struct DocumentFileStore {
 
     func writeDocument(_ attributedString: NSAttributedString, to url: URL) throws {
         switch url.pathExtension.lowercased() {
-        case "rtf":
-            try writeRTF(attributedString, to: url)
+        case "rtf", "docx", "odt":
+            guard let documentType = attributedStringDocumentType(for: url) else {
+                throw DocumentFileStoreError.unsupportedFileType(url.pathExtension)
+            }
+
+            try writeRichText(attributedString, to: url, documentType: documentType)
         case "txt":
             try attributedString.string.write(to: url, atomically: true, encoding: .utf8)
         default:
-            try writeRTF(attributedString, to: url.appendingPathExtension("rtf"))
+            try writeRichText(attributedString, to: url.appendingPathExtension("rtf"), documentType: .rtf)
         }
     }
 
@@ -117,7 +122,7 @@ struct DocumentFileStore {
     func normalizedTextDocumentURL(_ url: URL) -> URL {
         let fileExtension = url.pathExtension.lowercased()
 
-        if fileExtension == "rtf" || fileExtension == "txt" {
+        if Self.supportedTextFileExtensions.contains(fileExtension) {
             return url
         }
 
@@ -144,13 +149,42 @@ struct DocumentFileStore {
         }
     }
 
-    private func writeRTF(_ attributedString: NSAttributedString, to url: URL) throws {
+    private func readAttributedString(
+        from url: URL,
+        documentType: NSAttributedString.DocumentType
+    ) throws -> NSAttributedString {
+        let data = try Data(contentsOf: url)
+        return try NSAttributedString(
+            data: data,
+            options: [.documentType: documentType],
+            documentAttributes: nil
+        )
+    }
+
+    private func writeRichText(
+        _ attributedString: NSAttributedString,
+        to url: URL,
+        documentType: NSAttributedString.DocumentType
+    ) throws {
         let range = NSRange(location: 0, length: attributedString.length)
         let data = try attributedString.data(
             from: range,
-            documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]
+            documentAttributes: [.documentType: documentType]
         )
         try data.write(to: url, options: .atomic)
+    }
+
+    private func attributedStringDocumentType(for url: URL) -> NSAttributedString.DocumentType? {
+        switch url.pathExtension.lowercased() {
+        case "rtf":
+            return .rtf
+        case "docx":
+            return .officeOpenXML
+        case "odt":
+            return .openDocument
+        default:
+            return nil
+        }
     }
 }
 

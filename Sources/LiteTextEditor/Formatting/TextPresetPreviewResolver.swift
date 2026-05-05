@@ -68,6 +68,10 @@ struct TextPresetPreviewResolver {
     }
 
     private func previewFont(for preset: TextPreset, fontName: String, size: CGFloat) -> NSFont {
+        if SystemFontName.isSystemDisplayName(fontName) {
+            return NSFont.systemFont(ofSize: size, weight: preset.weight)
+        }
+
         let baseFont = fontPreviewResolver.font(for: fontName, size: size)
         let descriptor = baseFont.fontDescriptor.addingAttributes([
             .traits: [

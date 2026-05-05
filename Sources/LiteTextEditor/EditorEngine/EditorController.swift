@@ -33,6 +33,7 @@ final class EditorController: ObservableObject {
     var pendingDocumentStatisticsRefresh: DispatchWorkItem?
     var pendingFormattingStateRefresh: DispatchWorkItem?
     var pendingAutosaveWorkItem: DispatchWorkItem?
+    var copiedFormattingAttributes: [NSAttributedString.Key: Any]?
     var hasRestoredLastSession = false
     let documentFileStore = DocumentFileStore()
     let recentDocumentStore = RecentDocumentStore()

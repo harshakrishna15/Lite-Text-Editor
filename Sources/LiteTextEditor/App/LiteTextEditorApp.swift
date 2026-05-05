@@ -209,8 +209,40 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         NotificationCenter.default.post(name: .liteTextEditorToggleUnderline, object: nil)
     }
 
+    @objc private func toggleStrikethrough() {
+        NotificationCenter.default.post(name: .liteTextEditorToggleStrikethrough, object: nil)
+    }
+
+    @objc private func setBaseline(_ sender: NSMenuItem) {
+        NotificationCenter.default.post(name: .liteTextEditorSetBaseline, object: sender.representedObject)
+    }
+
     @objc private func toggleHighlight() {
         NotificationCenter.default.post(name: .liteTextEditorToggleHighlight, object: nil)
+    }
+
+    @objc private func setHighlightColor(_ sender: NSMenuItem) {
+        NotificationCenter.default.post(name: .liteTextEditorSetHighlightColor, object: sender.representedObject)
+    }
+
+    @objc private func clearTextColor() {
+        NotificationCenter.default.post(name: .liteTextEditorClearTextColor, object: nil)
+    }
+
+    @objc private func copyFormatting() {
+        NotificationCenter.default.post(name: .liteTextEditorCopyFormatting, object: nil)
+    }
+
+    @objc private func pasteFormatting() {
+        NotificationCenter.default.post(name: .liteTextEditorPasteFormatting, object: nil)
+    }
+
+    @objc private func applyTextCasing(_ sender: NSMenuItem) {
+        NotificationCenter.default.post(name: .liteTextEditorApplyTextCasing, object: sender.representedObject)
+    }
+
+    @objc private func setCharacterSpacing(_ sender: NSMenuItem) {
+        NotificationCenter.default.post(name: .liteTextEditorSetCharacterSpacing, object: sender.representedObject)
     }
 
     @objc private func clearFormatting() {
@@ -227,6 +259,18 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
 
     @objc private func toggleNumberedList() {
         NotificationCenter.default.post(name: .liteTextEditorToggleNumberedList, object: nil)
+    }
+
+    @objc private func toggleChecklist() {
+        NotificationCenter.default.post(name: .liteTextEditorToggleChecklist, object: nil)
+    }
+
+    @objc private func setListStyle(_ sender: NSMenuItem) {
+        NotificationCenter.default.post(name: .liteTextEditorSetListStyle, object: sender.representedObject)
+    }
+
+    @objc private func applyListNumberingAction(_ sender: NSMenuItem) {
+        NotificationCenter.default.post(name: .liteTextEditorApplyListNumberingAction, object: sender.representedObject)
     }
 
     @objc private func increaseIndent() {
@@ -251,6 +295,26 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
 
     @objc private func justifyText() {
         NotificationCenter.default.post(name: .liteTextEditorJustifyText, object: nil)
+    }
+
+    @objc private func setLineSpacing(_ sender: NSMenuItem) {
+        NotificationCenter.default.post(name: .liteTextEditorSetLineSpacing, object: sender.representedObject)
+    }
+
+    @objc private func applyParagraphSpacing(_ sender: NSMenuItem) {
+        NotificationCenter.default.post(name: .liteTextEditorApplyParagraphSpacing, object: sender.representedObject)
+    }
+
+    @objc private func applyParagraphIndent(_ sender: NSMenuItem) {
+        NotificationCenter.default.post(name: .liteTextEditorApplyParagraphIndent, object: sender.representedObject)
+    }
+
+    @objc private func toggleKeepParagraphTogether() {
+        NotificationCenter.default.post(name: .liteTextEditorToggleKeepParagraphTogether, object: nil)
+    }
+
+    @objc private func toggleKeepWithNext() {
+        NotificationCenter.default.post(name: .liteTextEditorToggleKeepWithNext, object: nil)
     }
 
     @objc private func zoomIn() {
@@ -358,11 +422,23 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         homeMenu.addItem(commandItem("Bold", action: #selector(toggleBold), key: "b"))
         homeMenu.addItem(commandItem("Italic", action: #selector(toggleItalic), key: "i"))
         homeMenu.addItem(commandItem("Underline", action: #selector(toggleUnderline), key: "u"))
+        homeMenu.addItem(commandItem("Strikethrough", action: #selector(toggleStrikethrough), key: "x", modifiers: [.command, .shift]))
+        homeMenu.addItem(optionMenuItem("Baseline", options: TextBaselineOption.allCases, action: #selector(setBaseline(_:))))
         homeMenu.addItem(commandItem("Highlight", action: #selector(toggleHighlight), key: "h", modifiers: [.command, .shift]))
+        homeMenu.addItem(optionMenuItem("Highlight Color", options: HighlightColorOption.allCases, action: #selector(setHighlightColor(_:))))
+        homeMenu.addItem(commandItem("Clear Text Color", action: #selector(clearTextColor), key: "", modifiers: []))
+        homeMenu.addItem(NSMenuItem.separator())
+        homeMenu.addItem(commandItem("Copy Formatting", action: #selector(copyFormatting), key: "c", modifiers: [.command, .option]))
+        homeMenu.addItem(commandItem("Paste Formatting", action: #selector(pasteFormatting), key: "v", modifiers: [.command, .option]))
+        homeMenu.addItem(optionMenuItem("Change Case", options: TextCasingOption.allCases, action: #selector(applyTextCasing(_:))))
+        homeMenu.addItem(optionMenuItem("Character Spacing", options: CharacterSpacingOption.allCases, action: #selector(setCharacterSpacing(_:))))
         homeMenu.addItem(commandItem("Clear Formatting", action: #selector(clearFormatting), key: "\\", modifiers: [.command]))
         homeMenu.addItem(NSMenuItem.separator())
         homeMenu.addItem(commandItem("Bulleted List", action: #selector(toggleBulletedList), key: "8", modifiers: [.command, .shift]))
         homeMenu.addItem(commandItem("Numbered List", action: #selector(toggleNumberedList), key: "7", modifiers: [.command, .shift]))
+        homeMenu.addItem(commandItem("Checklist", action: #selector(toggleChecklist), key: "9", modifiers: [.command, .shift]))
+        homeMenu.addItem(optionMenuItem("List Style", options: ListStyleOption.allCases, action: #selector(setListStyle(_:))))
+        homeMenu.addItem(optionMenuItem("Numbering", options: ListNumberingAction.allCases, action: #selector(applyListNumberingAction(_:))))
         homeMenuItem.submenu = homeMenu
         mainMenu.addItem(homeMenuItem)
 
@@ -378,6 +454,12 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         layoutMenu.addItem(commandItem("Center", action: #selector(alignCenter), key: "e"))
         layoutMenu.addItem(commandItem("Align Right", action: #selector(alignRight), key: "r"))
         layoutMenu.addItem(commandItem("Justify", action: #selector(justifyText), key: "j"))
+        layoutMenu.addItem(NSMenuItem.separator())
+        layoutMenu.addItem(optionMenuItem("Line Spacing", options: LineSpacingOption.allCases, action: #selector(setLineSpacing(_:))))
+        layoutMenu.addItem(optionMenuItem("Paragraph Spacing", options: ParagraphSpacingOption.allCases, action: #selector(applyParagraphSpacing(_:))))
+        layoutMenu.addItem(optionMenuItem("Paragraph Indents", options: ParagraphIndentOption.allCases, action: #selector(applyParagraphIndent(_:))))
+        layoutMenu.addItem(commandItem("Keep Paragraph Together", action: #selector(toggleKeepParagraphTogether), key: "", modifiers: []))
+        layoutMenu.addItem(commandItem("Keep With Next", action: #selector(toggleKeepWithNext), key: "", modifiers: []))
         layoutMenu.addItem(NSMenuItem.separator())
         layoutMenu.addItem(commandItem("Decrease Indent", action: #selector(decreaseIndent), key: "["))
         layoutMenu.addItem(commandItem("Increase Indent", action: #selector(increaseIndent), key: "]"))
@@ -478,6 +560,24 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         return item
     }
 
+    private func optionMenuItem<Option: RawRepresentable & MenuTitledOption>(
+        _ title: String,
+        options: [Option],
+        action: Selector
+    ) -> NSMenuItem where Option.RawValue == String {
+        let menuItem = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        let menu = NSMenu(title: title)
+
+        options.forEach { option in
+            let item = commandItem(option.title, action: action, key: "", modifiers: [])
+            item.representedObject = option.rawValue
+            menu.addItem(item)
+        }
+
+        menuItem.submenu = menu
+        return menuItem
+    }
+
     private func requestQuitConfirmation() -> NSApplication.TerminateReply {
         let response = QuitConfirmationResponse()
         NotificationCenter.default.post(name: .liteTextEditorConfirmQuit, object: response)
@@ -518,17 +618,33 @@ extension Notification.Name {
     static let liteTextEditorToggleBold = Notification.Name("liteTextEditorToggleBold")
     static let liteTextEditorToggleItalic = Notification.Name("liteTextEditorToggleItalic")
     static let liteTextEditorToggleUnderline = Notification.Name("liteTextEditorToggleUnderline")
+    static let liteTextEditorToggleStrikethrough = Notification.Name("liteTextEditorToggleStrikethrough")
+    static let liteTextEditorSetBaseline = Notification.Name("liteTextEditorSetBaseline")
     static let liteTextEditorToggleHighlight = Notification.Name("liteTextEditorToggleHighlight")
+    static let liteTextEditorSetHighlightColor = Notification.Name("liteTextEditorSetHighlightColor")
+    static let liteTextEditorClearTextColor = Notification.Name("liteTextEditorClearTextColor")
+    static let liteTextEditorCopyFormatting = Notification.Name("liteTextEditorCopyFormatting")
+    static let liteTextEditorPasteFormatting = Notification.Name("liteTextEditorPasteFormatting")
+    static let liteTextEditorApplyTextCasing = Notification.Name("liteTextEditorApplyTextCasing")
+    static let liteTextEditorSetCharacterSpacing = Notification.Name("liteTextEditorSetCharacterSpacing")
     static let liteTextEditorClearFormatting = Notification.Name("liteTextEditorClearFormatting")
     static let liteTextEditorSetTextPreset = Notification.Name("liteTextEditorSetTextPreset")
     static let liteTextEditorToggleBulletedList = Notification.Name("liteTextEditorToggleBulletedList")
     static let liteTextEditorToggleNumberedList = Notification.Name("liteTextEditorToggleNumberedList")
+    static let liteTextEditorToggleChecklist = Notification.Name("liteTextEditorToggleChecklist")
+    static let liteTextEditorSetListStyle = Notification.Name("liteTextEditorSetListStyle")
+    static let liteTextEditorApplyListNumberingAction = Notification.Name("liteTextEditorApplyListNumberingAction")
     static let liteTextEditorIncreaseIndent = Notification.Name("liteTextEditorIncreaseIndent")
     static let liteTextEditorDecreaseIndent = Notification.Name("liteTextEditorDecreaseIndent")
     static let liteTextEditorAlignLeft = Notification.Name("liteTextEditorAlignLeft")
     static let liteTextEditorAlignCenter = Notification.Name("liteTextEditorAlignCenter")
     static let liteTextEditorAlignRight = Notification.Name("liteTextEditorAlignRight")
     static let liteTextEditorJustifyText = Notification.Name("liteTextEditorJustifyText")
+    static let liteTextEditorSetLineSpacing = Notification.Name("liteTextEditorSetLineSpacing")
+    static let liteTextEditorApplyParagraphSpacing = Notification.Name("liteTextEditorApplyParagraphSpacing")
+    static let liteTextEditorApplyParagraphIndent = Notification.Name("liteTextEditorApplyParagraphIndent")
+    static let liteTextEditorToggleKeepParagraphTogether = Notification.Name("liteTextEditorToggleKeepParagraphTogether")
+    static let liteTextEditorToggleKeepWithNext = Notification.Name("liteTextEditorToggleKeepWithNext")
     static let liteTextEditorZoomIn = Notification.Name("liteTextEditorZoomIn")
     static let liteTextEditorZoomOut = Notification.Name("liteTextEditorZoomOut")
     static let liteTextEditorZoomFitPage = Notification.Name("liteTextEditorZoomFitPage")

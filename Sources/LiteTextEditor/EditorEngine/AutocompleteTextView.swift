@@ -25,6 +25,13 @@ final class AutocompleteTextView: NSTextView {
         let stringLength: Int
     }
 
+    private struct ParsedListLine {
+        let style: ListStyleOption
+        let indentation: String
+        let body: String
+        let itemNumber: Int?
+    }
+
     var maxSuggestionWords = 4
     var onDocumentMetricsChanged: (() -> Void)?
     var onAcceptSpellingCorrection: (() -> Void)?
@@ -111,6 +118,13 @@ final class AutocompleteTextView: NSTextView {
         }
 
         super.keyDown(with: event)
+    }
+
+    override func insertNewline(_ sender: Any?) {
+        guard continueListIfNeeded() else {
+            super.insertNewline(sender)
+            return
+        }
     }
 
     override func didChangeText() {
@@ -333,69 +347,335 @@ final class AutocompleteTextView: NSTextView {
 
     @discardableResult
     func togglePlainList() -> Bool {
-        let nsString = string as NSString
-        let paragraphRange = effectiveParagraphRangeForFormatting()
-        let selectedText = nsString.substring(with: paragraphRange)
-        guard !selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return false
-        }
-
-        let lines = selectedText.components(separatedBy: .newlines)
-        let transformed = lines.map { line in
-            if line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return line
-            }
-
-            if line.hasPrefix("- ") {
-                return String(line.dropFirst(2))
-            }
-
-            return "- \(line)"
-        }
-        .joined(separator: "\n")
-
-        guard transformed != selectedText else { return false }
-        guard shouldChangeText(in: paragraphRange, replacementString: transformed) else { return false }
-        textStorage?.replaceCharacters(in: paragraphRange, with: transformed)
-        didChangeText()
-        undoManager?.setActionName("Bulleted List")
-        breakUndoCoalescing()
-        return true
+        toggleListStyle(.bullet)
     }
 
     @discardableResult
     func toggleNumberedList() -> Bool {
+        toggleListStyle(.numbered)
+    }
+
+    @discardableResult
+    func toggleListStyle(_ style: ListStyleOption) -> Bool {
         let nsString = string as NSString
         let paragraphRange = effectiveParagraphRangeForFormatting()
         let selectedText = nsString.substring(with: paragraphRange)
-        guard !selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return false
+
+        if selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let marker = prefix(for: style, itemNumber: 1)
+            let transformed = "\(marker)\(trailingNewline(in: selectedText))"
+            let selectedLocation = paragraphRange.location + (marker as NSString).length
+            return replaceSelectedParagraphs(
+                with: transformed,
+                original: selectedText,
+                range: paragraphRange,
+                actionName: style.title,
+                selectedLocation: selectedLocation
+            )
         }
 
-        var number = 1
-
         let lines = selectedText.components(separatedBy: .newlines)
+        let nonEmptyLines = lines.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        let shouldRemove = !nonEmptyLines.isEmpty && nonEmptyLines.allSatisfy { line in
+            listStyle(for: line) == style
+        }
+        var itemNumber = 1
+
         let transformed = lines.map { line in
             if line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 return line
             }
 
-            if let range = line.range(of: #"^\d+\. "#, options: .regularExpression) {
-                return String(line[range.upperBound...])
-            }
+            let body = removingListPrefix(from: line)
+            guard !shouldRemove else { return body }
 
-            defer { number += 1 }
-            return "\(number). \(line)"
+            defer { itemNumber += 1 }
+            return "\(prefix(for: style, itemNumber: itemNumber))\(body)"
         }
         .joined(separator: "\n")
 
+        return replaceSelectedParagraphs(with: transformed, original: selectedText, range: paragraphRange, actionName: style.title)
+    }
+
+    @discardableResult
+    func restartNumberedList() -> Bool {
+        renumberSelectedList(startingAt: 1)
+    }
+
+    @discardableResult
+    func continueNumberedList() -> Bool {
+        let nsString = string as NSString
+        let paragraphRange = effectiveParagraphRangeForFormatting()
+        let beforeRange = NSRange(location: 0, length: paragraphRange.location)
+        var startNumber = 1
+
+        nsString.enumerateSubstrings(in: beforeRange, options: [.byLines]) { substring, _, _, _ in
+            guard let substring,
+                  let number = self.leadingListNumber(in: substring) else { return }
+            startNumber = number + 1
+        }
+
+        return renumberSelectedList(startingAt: startNumber)
+    }
+
+    @discardableResult
+    private func renumberSelectedList(startingAt startNumber: Int) -> Bool {
+        let nsString = string as NSString
+        let paragraphRange = effectiveParagraphRangeForFormatting()
+        let selectedText = nsString.substring(with: paragraphRange)
+        var itemNumber = startNumber
+
+        let transformed = selectedText.components(separatedBy: .newlines).map { line in
+            if line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return line
+            }
+
+            let body = removingListPrefix(from: line)
+            defer { itemNumber += 1 }
+            return "\(itemNumber). \(body)"
+        }
+        .joined(separator: "\n")
+
+        return replaceSelectedParagraphs(with: transformed, original: selectedText, range: paragraphRange, actionName: "Numbering")
+    }
+
+    private func replaceSelectedParagraphs(
+        with transformed: String,
+        original selectedText: String,
+        range paragraphRange: NSRange,
+        actionName: String,
+        selectedLocation: Int? = nil
+    ) -> Bool {
         guard transformed != selectedText else { return false }
         guard shouldChangeText(in: paragraphRange, replacementString: transformed) else { return false }
         textStorage?.replaceCharacters(in: paragraphRange, with: transformed)
+        if let selectedLocation {
+            setSelectedRange(NSRange(location: selectedLocation, length: 0))
+        }
         didChangeText()
-        undoManager?.setActionName("Numbered List")
+        undoManager?.setActionName(actionName)
         breakUndoCoalescing()
         return true
+    }
+
+    private func trailingNewline(in text: String) -> String {
+        if text.hasSuffix("\r\n") {
+            return "\r\n"
+        }
+        if text.hasSuffix("\n") {
+            return "\n"
+        }
+        if text.hasSuffix("\r") {
+            return "\r"
+        }
+        return ""
+    }
+
+    private func listStyle(for line: String) -> ListStyleOption? {
+        parsedListLine(from: line)?.style
+    }
+
+    private func removingListPrefix(from line: String) -> String {
+        let pattern = #"^\s*(?:[-•☐]|\d+\.|[IVXLCDM]+\.|[A-Z]\.)\s+"#
+        guard let range = line.range(of: pattern, options: .regularExpression) else { return line }
+        return String(line[range.upperBound...])
+    }
+
+    private func continueListIfNeeded() -> Bool {
+        let selection = selectedRange()
+        guard selection.length == 0 else { return false }
+
+        let nsString = string as NSString
+        guard nsString.length > 0 else { return false }
+
+        let currentLineRange = nsString.paragraphRange(for: NSRange(location: min(selection.location, nsString.length - 1), length: 0))
+        let currentLine = nsString.substring(with: currentLineRange)
+        guard let listLine = parsedListLine(from: currentLine) else { return false }
+
+        let lineEnd = currentLineRange.location + currentLineRange.length
+        let newlineLength = trailingNewline(in: currentLine).utf16.count
+        let contentEnd = lineEnd - newlineLength
+        guard selection.location >= currentLineRange.location,
+              selection.location <= contentEnd else { return false }
+
+        if listLine.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return exitListLine(
+                lineRange: currentLineRange,
+                contentEnd: contentEnd,
+                newlineLength: newlineLength,
+                indentation: listLine.indentation
+            )
+        }
+
+        let nextItemNumber = nextListItemNumber(after: listLine)
+        let nextPrefix = "\(listLine.indentation)\(prefix(for: listLine.style, itemNumber: nextItemNumber))"
+        let insertion = "\n\(nextPrefix)"
+        guard shouldChangeText(in: selection, replacementString: insertion) else { return false }
+
+        textStorage?.replaceCharacters(in: selection, with: insertion)
+        setSelectedRange(NSRange(location: selection.location + (insertion as NSString).length, length: 0))
+        didChangeText()
+        undoManager?.setActionName("Continue List")
+        breakUndoCoalescing()
+        return true
+    }
+
+    private func exitListLine(
+        lineRange: NSRange,
+        contentEnd: Int,
+        newlineLength: Int,
+        indentation: String
+    ) -> Bool {
+        let markerRange = NSRange(location: lineRange.location, length: contentEnd - lineRange.location)
+        let replacement = newlineLength > 0 ? indentation : ""
+        guard shouldChangeText(in: markerRange, replacementString: replacement) else { return false }
+
+        textStorage?.replaceCharacters(in: markerRange, with: replacement)
+        setSelectedRange(NSRange(location: lineRange.location + (replacement as NSString).length, length: 0))
+        didChangeText()
+        undoManager?.setActionName("End List")
+        breakUndoCoalescing()
+        return true
+    }
+
+    private func nextListItemNumber(after listLine: ParsedListLine) -> Int {
+        switch listLine.style {
+        case .numbered, .lettered, .roman:
+            return (listLine.itemNumber ?? 1) + 1
+        case .bullet, .dash, .checklist:
+            return 1
+        }
+    }
+
+    private func parsedListLine(from line: String) -> ParsedListLine? {
+        let lineWithoutNewline = line.trimmingCharacters(in: .newlines)
+        let pattern = #"^(\s*)(☐|-|•|\d+\.|[IVXLCDM]+\.|[A-Z]\.)\s(.*)$"#
+        guard let range = lineWithoutNewline.range(of: pattern, options: .regularExpression) else {
+            return nil
+        }
+
+        let matched = String(lineWithoutNewline[range])
+        let regex = try? NSRegularExpression(pattern: pattern)
+        let nsMatched = matched as NSString
+        guard let match = regex?.firstMatch(in: matched, range: NSRange(location: 0, length: nsMatched.length)),
+              match.numberOfRanges == 4 else { return nil }
+
+        let indentation = nsMatched.substring(with: match.range(at: 1))
+        let marker = nsMatched.substring(with: match.range(at: 2))
+        let body = nsMatched.substring(with: match.range(at: 3))
+
+        if marker == "☐" {
+            return ParsedListLine(style: .checklist, indentation: indentation, body: body, itemNumber: nil)
+        }
+        if marker == "-" {
+            return ParsedListLine(style: .dash, indentation: indentation, body: body, itemNumber: nil)
+        }
+        if marker == "•" {
+            return ParsedListLine(style: .bullet, indentation: indentation, body: body, itemNumber: nil)
+        }
+        if marker.range(of: #"^\d+\.$"#, options: .regularExpression) != nil {
+            return ParsedListLine(
+                style: .numbered,
+                indentation: indentation,
+                body: body,
+                itemNumber: Int(marker.dropLast())
+            )
+        }
+        if marker.range(of: #"^[IVXLCDM]+\.$"#, options: .regularExpression) != nil {
+            return ParsedListLine(
+                style: .roman,
+                indentation: indentation,
+                body: body,
+                itemNumber: integerValue(forRomanListMarker: String(marker.dropLast()))
+            )
+        }
+        return ParsedListLine(
+            style: .lettered,
+            indentation: indentation,
+            body: body,
+            itemNumber: integerValue(forLetterListMarker: String(marker.dropLast()))
+        )
+    }
+
+    private func prefix(for style: ListStyleOption, itemNumber: Int) -> String {
+        switch style {
+        case .bullet:
+            return "• "
+        case .dash:
+            return "- "
+        case .numbered:
+            return "\(itemNumber). "
+        case .lettered:
+            return "\(letterListMarker(for: itemNumber)). "
+        case .roman:
+            return "\(romanListMarker(for: itemNumber)). "
+        case .checklist:
+            return "☐ "
+        }
+    }
+
+    private func leadingListNumber(in line: String) -> Int? {
+        guard let range = line.range(of: #"^\s*(\d+)\. "#, options: .regularExpression) else {
+            return nil
+        }
+        let marker = line[range].trimmingCharacters(in: .whitespaces)
+        return Int(marker.dropLast())
+    }
+
+    private func letterListMarker(for number: Int) -> String {
+        let clamped = max(1, number)
+        let scalarValue = Int(("A" as UnicodeScalar).value) + ((clamped - 1) % 26)
+        return String(UnicodeScalar(scalarValue) ?? "A")
+    }
+
+    private func romanListMarker(for number: Int) -> String {
+        var value = max(1, min(number, 3999))
+        let numerals: [(Int, String)] = [
+            (1000, "M"), (900, "CM"), (500, "D"), (400, "CD"),
+            (100, "C"), (90, "XC"), (50, "L"), (40, "XL"),
+            (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I")
+        ]
+        var result = ""
+
+        for numeral in numerals {
+            while value >= numeral.0 {
+                result += numeral.1
+                value -= numeral.0
+            }
+        }
+
+        return result
+    }
+
+    private func integerValue(forLetterListMarker marker: String) -> Int {
+        guard let scalar = marker.uppercased().unicodeScalars.first else { return 1 }
+        return max(1, Int(scalar.value) - Int(("A" as UnicodeScalar).value) + 1)
+    }
+
+    private func integerValue(forRomanListMarker marker: String) -> Int {
+        let values: [Character: Int] = [
+            "I": 1,
+            "V": 5,
+            "X": 10,
+            "L": 50,
+            "C": 100,
+            "D": 500,
+            "M": 1000
+        ]
+        var total = 0
+        var previous = 0
+
+        for character in marker.uppercased().reversed() {
+            let value = values[character] ?? 0
+            if value < previous {
+                total -= value
+            } else {
+                total += value
+                previous = value
+            }
+        }
+
+        return max(1, total)
     }
 
     @discardableResult

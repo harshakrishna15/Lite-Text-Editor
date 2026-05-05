@@ -21,10 +21,10 @@ struct EditableComboBox: NSViewRepresentable {
         comboBox.controlSize = .regular
         comboBox.font = NSFont.systemFont(ofSize: NSFont.systemFontSize(for: .regular))
         comboBox.bezelStyle = .roundedBezel
-        comboBox.isBordered = false
-        comboBox.drawsBackground = false
-        comboBox.backgroundColor = .clear
-        comboBox.textColor = ChromeStyle.nsGlassControlTextColor
+        comboBox.isBordered = true
+        comboBox.drawsBackground = true
+        comboBox.backgroundColor = .controlBackgroundColor
+        comboBox.textColor = .controlTextColor
         comboBox.cell?.alignment = .left
         comboBox.cell?.lineBreakMode = .byTruncatingTail
         comboBox.cell?.usesSingleLineMode = true
@@ -41,10 +41,10 @@ struct EditableComboBox: NSViewRepresentable {
         comboBox.numberOfVisibleItems = visibleItemCount
         comboBox.completes = false
         comboBox.previewsFontFamilies = previewsFontFamilies
-        comboBox.isBordered = false
-        comboBox.drawsBackground = false
-        comboBox.backgroundColor = .clear
-        comboBox.textColor = ChromeStyle.nsGlassControlTextColor
+        comboBox.isBordered = true
+        comboBox.drawsBackground = true
+        comboBox.backgroundColor = .controlBackgroundColor
+        comboBox.textColor = .controlTextColor
         comboBox.focusRingType = .none
 
         if comboBox.itemValues != items {
@@ -74,7 +74,7 @@ struct EditableComboBox: NSViewRepresentable {
 
     private func updateDisplayFont(for comboBox: EditableComboBoxView) {
         comboBox.font = comboBox.displayFont(for: text)
-        comboBox.textColor = ChromeStyle.nsGlassControlTextColor
+        comboBox.textColor = .controlTextColor
     }
 
     final class Coordinator: NSObject, NSComboBoxDelegate {

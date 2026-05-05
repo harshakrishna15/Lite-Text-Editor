@@ -65,13 +65,13 @@ final class UndoCorrectnessTests: XCTestCase {
         textView.setSelectedRange(NSRange(location: 0, length: textView.string.count))
 
         controller.togglePlainList()
-        XCTAssertEqual(textView.string, "- First\n- Second")
+        XCTAssertEqual(textView.string, "• First\n• Second")
 
         textView.undoManager?.undo()
         XCTAssertEqual(textView.string, "First\nSecond")
 
         textView.undoManager?.redo()
-        XCTAssertEqual(textView.string, "- First\n- Second")
+        XCTAssertEqual(textView.string, "• First\n• Second")
     }
 
     func testNumberedListUndoRestoresOriginalTextInOneStep() {

@@ -35,7 +35,7 @@ Lite Text Editor is a native macOS rich-text writing app prototype for Apple Sil
 - `Tab` accepts one word at a time
 - `Option+Right` also accepts one word
 - `Esc` dismisses the current suggestion
-- Open and save `.rtf` and `.txt` documents
+- Open and save `.rtf`, `.txt`, `.docx`, and `.odt` documents
 - Export the current document to `.pdf`
 
 ## Architecture
@@ -56,7 +56,7 @@ swift run "Lite Text Editor"
 
 ## Keyboard Shortcuts
 
-- `Command+O`: open RTF or TXT
+- `Command+O`: open RTF, TXT, DOCX, or ODT
 - `Command+S`: save
 - `Command+Shift+S`: save as
 - `Command+Shift+E`: export PDF
