@@ -16,9 +16,9 @@ enum ChromeStyle {
     static let statusBarZoomDropdownHeight: CGFloat = 18
     static let toolbarControlCornerRadius: CGFloat = 5
     static let toolbarPopoverRowCornerRadius: CGFloat = 6
-    static let toolbarPanelHeight: CGFloat = 40
-    static let toolbarFloatingTopPadding: CGFloat = 8
-    static let toolbarFloatingBottomPadding: CGFloat = 6
+    static let toolbarPanelHeight: CGFloat = 34
+    static let toolbarFloatingTopPadding: CGFloat = 6
+    static let toolbarFloatingBottomPadding: CGFloat = 4
     static let toolbarFloatingHorizontalMargin: CGFloat = 16
     static let toolbarPanelCornerRadius: CGFloat = 12
     static let regularToolbarHeight: CGFloat = toolbarPanelHeight + toolbarFloatingTopPadding + toolbarFloatingBottomPadding
@@ -26,19 +26,13 @@ enum ChromeStyle {
     static let toolbarCompactBreakpoint: CGFloat = 1_545
     static let toolbarRegularBreakpoint: CGFloat = 1_595
     static let toolbarModeInitialBreakpoint: CGFloat = 1_570
-    static let toolbarHorizontalPadding: CGFloat = 18
-    static let compactToolbarHorizontalPadding: CGFloat = 12
-    static let toolbarModeAnimation = Animation.interpolatingSpring(
-        mass: 1.0,
-        stiffness: 145,
-        damping: 24,
-        initialVelocity: 0
-    )
-    static let toolbarFontControlWidth: CGFloat = 260
-    static let compactToolbarFontControlWidth: CGFloat = 200
+    static let toolbarHorizontalPadding: CGFloat = 14
+    static let compactToolbarHorizontalPadding: CGFloat = toolbarHorizontalPadding
+    static let toolbarFontControlWidth: CGFloat = 230
+    static let compactToolbarFontControlWidth: CGFloat = toolbarFontControlWidth
     static let toolbarSizeControlWidth: CGFloat = 78
-    static let toolbarStyleControlWidth: CGFloat = 170
-    static let compactToolbarStyleControlWidth: CGFloat = 132
+    static let toolbarStyleControlWidth: CGFloat = 150
+    static let compactToolbarStyleControlWidth: CGFloat = toolbarStyleControlWidth
     static let toolbarIconWidth: CGFloat = 28
     static let toolbarItemSpacing: CGFloat = 7
     static let toolbarSectionSpacing: CGFloat = 10

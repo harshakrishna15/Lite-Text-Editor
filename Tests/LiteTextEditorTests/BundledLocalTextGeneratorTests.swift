@@ -2,9 +2,9 @@ import Foundation
 import XCTest
 @testable import LiteTextEditor
 
-final class LlamaServerTextGeneratorTests: XCTestCase {
+final class BundledLocalTextGeneratorTests: XCTestCase {
     func testDefaultModelLocationUsesApplicationSupportDownloadFolder() {
-        let generator = LlamaServerTextGenerator(runtimeExecutableURL: nil)
+        let generator = BundledLocalTextGenerator(runtimeExecutableURL: nil)
         let downloadDirectoryPath = generator.modelDownloadDirectoryURL.path
 
         XCTAssertTrue(downloadDirectoryPath.contains("/Application Support/Lite Text Editor/Models/Files"))
@@ -13,7 +13,7 @@ final class LlamaServerTextGeneratorTests: XCTestCase {
     }
 
     func testDefaultModelDownloadSourceIsRemoteHTTPS() {
-        let generator = LlamaServerTextGenerator(runtimeExecutableURL: nil)
+        let generator = BundledLocalTextGenerator(runtimeExecutableURL: nil)
         let sourceURL = generator.modelDownloadSourceURL
 
         XCTAssertEqual(sourceURL.scheme, "https")
@@ -54,6 +54,37 @@ final class LlamaServerTextGeneratorTests: XCTestCase {
             bundledModelFiles.isEmpty,
             "Model weights must be downloaded on demand, not bundled in app resources: \(bundledModelFiles.map(\.path))"
         )
+    }
+
+    func testRuntimeExecutableCandidatesIncludeSwiftPMAndLegacyResourceLayouts() {
+        let resourceURL = URL(fileURLWithPath: "/tmp/LiteTextEditorResources", isDirectory: true)
+
+        let candidates = BundledLocalTextGenerator.runtimeExecutableCandidateURLs(
+            moduleResourceURL: resourceURL,
+            mainResourceURL: nil
+        )
+
+        XCTAssertEqual(
+            candidates,
+            [
+                resourceURL.appendingPathComponent("llama-server").standardizedFileURL,
+                resourceURL
+                    .appendingPathComponent("bin", isDirectory: true)
+                    .appendingPathComponent("llama-server")
+                    .standardizedFileURL
+            ]
+        )
+    }
+
+    func testRuntimeExecutableCandidatesDeduplicateSharedBundleURLs() {
+        let resourceURL = URL(fileURLWithPath: "/tmp/LiteTextEditorResources", isDirectory: true)
+
+        let candidates = BundledLocalTextGenerator.runtimeExecutableCandidateURLs(
+            moduleResourceURL: resourceURL,
+            mainResourceURL: resourceURL
+        )
+
+        XCTAssertEqual(candidates.count, 2)
     }
 
     func testDownloadedStateUsesModelFileWithoutRuntime() async throws {
@@ -180,7 +211,7 @@ final class LlamaServerTextGeneratorTests: XCTestCase {
     private func makeFixture(session: URLSession = .shared) throws -> (
         directory: URL,
         modelFileURL: URL,
-        generator: LlamaServerTextGenerator
+        generator: BundledLocalTextGenerator
     ) {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("LiteTextEditorTests-\(UUID().uuidString)", isDirectory: true)
@@ -188,7 +219,7 @@ final class LlamaServerTextGeneratorTests: XCTestCase {
             .appendingPathComponent("Models", isDirectory: true)
             .appendingPathComponent("model.gguf")
 
-        let generator = LlamaServerTextGenerator(
+        let generator = BundledLocalTextGenerator(
             model: "Test Qwen Model",
             modelAlias: "test-qwen-autocomplete",
             baseURL: URL(string: "http://127.0.0.1:1")!,

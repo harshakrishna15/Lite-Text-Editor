@@ -2,7 +2,7 @@ import Foundation
 import XCTest
 @testable import LiteTextEditor
 
-final class OllamaTextGeneratorTests: XCTestCase {
+final class ExternalLocalTextGeneratorTests: XCTestCase {
     func testDownloadProgressFormatsPercentageAndEstimatedTime() {
         let progress = LocalModelDownloadProgress(
             bytesDownloaded: 42,
@@ -58,7 +58,7 @@ final class OllamaTextGeneratorTests: XCTestCase {
     private func makeFixture() throws -> (
         directory: URL,
         modelFileURL: URL,
-        generator: OllamaTextGenerator
+        generator: ExternalLocalTextGenerator
     ) {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("LiteTextEditorTests-\(UUID().uuidString)", isDirectory: true)
@@ -66,7 +66,7 @@ final class OllamaTextGeneratorTests: XCTestCase {
             .appendingPathComponent("Models", isDirectory: true)
             .appendingPathComponent("model.gguf")
 
-        let generator = OllamaTextGenerator(
+        let generator = ExternalLocalTextGenerator(
             model: "test-autocomplete-model:latest",
             baseURL: URL(string: "http://127.0.0.1:1")!,
             modelsDirectory: directory.appendingPathComponent("Ollama", isDirectory: true),

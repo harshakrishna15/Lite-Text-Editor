@@ -32,18 +32,8 @@ extension AutocompleteTextView {
         return (pageIndex * (pageHeight + pageGap)) + contentYOnPage
     }
 
-    static func visualLineOriginY(forContentY contentY: CGFloat, usedHeight: CGFloat) -> CGFloat {
-        guard contentY > 0 else { return contentY }
-
-        let pageIndex = floor(contentY / pageContentHeight)
-        let contentYOnPage = contentY - (pageIndex * pageContentHeight)
-        let shouldMoveToNextPage = contentYOnPage > 0
-            && contentYOnPage + max(usedHeight, 0) > pageContentHeight
-        let adjustedContentY = shouldMoveToNextPage
-            ? (pageIndex + 1) * pageContentHeight
-            : contentY
-
-        return visualContentY(forContentY: adjustedContentY)
+    static func visualLineOriginY(forContentY contentY: CGFloat, usedHeight _: CGFloat) -> CGFloat {
+        visualContentY(forContentY: contentY)
     }
 
     static func contentY(fromPotentialVisualY y: CGFloat) -> CGFloat {
@@ -63,6 +53,11 @@ extension AutocompleteTextView {
     static func pageCount(forVisualContentHeight visualContentHeight: CGFloat) -> Int {
         let contentHeight = contentY(fromPotentialVisualY: max(visualContentHeight - 1, 0))
         return max(1, Int(floor(contentHeight / pageContentHeight)) + 1)
+    }
+
+    static func pageCount(forVisualLineOriginY visualLineOriginY: CGFloat) -> Int {
+        let contentY = contentY(fromPotentialVisualY: max(visualLineOriginY, 0))
+        return max(1, Int(floor(contentY / pageContentHeight)) + 1)
     }
 
     static func pageStackHeight(forPageCount pageCount: Int) -> CGFloat {
@@ -402,10 +397,43 @@ extension AutocompleteTextView {
             layoutManager.ensureLayout(for: textContainer)
         }
 
-        let pageCount = Self.pageCount(forVisualContentHeight: layoutManager.usedRect(for: textContainer).maxY)
+        let pageCount = Self.pageCount(
+            forVisualLineOriginY: maximumMeasuredVisualLineOriginY(
+                layoutManager: layoutManager,
+                textContainer: textContainer
+            )
+        )
         cachedPageMeasurementKey = measurementKey
         cachedMeasuredPageCount = pageCount
         return pageCount
+    }
+
+    private func maximumMeasuredVisualLineOriginY(
+        layoutManager: NSLayoutManager,
+        textContainer: NSTextContainer
+    ) -> CGFloat {
+        var maximumLineOriginY: CGFloat = 0
+        let glyphCount = layoutManager.numberOfGlyphs
+
+        if glyphCount > 0 {
+            let lastLineRect = layoutManager.lineFragmentRect(
+                forGlyphAt: glyphCount - 1,
+                effectiveRange: nil
+            )
+            maximumLineOriginY = max(maximumLineOriginY, lastLineRect.minY)
+        }
+
+        if hasTrailingNewlineForPageMeasurement,
+           layoutManager.extraLineFragmentTextContainer === textContainer {
+            maximumLineOriginY = max(maximumLineOriginY, layoutManager.extraLineFragmentRect.minY)
+        }
+
+        return maximumLineOriginY
+    }
+
+    private var hasTrailingNewlineForPageMeasurement: Bool {
+        guard let lastScalar = string.unicodeScalars.last else { return true }
+        return CharacterSet.newlines.contains(lastScalar)
     }
 
     private func applyFrameSizeIfNeeded(

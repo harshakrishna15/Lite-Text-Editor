@@ -297,7 +297,7 @@ extension AutocompleteTextView {
     }
 
     private var defaultSuggestionFont: NSFont {
-        NSFont.systemFont(ofSize: 11)
+        EditorTypography.font(size: EditorTypography.defaultPointSize)
     }
 
     private func ghostSuggestionForegroundColor(for color: NSColor?) -> NSColor {

@@ -1,7 +1,7 @@
 import Dispatch
 import Foundation
 
-final class LlamaServerTextGenerator: LocalModelTextGenerating {
+final class BundledLocalTextGenerator: LocalModelTextGenerating {
     private enum Availability {
         case unknown
         case available
@@ -99,10 +99,10 @@ final class LlamaServerTextGenerator: LocalModelTextGenerating {
     init(
         model: String = ProcessInfo.processInfo.environment["LITE_TEXT_EDITOR_LLAMA_MODEL_NAME"] ?? "Qwen 2.5 0.5B Instruct",
         modelAlias: String = ProcessInfo.processInfo.environment["LITE_TEXT_EDITOR_LLAMA_MODEL_ALIAS"] ?? "lite-text-editor-qwen-document-autocomplete",
-        baseURL: URL = LlamaServerTextGenerator.defaultBaseURL(),
-        modelFileURL: URL = LlamaServerTextGenerator.defaultModelFileURL(),
-        downloadURL: URL = LlamaServerTextGenerator.defaultDownloadURL(),
-        runtimeExecutableURL: URL? = LlamaServerTextGenerator.defaultRuntimeExecutableURL(),
+        baseURL: URL = BundledLocalTextGenerator.defaultBaseURL(),
+        modelFileURL: URL = BundledLocalTextGenerator.defaultModelFileURL(),
+        downloadURL: URL = BundledLocalTextGenerator.defaultDownloadURL(),
+        runtimeExecutableURL: URL? = BundledLocalTextGenerator.defaultRuntimeExecutableURL(),
         contextSize: Int = 2048,
         timeout: TimeInterval = 1.5,
         downloadTimeout: TimeInterval = 600,
@@ -434,16 +434,38 @@ final class LlamaServerTextGenerator: LocalModelTextGenerating {
             return URL(fileURLWithPath: rawPath)
         }
 
-        let bundledURL = Bundle.main.resourceURL?
-            .appendingPathComponent("bin", isDirectory: true)
-            .appendingPathComponent("llama-server")
-
-        guard let bundledURL,
-              FileManager.default.isExecutableFile(atPath: bundledURL.path) else {
-            return nil
+        for candidateURL in runtimeExecutableCandidateURLs() {
+            if FileManager.default.isExecutableFile(atPath: candidateURL.path) {
+                return candidateURL
+            }
         }
 
-        return bundledURL
+        return nil
+    }
+
+    static func runtimeExecutableCandidateURLs(
+        moduleResourceURL: URL? = Bundle.module.resourceURL,
+        mainResourceURL: URL? = Bundle.main.resourceURL
+    ) -> [URL] {
+        var seenPaths = Set<String>()
+        var candidateURLs: [URL] = []
+
+        for resourceURL in [moduleResourceURL, mainResourceURL].compactMap({ $0 }) {
+            let candidates = [
+                resourceURL.appendingPathComponent("llama-server"),
+                resourceURL
+                    .appendingPathComponent("bin", isDirectory: true)
+                    .appendingPathComponent("llama-server")
+            ]
+
+            for candidateURL in candidates {
+                let standardizedURL = candidateURL.standardizedFileURL
+                guard seenPaths.insert(standardizedURL.path).inserted else { continue }
+                candidateURLs.append(standardizedURL)
+            }
+        }
+
+        return candidateURLs
     }
 
     private func shouldProbeAvailability() -> Bool {

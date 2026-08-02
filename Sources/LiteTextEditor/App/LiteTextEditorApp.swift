@@ -190,7 +190,7 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
     @objc private func showLiteTextEditorHelp() {
         let alert = NSAlert()
         alert.messageText = "Lite Text Editor Help"
-        alert.informativeText = "Use the Home menu or ribbon for core formatting, File for documents, and Tab to accept the next autocomplete word."
+        alert.informativeText = "Use the toolbar to switch document tabs and apply simple formatting. Add Outline or Notes tabs with the + button."
         alert.alertStyle = .informational
         alert.runModal()
     }
@@ -424,8 +424,6 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         stylesMenuItem.submenu = stylesMenu
         homeMenu.addItem(stylesMenuItem)
         homeMenu.addItem(NSMenuItem.separator())
-        homeMenu.addItem(NSMenuItem(title: "Show Fonts", action: NSSelectorFromString("orderFrontFontPanel:"), keyEquivalent: "t"))
-        homeMenu.items.last?.keyEquivalentModifierMask = [.command]
         homeMenu.addItem(NSMenuItem(title: "Show Colors", action: NSSelectorFromString("orderFrontColorPanel:"), keyEquivalent: "c"))
         homeMenu.items.last?.keyEquivalentModifierMask = [.command, .shift]
         homeMenu.addItem(NSMenuItem.separator())
@@ -454,22 +452,20 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
 
         let insertMenuItem = NSMenuItem()
         let insertMenu = NSMenu(title: "Insert")
-        insertMenu.addItem(commandItem("Insert Autocomplete Word", action: #selector(acceptSuggestion), key: "\t", modifiers: []))
+        insertMenu.addItem(commandItem("Insert Autocomplete Word", action: #selector(acceptSuggestion), key: "", modifiers: []))
         insertMenuItem.submenu = insertMenu
         mainMenu.addItem(insertMenuItem)
 
         let layoutMenuItem = NSMenuItem()
         let layoutMenu = NSMenu(title: "Layout")
         layoutMenu.addItem(commandItem("Align Left", action: #selector(alignLeft), key: "l"))
-        layoutMenu.addItem(commandItem("Center", action: #selector(alignCenter), key: "e"))
+        layoutMenu.addItem(commandItem("Center", action: #selector(alignCenter), key: "", modifiers: []))
         layoutMenu.addItem(commandItem("Align Right", action: #selector(alignRight), key: "r"))
         layoutMenu.addItem(commandItem("Justify", action: #selector(justifyText), key: "j"))
         layoutMenu.addItem(NSMenuItem.separator())
         layoutMenu.addItem(optionMenuItem("Line Spacing", options: LineSpacingOption.allCases, action: #selector(setLineSpacing(_:))))
         layoutMenu.addItem(optionMenuItem("Paragraph Spacing", options: ParagraphSpacingOption.allCases, action: #selector(applyParagraphSpacing(_:))))
         layoutMenu.addItem(optionMenuItem("Paragraph Indents", options: ParagraphIndentOption.allCases, action: #selector(applyParagraphIndent(_:))))
-        layoutMenu.addItem(commandItem("Keep Paragraph Together", action: #selector(toggleKeepParagraphTogether), key: "", modifiers: []))
-        layoutMenu.addItem(commandItem("Keep With Next", action: #selector(toggleKeepWithNext), key: "", modifiers: []))
         layoutMenu.addItem(NSMenuItem.separator())
         layoutMenu.addItem(commandItem("Decrease Indent", action: #selector(decreaseIndent), key: "["))
         layoutMenu.addItem(commandItem("Increase Indent", action: #selector(increaseIndent), key: "]"))

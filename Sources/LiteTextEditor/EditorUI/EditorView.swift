@@ -3,12 +3,6 @@ import SwiftUI
 
 struct EditorView: View {
     @StateObject private var editor: EditorController
-    @State private var selectedFont = "System"
-    @State private var selectedSize = 11.0
-    @State private var selectedSizeText = "11"
-    @State private var selectedStyle = TextPreset.body
-    @State private var textColor = Color.black
-    @State private var customTextColors = TextColorPaletteStore.load()
     @State private var suggestionWords: Double
     @State private var suggestionWordsText: String
     @State private var isSettingsPresented = false
@@ -81,12 +75,6 @@ struct EditorView: View {
 
                 EditorFormattingToolbarView(
                     editor: editor,
-                    selectedFont: $selectedFont,
-                    selectedSize: $selectedSize,
-                    selectedSizeText: $selectedSizeText,
-                    selectedStyle: $selectedStyle,
-                    textColor: $textColor,
-                    customTextColors: $customTextColors,
                     isOutlineVisible: $isOutlineVisible
                 )
                 .zIndex(3)
@@ -116,9 +104,6 @@ struct EditorView: View {
             withAnimation(ChromeStyle.outlinePanelAnimation) {
                 isOutlineVisible.toggle()
             }
-        }
-        .onChange(of: editor.formattingState) { formattingState in
-            syncFormattingControls(with: formattingState)
         }
         .sheet(isPresented: $isSettingsPresented) {
             LiteTextEditorSettingsView(
@@ -193,16 +178,6 @@ struct EditorView: View {
         AutocompleteSettingsStore.saveMaxSuggestionWords(clampedValue)
     }
 
-    private func syncFormattingControls(with formattingState: FormattingState) {
-        selectedFont = formattingState.fontFamilyName
-        selectedSize = formattingState.fontSize
-        selectedSizeText = formattedSize(formattingState.fontSize)
-        textColor = Color(nsColor: formattingState.textColor)
-    }
-
-    private func formattedSize(_ size: Double) -> String {
-        size.rounded() == size ? "\(Int(size))" : String(format: "%.1f", size)
-    }
 }
 
 private struct WindowLiveResizeReader: NSViewRepresentable {

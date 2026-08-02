@@ -3,11 +3,45 @@ import Foundation
 
 struct DocumentFileStore {
     static let supportedTextFileExtensions = Set(["rtf", "txt", "docx", "odt"])
-
-    let defaultTypingAttributes: [NSAttributedString.Key: Any] = [
-        .font: NSFont.systemFont(ofSize: 11),
-        .foregroundColor: NSColor.black
+    static let supportedEditorDocumentFileExtensions = supportedTextFileExtensions.union([
+        NativeEditorDocumentCodec.fileExtension
+    ])
+    private static let plainTextFallbackEncodings: [String.Encoding] = [
+        .windowsCP1252,
+        .isoLatin1,
+        .macOSRoman
     ]
+
+    let defaultTypingAttributes = EditorTypography.defaultTypingAttributes
+
+    func readEditorDocument(from url: URL) throws -> EditorDocument {
+        if url.pathExtension.lowercased() == NativeEditorDocumentCodec.fileExtension {
+            return try NativeEditorDocumentCodec.decode(Data(contentsOf: url))
+        }
+
+        let attributedString = try readDocument(from: url)
+        let tab = EditorDocumentTab(
+            id: UUID(),
+            title: "Draft",
+            attributedString: attributedString
+        )
+        return EditorDocument(tabs: [tab], selectedTabID: tab.id)
+    }
+
+    func writeEditorDocument(_ document: EditorDocument, to url: URL) throws {
+        if url.pathExtension.lowercased() == NativeEditorDocumentCodec.fileExtension {
+            try NativeEditorDocumentCodec.encode(document).write(to: url, options: .atomic)
+            return
+        }
+
+        guard document.tabs.count == 1,
+              let tab = document.tabs.first,
+              tab.title.caseInsensitiveCompare("Draft") == .orderedSame else {
+            throw DocumentFileStoreError.multipleTabsRequireNativeFormat
+        }
+
+        try writeDocument(tab.attributedString, to: url)
+    }
 
     func readDocument(from url: URL) throws -> NSAttributedString {
         switch url.pathExtension.lowercased() {
@@ -16,7 +50,9 @@ struct DocumentFileStore {
                 throw DocumentFileStoreError.unsupportedFileType(url.pathExtension)
             }
 
-            return try readAttributedString(from: url, documentType: documentType)
+            return EditorTypography.normalizedAttributedString(
+                try readAttributedString(from: url, documentType: documentType)
+            )
         case "txt":
             let string = try readPlainText(from: url)
             return NSAttributedString(string: string, attributes: defaultTypingAttributes)
@@ -26,17 +62,19 @@ struct DocumentFileStore {
     }
 
     func writeDocument(_ attributedString: NSAttributedString, to url: URL) throws {
+        let normalizedDocument = EditorTypography.normalizedAttributedString(attributedString)
+
         switch url.pathExtension.lowercased() {
         case "rtf", "docx", "odt":
             guard let documentType = attributedStringDocumentType(for: url) else {
                 throw DocumentFileStoreError.unsupportedFileType(url.pathExtension)
             }
 
-            try writeRichText(attributedString, to: url, documentType: documentType)
+            try writeRichText(normalizedDocument, to: url, documentType: documentType)
         case "txt":
-            try attributedString.string.write(to: url, atomically: true, encoding: .utf8)
+            try normalizedDocument.string.write(to: url, atomically: true, encoding: .utf8)
         default:
-            try writeRichText(attributedString, to: url.appendingPathExtension("rtf"), documentType: .rtf)
+            try writeRichText(normalizedDocument, to: url.appendingPathExtension("rtf"), documentType: .rtf)
         }
     }
 
@@ -129,6 +167,16 @@ struct DocumentFileStore {
         return url.appendingPathExtension("rtf")
     }
 
+    func normalizedEditorDocumentURL(_ url: URL) -> URL {
+        let fileExtension = url.pathExtension.lowercased()
+
+        if Self.supportedEditorDocumentFileExtensions.contains(fileExtension) {
+            return url
+        }
+
+        return url.appendingPathExtension(NativeEditorDocumentCodec.fileExtension)
+    }
+
     func normalizedPDFURL(_ url: URL) -> URL {
         url.pathExtension.lowercased() == "pdf" ? url : url.appendingPathExtension("pdf")
     }
@@ -142,11 +190,64 @@ struct DocumentFileStore {
     }
 
     private func readPlainText(from url: URL) throws -> String {
-        do {
-            return try String(contentsOf: url, encoding: .utf8)
-        } catch {
-            return try String(contentsOf: url, encoding: .macOSRoman)
+        let data = try Data(contentsOf: url)
+
+        if let string = decodeBOMMarkedPlainText(data) {
+            return string
         }
+
+        if let string = String(data: data, encoding: .utf8) {
+            return string
+        }
+
+        if let string = decodeLikelyUTF16PlainText(data) {
+            return string
+        }
+
+        for encoding in Self.plainTextFallbackEncodings {
+            if let string = String(data: data, encoding: encoding) {
+                return string
+            }
+        }
+
+        throw DocumentFileStoreError.unreadableTextEncoding
+    }
+
+    private func decodeBOMMarkedPlainText(_ data: Data) -> String? {
+        let bytes = Array(data.prefix(3))
+
+        if bytes.starts(with: [0xEF, 0xBB, 0xBF]) {
+            return String(data: data, encoding: .utf8)
+        }
+
+        if bytes.starts(with: [0xFF, 0xFE]) || bytes.starts(with: [0xFE, 0xFF]) {
+            return String(data: data, encoding: .utf16)
+        }
+
+        return nil
+    }
+
+    private func decodeLikelyUTF16PlainText(_ data: Data) -> String? {
+        guard data.count >= 4 else { return nil }
+
+        let sample = Array(data.prefix(min(data.count, 256)))
+        let evenNulls = sample.enumerated().filter { index, byte in
+            index.isMultiple(of: 2) && byte == 0
+        }.count
+        let oddNulls = sample.enumerated().filter { index, byte in
+            !index.isMultiple(of: 2) && byte == 0
+        }.count
+        let threshold = max(2, sample.count / 8)
+
+        if oddNulls > threshold && evenNulls == 0 {
+            return String(data: data, encoding: .utf16LittleEndian)
+        }
+
+        if evenNulls > threshold && oddNulls == 0 {
+            return String(data: data, encoding: .utf16BigEndian)
+        }
+
+        return nil
     }
 
     private func readAttributedString(
@@ -191,6 +292,9 @@ struct DocumentFileStore {
 enum DocumentFileStoreError: LocalizedError {
     case unsupportedFileType(String)
     case couldNotCreatePDF
+    case unreadableTextEncoding
+    case multipleTabsRequireNativeFormat
+    case invalidDocumentState
 
     var errorDescription: String? {
         switch self {
@@ -198,6 +302,12 @@ enum DocumentFileStoreError: LocalizedError {
             return "Unsupported file type: .\(fileExtension)"
         case .couldNotCreatePDF:
             return "Lite Text Editor could not create the PDF file."
+        case .unreadableTextEncoding:
+            return "Lite Text Editor could not determine the text encoding."
+        case .multipleTabsRequireNativeFormat:
+            return "Documents with named or multiple tabs must be saved as a .ltedoc file."
+        case .invalidDocumentState:
+            return "Lite Text Editor could not create a complete document snapshot."
         }
     }
 }

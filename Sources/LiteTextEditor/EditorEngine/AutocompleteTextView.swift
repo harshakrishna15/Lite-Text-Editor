@@ -54,6 +54,7 @@ final class AutocompleteTextView: NSTextView {
     var onMoveSpellingCorrectionSelection: ((Int) -> Void)?
     var onPredictionStateChanged: ((PredictionState) -> Void)?
     var onFormattingSampleLocationChanged: (() -> Void)?
+    var documentUndoManager: UndoManager?
     var isSpellingCorrectionReviewActive = false
     var formattingSampleLocation: Int?
     var currentPageCount: Int { renderedPageCount }
@@ -95,6 +96,10 @@ final class AutocompleteTextView: NSTextView {
 
     override var isOpaque: Bool {
         true
+    }
+
+    override var undoManager: UndoManager? {
+        documentUndoManager ?? super.undoManager
     }
 
     required init?(coder: NSCoder) {

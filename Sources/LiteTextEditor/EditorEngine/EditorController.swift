@@ -28,6 +28,8 @@ final class EditorController: ObservableObject {
     @Published var documentStatusText = "Ready"
     @Published var documentTitle = "Untitled"
     @Published var pendingDocumentDirectoryURL: URL?
+    @Published var documentTabs: [DocumentTabDescriptor] = []
+    @Published var selectedDocumentTabID: UUID?
     @Published var isContinuousSpellCheckingEnabled = WritingSettingsStore.loadIsContinuousSpellCheckingEnabled()
     @Published var isGrammarCheckingEnabled = WritingSettingsStore.loadIsGrammarCheckingEnabled()
     @Published var isAutomaticTextReplacementEnabled = TextCorrectionSettingsStore.loadIsAutomaticReplacementEnabled()
@@ -38,11 +40,19 @@ final class EditorController: ObservableObject {
     var isDocumentEdited = false
 
     var currentDocumentURL: URL?
+    var documentTabContents: [UUID: NSAttributedString] = [:]
+    var documentTabSelections: [UUID: NSRange] = [:]
+    var documentTabVisibleOrigins: [UUID: NSPoint] = [:]
+    var documentTabUndoManagers: [UUID: UndoManager] = [:]
+    var documentGeneration = 0
+    var isEnforcingEditorTypography = false
     var pendingDocumentStatisticsRefresh: DispatchWorkItem?
     var pendingOutlineRefresh: DispatchWorkItem?
     var pendingFormattingStateRefresh: DispatchWorkItem?
-    var documentOperationID = UUID()
+    var documentReadOperationID = UUID()
+    var documentWriteOperationID = UUID()
     var exportOperationID = UUID()
+    var isDocumentWriteInProgress = false
     var copiedFormattingAttributes: [NSAttributedString.Key: Any]?
     var hasRestoredLastSession = false
     let documentFileStore = DocumentFileStore()
@@ -75,6 +85,8 @@ final class EditorController: ObservableObject {
             )
             self.localModelState = .unknown(modelName: localModelProvider.modelName)
         }
+
+        installDocument(EditorDocument.blank(), loadsSelectedTab: false)
     }
 
     func copy() {

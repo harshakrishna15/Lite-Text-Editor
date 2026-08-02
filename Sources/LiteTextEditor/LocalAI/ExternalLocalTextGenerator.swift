@@ -2,7 +2,7 @@ import Dispatch
 import Foundation
 import CryptoKit
 
-final class OllamaTextGenerator: LocalModelTextGenerating {
+final class ExternalLocalTextGenerator: LocalModelTextGenerating {
     private enum Availability {
         case unknown
         case available
@@ -134,11 +134,11 @@ final class OllamaTextGenerator: LocalModelTextGenerating {
 
     init(
         model: String = ProcessInfo.processInfo.environment["LITE_TEXT_EDITOR_OLLAMA_MODEL"] ?? "lite-text-editor-qwen-document-autocomplete:latest",
-        baseURL: URL = OllamaTextGenerator.defaultBaseURL(),
-        modelsDirectory: URL = OllamaTextGenerator.defaultModelsDirectory(),
-        modelFileURL: URL = OllamaTextGenerator.defaultModelFileURL(),
-        downloadURL: URL = OllamaTextGenerator.defaultDownloadURL(),
-        ollamaExecutableURL: URL? = OllamaTextGenerator.defaultOllamaExecutableURL(),
+        baseURL: URL = ExternalLocalTextGenerator.defaultBaseURL(),
+        modelsDirectory: URL = ExternalLocalTextGenerator.defaultModelsDirectory(),
+        modelFileURL: URL = ExternalLocalTextGenerator.defaultModelFileURL(),
+        downloadURL: URL = ExternalLocalTextGenerator.defaultDownloadURL(),
+        ollamaExecutableURL: URL? = ExternalLocalTextGenerator.defaultOllamaExecutableURL(),
         timeout: TimeInterval = 1.5,
         downloadTimeout: TimeInterval = 600,
         retryDelay: TimeInterval = 20,

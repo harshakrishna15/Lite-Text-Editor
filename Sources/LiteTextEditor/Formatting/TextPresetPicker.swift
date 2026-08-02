@@ -17,6 +17,8 @@ struct TextPresetPicker: NSViewRepresentable {
         button.isBordered = true
         button.font = NSFont.systemFont(ofSize: NSFont.systemFontSize(for: .regular))
         button.autoenablesItems = false
+        button.setContentHuggingPriority(.required, for: .vertical)
+        button.setContentCompressionResistancePriority(.required, for: .vertical)
         button.cell?.alignment = .left
         button.cell?.lineBreakMode = .byTruncatingTail
         button.previewFontName = fontName
@@ -29,6 +31,8 @@ struct TextPresetPicker: NSViewRepresentable {
         context.coordinator.parent = self
         button.controlSize = .small
         button.isBordered = true
+        button.setContentHuggingPriority(.required, for: .vertical)
+        button.setContentCompressionResistancePriority(.required, for: .vertical)
         button.cell?.alignment = .left
         button.cell?.lineBreakMode = .byTruncatingTail
 
@@ -45,6 +49,17 @@ struct TextPresetPicker: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
+    }
+
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        nsView button: ToolbarPopUpButton,
+        context: Context
+    ) -> CGSize? {
+        CGSize(
+            width: proposal.width ?? button.fittingSize.width,
+            height: ChromeStyle.toolbarDropdownControlHeight
+        )
     }
 
     private func updateItems(for button: ToolbarPopUpButton) {
@@ -90,5 +105,23 @@ final class ToolbarPopUpButton: NSPopUpButton {
 
     convenience init() {
         self.init(frame: .zero, pullsDown: false)
+    }
+
+    override var intrinsicContentSize: NSSize {
+        let size = super.intrinsicContentSize
+        return NSSize(width: size.width, height: ChromeStyle.toolbarDropdownControlHeight)
+    }
+
+    override var fittingSize: NSSize {
+        let size = super.fittingSize
+        return NSSize(width: size.width, height: ChromeStyle.toolbarDropdownControlHeight)
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(NSSize(width: newSize.width, height: ChromeStyle.toolbarDropdownControlHeight))
+    }
+
+    override func setBoundsSize(_ newSize: NSSize) {
+        super.setBoundsSize(NSSize(width: newSize.width, height: ChromeStyle.toolbarDropdownControlHeight))
     }
 }

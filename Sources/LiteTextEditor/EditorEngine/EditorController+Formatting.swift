@@ -288,7 +288,7 @@ extension EditorController {
                 var updates: [(NSRange, NSFont)] = []
 
                 textStorage.enumerateAttribute(.font, in: editRange) { value, effectiveRange, _ in
-                    let font = value as? NSFont ?? NSFont.systemFont(ofSize: 11)
+                    let font = value as? NSFont ?? EditorTypography.font(size: EditorTypography.defaultPointSize)
                     updates.append((effectiveRange, makeSmallCapsFont(font)))
                 }
 
@@ -300,7 +300,7 @@ extension EditorController {
                 return !updates.isEmpty
             }
         } else {
-            let font = textView.typingAttributes[.font] as? NSFont ?? NSFont.systemFont(ofSize: 11)
+            let font = textView.typingAttributes[.font] as? NSFont ?? EditorTypography.font(size: EditorTypography.defaultPointSize)
             textView.typingAttributes[.font] = makeSmallCapsFont(font)
             textView.typingAttributes[.liteTextEditorSmallCaps] = true
         }
@@ -333,7 +333,7 @@ extension EditorController {
     func clearFormatting() {
         guard let textView else { return }
         let range = textView.effectiveRangeForFormatting()
-        let defaultFont = NSFont.systemFont(ofSize: 11)
+        let defaultFont = EditorTypography.font(size: EditorTypography.defaultPointSize)
         let attributesToRemove: [NSAttributedString.Key] = [
             .underlineStyle,
             .strikethroughStyle,
@@ -587,7 +587,7 @@ extension EditorController {
                 var allRunsHaveTrait = true
 
                 textStorage.enumerateAttribute(.font, in: editRange) { value, effectiveRange, _ in
-                    let font = value as? NSFont ?? NSFont.systemFont(ofSize: 11)
+                    let font = value as? NSFont ?? EditorTypography.font(size: EditorTypography.defaultPointSize)
                     if !font.fontDescriptor.symbolicTraits.contains(trait) {
                         allRunsHaveTrait = false
                     }
@@ -606,7 +606,7 @@ extension EditorController {
                 return !runs.isEmpty
             }
         } else {
-            let font = textView.typingAttributes[.font] as? NSFont ?? NSFont.systemFont(ofSize: 11)
+            let font = textView.typingAttributes[.font] as? NSFont ?? EditorTypography.font(size: EditorTypography.defaultPointSize)
             textView.typingAttributes[.font] = font.togglingSymbolicTrait(trait)
         }
 
@@ -615,7 +615,7 @@ extension EditorController {
 
     private func currentFormattingState(in textView: AutocompleteTextView) -> FormattingState {
         let attributes = representativeFormattingAttributes(in: textView)
-        let font = attributes[.font] as? NSFont ?? NSFont.systemFont(ofSize: 11)
+        let font = attributes[.font] as? NSFont ?? EditorTypography.font(size: EditorTypography.defaultPointSize)
         let traits = font.fontDescriptor.symbolicTraits
         let listState = currentListState(in: textView)
 
@@ -741,61 +741,15 @@ extension EditorController {
     }
 
     private func displayFontFamilyName(for font: NSFont) -> String {
-        SystemFontName.displayName(for: font)
+        EditorTypography.displayName
     }
 
     private func makeFont(name: String, size: Double, weight: NSFont.Weight) -> NSFont {
-        if SystemFontName.isSystemDisplayName(name) {
-            return NSFont.systemFont(ofSize: size, weight: weight)
-        }
-
-        let traits: NSFontTraitMask = weight == .regular ? [] : [.boldFontMask]
-        let fontManager = NSFontManager.shared
-
-        return fontManager.font(
-            withFamily: name,
-            traits: traits,
-            weight: fontManagerWeight(for: weight),
-            size: size
-        ) ?? fontManager.font(
-            withFamily: name,
-            traits: [],
-            weight: 5,
-            size: size
-        ) ?? NSFont.systemFont(ofSize: size, weight: weight)
-    }
-
-    private func fontManagerWeight(for weight: NSFont.Weight) -> Int {
-        switch weight {
-        case .ultraLight, .thin:
-            return 2
-        case .light:
-            return 3
-        case .regular:
-            return 5
-        case .medium:
-            return 6
-        case .semibold:
-            return 8
-        case .bold, .heavy, .black:
-            return 9
-        default:
-            return 5
-        }
+        EditorTypography.font(size: size, weight: weight)
     }
 
     private func currentFontFamilyNameForFormatting() -> String {
-        guard let textView else { return "System" }
-        let attributes = representativeFormattingAttributes(in: textView)
-        guard let font = attributes[.font] as? NSFont,
-              let familyName = font.familyName,
-              !familyName.isEmpty else {
-            return "System"
-        }
-
-        return SystemFontName.isSystemFont(font)
-            ? SystemFontName.displayName
-            : familyName
+        EditorTypography.displayName
     }
 }
 

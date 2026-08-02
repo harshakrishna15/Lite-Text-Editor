@@ -73,6 +73,32 @@ final class DocumentFileStoreTests: XCTestCase {
         XCTAssertNotNil(loaded.attribute(.foregroundColor, at: 0, effectiveRange: nil))
     }
 
+    func testPlainTextReadDetectsUTF16Files() throws {
+        let url = temporaryFileURL(extension: "txt")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let text = "Plain text with UTF-16: cafe \u{0301} and checkmark \u{2713}"
+        let data = try XCTUnwrap(text.data(using: .utf16))
+        try data.write(to: url)
+
+        let loaded = try store.readDocument(from: url)
+
+        XCTAssertEqual(loaded.string, text)
+    }
+
+    func testPlainTextReadFallsBackToWindowsLatinEncoding() throws {
+        let url = temporaryFileURL(extension: "txt")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let text = "Curly \u{201c}quotes\u{201d} and euro \u{20ac}"
+        let data = try XCTUnwrap(text.data(using: .windowsCP1252))
+        try data.write(to: url)
+
+        let loaded = try store.readDocument(from: url)
+
+        XCTAssertEqual(loaded.string, text)
+    }
+
     func testDocumentFileServiceWritesAndReadsDocumentAsynchronously() {
         let url = temporaryFileURL(extension: "txt")
         defer { try? FileManager.default.removeItem(at: url) }

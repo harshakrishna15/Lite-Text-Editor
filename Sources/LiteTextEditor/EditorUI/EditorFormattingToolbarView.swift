@@ -1,24 +1,8 @@
-import AppKit
 import SwiftUI
 
 struct EditorFormattingToolbarView: View {
     @ObservedObject var editor: EditorController
-    @Binding var selectedFont: String
-    @Binding var selectedSize: Double
-    @Binding var selectedSizeText: String
-    @Binding var selectedStyle: TextPreset
-    @Binding var textColor: Color
-    @Binding var customTextColors: [PaletteColor]
     @Binding var isOutlineVisible: Bool
-
-    @State private var isCompactToolbar = false
-
-    private let fonts = InstalledFontProvider.fontFamilies
-    private let sizes = [11.0, 12.0, 14.0, 16.0, 18.0, 20.0, 24.0, 28.0, 32.0]
-
-    private var sizeOptions: [String] {
-        sizes.map { "\(Int($0))" }
-    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -38,49 +22,25 @@ struct EditorFormattingToolbarView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.top, ChromeStyle.toolbarFloatingTopPadding)
             }
-            .onAppear {
-                updateToolbarMode(for: proxy.size.width, animated: false)
-            }
-            .onChange(of: proxy.size.width) { width in
-                updateToolbarMode(for: width, animated: true)
-            }
         }
         .frame(maxWidth: .infinity, alignment: .center)
-        .frame(height: isCompactToolbar ? ChromeStyle.compactToolbarHeight : ChromeStyle.regularToolbarHeight)
-    }
-
-    private func updateToolbarMode(for width: CGFloat, animated: Bool) {
-        let shouldUseCompactToolbar = ToolbarLayoutPolicy.shouldUseCompactToolbar(
-            width: width,
-            isCurrentlyCompact: isCompactToolbar,
-            animated: animated
-        )
-
-        guard shouldUseCompactToolbar != isCompactToolbar else { return }
-
-        if animated {
-            withAnimation(ChromeStyle.toolbarModeAnimation) {
-                isCompactToolbar = shouldUseCompactToolbar
-            }
-        } else {
-            isCompactToolbar = shouldUseCompactToolbar
-        }
+        .frame(height: ChromeStyle.regularToolbarHeight)
     }
 
     private var formattingBar: some View {
         HStack(alignment: .center, spacing: ChromeStyle.toolbarSectionSpacing) {
             outlineToggleButton
             ToolbarDivider()
-            stylePresetSection
+            documentTabStrip
+                .layoutPriority(1)
+            addTabMenu
+            Spacer(minLength: 6)
             ToolbarDivider()
-            fontControlsSection
-            ToolbarDivider()
-            primaryInlineFormattingSection
+            courierIndicator
+            inlineFormattingSection
         }
-        .padding(.horizontal, toolbarHorizontalPadding)
-        .padding(.vertical, 7)
-        .fixedSize(horizontal: true, vertical: false)
-        .animation(ChromeStyle.toolbarModeAnimation, value: isCompactToolbar)
+        .padding(.horizontal, ChromeStyle.toolbarHorizontalPadding)
+        .padding(.vertical, 4)
     }
 
     private var outlineToggleButton: some View {
@@ -96,44 +56,144 @@ struct EditorFormattingToolbarView: View {
         }
     }
 
-    private var fontControlsSection: some View {
-        ToolbarSection {
-            EditableComboBox(
-                text: $selectedFont,
-                items: fonts,
-                visibleItemCount: 14,
-                autofillsCompletion: true,
-                previewsFontFamilies: true,
-                onCommit: applyFontName
-            )
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(width: fontControlWidth)
-            .help("Font")
+    private var documentTabStrip: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 4) {
+                    ForEach(editor.documentTabs) { tab in
+                        documentTabButton(tab)
+                            .id(tab.id)
+                    }
+                }
+                .padding(.horizontal, 2)
+            }
+            .onAppear {
+                scrollToSelectedTab(using: proxy, animated: false)
+            }
+            .onChange(of: editor.selectedDocumentTabID) { _ in
+                scrollToSelectedTab(using: proxy, animated: true)
+            }
+        }
+        .frame(minWidth: 120, maxWidth: .infinity)
+        .help("Tabs in this document")
+    }
 
-            EditableComboBox(
-                text: $selectedSizeText,
-                items: sizeOptions,
-                visibleItemCount: sizeOptions.count,
-                onCommit: applyFontSizeText
-            )
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(width: ChromeStyle.toolbarSizeControlWidth)
-            .help("Font Size")
+    private func scrollToSelectedTab(using proxy: ScrollViewProxy, animated: Bool) {
+        guard let selectedDocumentTabID = editor.selectedDocumentTabID else { return }
 
-            sizeToolsMenu
+        let scroll = {
+            proxy.scrollTo(selectedDocumentTabID, anchor: .trailing)
+        }
+        if animated {
+            withAnimation(.easeOut(duration: 0.18), scroll)
+        } else {
+            scroll()
         }
     }
 
-    private var primaryInlineFormattingSection: some View {
-        HStack(alignment: .center, spacing: ChromeStyle.toolbarSectionSpacing) {
-            inlineTextStyleSection
-            ToolbarDivider()
-            inlineColorSection
+    private func documentTabButton(_ tab: DocumentTabDescriptor) -> some View {
+        let isSelected = editor.selectedDocumentTabID == tab.id
+
+        return HStack(spacing: 5) {
+            Button {
+                editor.selectDocumentTab(tab.id)
+            } label: {
+                Text(tab.title)
+                    .font(.custom("Courier", size: 12).weight(isSelected ? .semibold : .regular))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+                    .frame(maxWidth: 132)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isSelected && editor.canCloseDocumentTab {
+                Button {
+                    editor.requestCloseDocumentTab(tab.id)
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .bold))
+                        .frame(width: 14, height: 14)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.secondary)
+                .help("Close \(tab.title)")
+            }
         }
-        .fixedSize(horizontal: true, vertical: false)
+        .padding(.leading, 10)
+        .padding(.trailing, isSelected && editor.canCloseDocumentTab ? 6 : 10)
+        .frame(height: ChromeStyle.toolbarControlHeight)
+        .background {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isSelected ? Color.accentColor.opacity(0.16) : Color.primary.opacity(0.045))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(isSelected ? Color.accentColor.opacity(0.30) : Color.clear, lineWidth: 1)
+        }
+        .contextMenu {
+            Button("Rename Tab…") {
+                editor.promptToRenameDocumentTab(tab.id)
+            }
+            Button("Duplicate Tab") {
+                editor.duplicateDocumentTab(tab.id)
+            }
+            Divider()
+            Button("Close Tab", role: .destructive) {
+                editor.requestCloseDocumentTab(tab.id)
+            }
+            .disabled(!editor.canCloseDocumentTab)
+        }
     }
 
-    private var inlineTextStyleSection: some View {
+    private var addTabMenu: some View {
+        Menu {
+            Button {
+                editor.addDocumentTab(named: "Untitled")
+            } label: {
+                Label("Blank Tab", systemImage: "doc")
+            }
+
+            Button {
+                editor.addDocumentTab(named: "Outline")
+            } label: {
+                Label("Outline", systemImage: "list.bullet.indent")
+            }
+
+            Button {
+                editor.addDocumentTab(named: "Notes")
+            } label: {
+                Label("Notes", systemImage: "note.text")
+            }
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 12, weight: .semibold))
+                .frame(width: ChromeStyle.toolbarIconWidth, height: ChromeStyle.toolbarControlHeight)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Add a tab to this document")
+    }
+
+    private var courierIndicator: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "textformat")
+                .font(.system(size: 11, weight: .medium))
+            Text(EditorTypography.displayName)
+                .font(.custom("Courier", size: 12))
+        }
+        .foregroundStyle(Color.secondary)
+        .padding(.horizontal, 8)
+        .frame(height: ChromeStyle.toolbarControlHeight)
+        .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .help("All document text uses Courier")
+    }
+
+    private var inlineFormattingSection: some View {
         ToolbarSection {
             RibbonIconButton(symbol: "bold", help: "Bold", isSelected: editor.formattingState.isBold, isToggle: true) {
                 editor.toggleBold()
@@ -146,144 +206,6 @@ struct EditorFormattingToolbarView: View {
             RibbonIconButton(symbol: "underline", help: "Underline", isSelected: editor.formattingState.isUnderline, isToggle: true) {
                 editor.toggleUnderline()
             }
-
-            RibbonIconButton(
-                symbol: "strikethrough",
-                help: "Strikethrough",
-                isSelected: editor.formattingState.isStrikethrough,
-                isToggle: true
-            ) {
-                editor.toggleStrikethrough()
-            }
         }
     }
-
-    private var inlineColorSection: some View {
-        ToolbarSection {
-            TextColorPaletteButton(
-                selectedColor: $textColor,
-                customColors: $customTextColors,
-                onApplyColor: editor.applyTextColor
-            )
-
-            HighlightColorPaletteButton(
-                highlightColor: editor.formattingState.highlightColor,
-                onApplyHighlight: editor.applyHighlight
-            )
-
-            RibbonIconButton(symbol: "eraser", help: "Clear Formatting") {
-                clearFormatting()
-            }
-        }
-    }
-
-    private func popoverActionRow(
-        _ title: String,
-        symbol: String,
-        isSelected: Bool = false,
-        dismiss: @escaping () -> Void,
-        action: @escaping () -> Void
-    ) -> some View {
-        ToolbarPopoverActionRow(title: title, symbol: symbol, isSelected: isSelected) {
-            action()
-            dismiss()
-        }
-    }
-
-    private var sizeToolsMenu: some View {
-        ToolbarPopoverButton(title: "Size", symbol: "textformat.size", help: "Text Size Tools", width: 190) { dismiss in
-            sizeToolsPopoverContent(dismiss: dismiss)
-        }
-    }
-
-    @ViewBuilder
-    private func sizeToolsPopoverContent(dismiss: @escaping () -> Void) -> some View {
-        ToolbarPopoverSection(title: "Size") {
-            popoverActionRow("Increase Size", symbol: "textformat.size.larger", dismiss: dismiss) {
-                adjustSize(by: 1)
-            }
-
-            popoverActionRow("Decrease Size", symbol: "textformat.size.smaller", dismiss: dismiss) {
-                adjustSize(by: -1)
-            }
-        }
-    }
-
-    private var stylePresetSection: some View {
-        ToolbarSection {
-            TextPresetPicker(selection: $selectedStyle, fontName: selectedFont) { preset in
-                setSelectedSize(preset.size)
-                editor.applyPreset(preset, fontName: selectedFont)
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(width: styleControlWidth)
-            .help("Style")
-        }
-    }
-
-    private var fontControlWidth: CGFloat {
-        isCompactToolbar ? ChromeStyle.compactToolbarFontControlWidth : ChromeStyle.toolbarFontControlWidth
-    }
-
-    private var styleControlWidth: CGFloat {
-        isCompactToolbar ? ChromeStyle.compactToolbarStyleControlWidth : ChromeStyle.toolbarStyleControlWidth
-    }
-
-    private var toolbarHorizontalPadding: CGFloat {
-        isCompactToolbar ? ChromeStyle.compactToolbarHorizontalPadding : ChromeStyle.toolbarHorizontalPadding
-    }
-
-    private func adjustSize(by delta: Double) {
-        let size = setSelectedSize(selectedSize + delta)
-        editor.applyFont(name: selectedFont, size: size)
-    }
-
-    private func clearFormatting() {
-        selectedFont = "System"
-        setSelectedSize(11)
-        textColor = .black
-        editor.clearFormatting()
-    }
-
-    private func applyFontName(_ fontName: String) {
-        let trimmedFontName = fontName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedFontName.isEmpty else { return }
-
-        selectedFont = trimmedFontName
-        editor.applyFont(name: selectedFont, size: selectedSize)
-    }
-
-    private func applyFontSizeText(_ text: String) {
-        let normalizedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let size = Double(normalizedText), size.isFinite else {
-            selectedSizeText = formattedSize(selectedSize)
-            return
-        }
-
-        let clampedSize = setSelectedSize(size)
-        editor.applyFont(name: selectedFont, size: clampedSize)
-    }
-
-    @discardableResult
-    private func setSelectedSize(_ size: Double) -> Double {
-        let clampedSize = max(6, min(96, size))
-        selectedSize = clampedSize
-        selectedSizeText = formattedSize(selectedSize)
-        return clampedSize
-    }
-
-    private func formattedSize(_ size: Double) -> String {
-        size.rounded() == size ? "\(Int(size))" : String(format: "%.1f", size)
-    }
-
-}
-
-private enum InstalledFontProvider {
-    static let fontFamilies: [String] = {
-        let families = NSFontManager.shared.availableFontFamilies
-            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-
-        return ["System"] + families
-    }()
 }

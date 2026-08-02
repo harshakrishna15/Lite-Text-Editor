@@ -25,6 +25,8 @@ struct EditableComboBox: NSViewRepresentable {
         comboBox.drawsBackground = true
         comboBox.backgroundColor = .controlBackgroundColor
         comboBox.textColor = .controlTextColor
+        comboBox.setContentHuggingPriority(.required, for: .vertical)
+        comboBox.setContentCompressionResistancePriority(.required, for: .vertical)
         comboBox.cell?.alignment = .left
         comboBox.cell?.lineBreakMode = .byTruncatingTail
         comboBox.cell?.usesSingleLineMode = true
@@ -45,6 +47,8 @@ struct EditableComboBox: NSViewRepresentable {
         comboBox.drawsBackground = true
         comboBox.backgroundColor = .controlBackgroundColor
         comboBox.textColor = .controlTextColor
+        comboBox.setContentHuggingPriority(.required, for: .vertical)
+        comboBox.setContentCompressionResistancePriority(.required, for: .vertical)
 
         if comboBox.itemValues != items {
             updateItems(for: comboBox)
@@ -63,6 +67,17 @@ struct EditableComboBox: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
+    }
+
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        nsView comboBox: EditableComboBoxView,
+        context: Context
+    ) -> CGSize? {
+        CGSize(
+            width: proposal.width ?? comboBox.intrinsicContentSize.width,
+            height: ChromeStyle.toolbarDropdownControlHeight
+        )
     }
 
     private func updateItems(for comboBox: EditableComboBoxView) {
@@ -212,6 +227,24 @@ final class EditableComboBoxView: NSComboBox {
     var previousEditorText = ""
     var previousSelectionRange = NSRange(location: 0, length: 0)
     private let fontPreviewResolver = FontPreviewResolver()
+
+    override var intrinsicContentSize: NSSize {
+        let size = super.intrinsicContentSize
+        return NSSize(width: size.width, height: ChromeStyle.toolbarDropdownControlHeight)
+    }
+
+    override var fittingSize: NSSize {
+        let size = super.fittingSize
+        return NSSize(width: size.width, height: ChromeStyle.toolbarDropdownControlHeight)
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(NSSize(width: newSize.width, height: ChromeStyle.toolbarDropdownControlHeight))
+    }
+
+    override func setBoundsSize(_ newSize: NSSize) {
+        super.setBoundsSize(NSSize(width: newSize.width, height: ChromeStyle.toolbarDropdownControlHeight))
+    }
 
     func clearEditorSelection() {
         guard let editor = currentEditor() else { return }

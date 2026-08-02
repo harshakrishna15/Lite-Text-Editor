@@ -4,6 +4,7 @@ struct TitlebarDocumentTitleView: View {
     @ObservedObject var editor: EditorController
     @State private var titleState: TitlebarDocumentTitleState
     @State private var isPopoverPresented = false
+    @State private var didCommitCurrentPopover = false
     @State private var isHovered = false
 
     init(editor: EditorController) {
@@ -14,6 +15,7 @@ struct TitlebarDocumentTitleView: View {
     var body: some View {
         Button {
             titleState.prepareForEditing(documentTitle: editor.documentTitle)
+            didCommitCurrentPopover = false
             isPopoverPresented = true
         } label: {
             titleLabel
@@ -30,6 +32,11 @@ struct TitlebarDocumentTitleView: View {
             }
             .onChange(of: isPopoverPresented) { isPresented in
                 if !isPresented {
+                    guard !didCommitCurrentPopover else {
+                        didCommitCurrentPopover = false
+                        return
+                    }
+
                     commitTitle()
                 }
             }
@@ -43,6 +50,7 @@ struct TitlebarDocumentTitleView: View {
                         editor.chooseDocumentSaveLocation()
                     },
                     onCommit: {
+                        didCommitCurrentPopover = true
                         commitTitle()
                         isPopoverPresented = false
                     }

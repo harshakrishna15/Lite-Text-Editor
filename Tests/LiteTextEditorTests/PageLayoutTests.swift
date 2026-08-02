@@ -17,17 +17,28 @@ final class PageLayoutTests: XCTestCase {
         XCTAssertEqual(AutocompleteTextView.contentY(fromPotentialVisualY: expectedVisualY), secondPageContentY)
     }
 
-    func testTallLineNearPageBottomMovesToNextPage() {
+    func testLineNearPageBottomStaysOnCurrentPageUntilOriginReachesPageEnd() {
         let nearBottom = AutocompleteTextView.pageContentHeight - 4
 
         XCTAssertEqual(
             AutocompleteTextView.visualLineOriginY(forContentY: nearBottom, usedHeight: 20),
-            AutocompleteTextView.pageHeight + AutocompleteTextView.pageGap
+            nearBottom
         )
         XCTAssertEqual(
-            AutocompleteTextView.visualLineOriginY(forContentY: nearBottom - 20, usedHeight: 10),
-            nearBottom - 20
+            AutocompleteTextView.visualLineOriginY(
+                forContentY: AutocompleteTextView.pageContentHeight,
+                usedHeight: 20
+            ),
+            AutocompleteTextView.pageHeight + AutocompleteTextView.pageGap
         )
+    }
+
+    func testPageCountUsesLineOriginBoundaryForNewPages() {
+        let oneLineBeforeEnd = AutocompleteTextView.pageContentHeight - 4
+        let nextPageOrigin = AutocompleteTextView.pageHeight + AutocompleteTextView.pageGap
+
+        XCTAssertEqual(AutocompleteTextView.pageCount(forVisualLineOriginY: oneLineBeforeEnd), 1)
+        XCTAssertEqual(AutocompleteTextView.pageCount(forVisualLineOriginY: nextPageOrigin), 2)
     }
 
     func testPageStackHeightIncludesGapsBetweenPagesOnly() {
@@ -373,6 +384,30 @@ final class PageLayoutTests: XCTestCase {
         XCTAssertEqual(metricsChangeCount, 1)
     }
 
+    func testTrailingNewlineCreatesPageOnlyWhenBlankLineOriginReachesPageEnd() {
+        let fixture = makeZoomFixture()
+        let lineHeight: CGFloat = 13
+        let newlineCountBeforeBoundary = Int(floor((AutocompleteTextView.pageContentHeight - 0.01) / lineHeight))
+
+        setFixedLineHeightText(
+            String(repeating: "\n", count: newlineCountBeforeBoundary),
+            lineHeight: lineHeight,
+            in: fixture.textView
+        )
+        fixture.textView.resizeForCurrentPages()
+
+        XCTAssertEqual(fixture.textView.currentPageCount, 1)
+
+        setFixedLineHeightText(
+            String(repeating: "\n", count: newlineCountBeforeBoundary + 1),
+            lineHeight: lineHeight,
+            in: fixture.textView
+        )
+        fixture.textView.resizeForCurrentPages()
+
+        XCTAssertEqual(fixture.textView.currentPageCount, 2)
+    }
+
     private struct ZoomFixture {
         let window: NSWindow
         let scrollView: NSScrollView
@@ -429,5 +464,27 @@ final class PageLayoutTests: XCTestCase {
         window.makeFirstResponder(textView)
 
         return ZoomFixture(window: window, scrollView: scrollView, textView: textView)
+    }
+
+    private func setFixedLineHeightText(
+        _ text: String,
+        lineHeight: CGFloat,
+        in textView: AutocompleteTextView
+    ) {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.minimumLineHeight = lineHeight
+        paragraphStyle.maximumLineHeight = lineHeight
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 11),
+            .foregroundColor: NSColor.black,
+            .paragraphStyle: paragraphStyle
+        ]
+
+        textView.textStorage?.setAttributedString(
+            NSAttributedString(string: text, attributes: attributes)
+        )
+        textView.typingAttributes = attributes
+        textView.contentGeneration &+= 1
+        textView.invalidatePageMeasurementCache()
     }
 }

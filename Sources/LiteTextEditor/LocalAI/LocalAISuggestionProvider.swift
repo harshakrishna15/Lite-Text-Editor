@@ -33,7 +33,7 @@ final class LocalAISuggestionProvider: LocalModelSuggestionProviding {
     }
 
     init(
-        generator: LocalModelTextGenerating = LlamaServerTextGenerator(),
+        generator: LocalModelTextGenerating = BundledLocalTextGenerator(),
         postProcessor: LocalModelSuggestionPostProcessor = LocalModelSuggestionPostProcessor()
     ) {
         self.generator = generator

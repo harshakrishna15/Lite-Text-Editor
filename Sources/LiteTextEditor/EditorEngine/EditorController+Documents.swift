@@ -2,6 +2,7 @@ import AppKit
 import UniformTypeIdentifiers
 
 private let editableDocumentContentTypes: [UTType] = [
+    .liteTextEditorDocument,
     .rtf,
     .plainText,
     .docxTextDocument,
@@ -10,6 +11,9 @@ private let editableDocumentContentTypes: [UTType] = [
 
 extension EditorController {
     func markDocumentEdited() {
+        flushSelectedDocumentTab()
+        documentGeneration &+= 1
+
         if !isDocumentEdited {
             isDocumentEdited = true
             textView?.window?.isDocumentEdited = true
@@ -118,6 +122,14 @@ extension EditorController {
     }
 
     func confirmQuit() -> NSApplication.TerminateReply {
+        guard !isDocumentWriteInProgress else {
+            showMessage(
+                "Lite Text Editor is still saving.",
+                informativeText: "Wait for the current save to finish before quitting."
+            )
+            return .terminateCancel
+        }
+
         guard isDocumentEdited else {
             return .terminateNow
         }
@@ -168,6 +180,14 @@ extension EditorController {
     }
 
     func commitDocumentTitle(_ title: String) {
+        guard !isDocumentWriteInProgress else {
+            showMessage(
+                "Lite Text Editor is still saving.",
+                informativeText: "Wait for the current save to finish before renaming the document."
+            )
+            return
+        }
+
         let nextTitle = sanitizedDocumentTitle(title)
         guard nextTitle != documentTitle else { return }
 
@@ -239,6 +259,14 @@ extension EditorController {
     }
 
     func updateDocumentDirectory(to directoryURL: URL) {
+        guard !isDocumentWriteInProgress else {
+            showMessage(
+                "Lite Text Editor is still saving.",
+                informativeText: "Wait for the current save to finish before moving the document."
+            )
+            return
+        }
+
         let standardizedDirectoryURL = directoryURL.standardizedFileURL
 
         guard let currentDocumentURL else {
@@ -283,6 +311,11 @@ extension EditorController {
             return saveDocumentAs()
         }
 
+        if requiresNativeDocumentFormat,
+           url.pathExtension.lowercased() != NativeEditorDocumentCodec.fileExtension {
+            return saveDocumentAs()
+        }
+
         do {
             try writeDocument(to: url)
             LastDocumentStore.saveLastDocumentURL(url)
@@ -304,9 +337,15 @@ extension EditorController {
             return
         }
 
+        if requiresNativeDocumentFormat,
+           url.pathExtension.lowercased() != NativeEditorDocumentCodec.fileExtension {
+            saveDocumentAsInBackground()
+            return
+        }
+
         guard let snapshot = documentSnapshot() else { return }
         beginBackgroundDocumentWrite(
-            snapshot.attributedString,
+            snapshot.document,
             to: url,
             generation: snapshot.generation,
             updatesDocumentURL: false
@@ -318,12 +357,12 @@ extension EditorController {
         let panel = NSSavePanel()
         panel.allowedContentTypes = editableDocumentContentTypes
         panel.canCreateDirectories = true
-        panel.nameFieldStringValue = suggestedDocumentName(fileExtension: "rtf")
+        panel.nameFieldStringValue = suggestedDocumentName(fileExtension: NativeEditorDocumentCodec.fileExtension)
         panel.directoryURL = documentDirectoryURLForPanels
 
         guard panel.runModal() == .OK, let selectedURL = panel.url else { return false }
 
-        let url = documentFileStore.normalizedTextDocumentURL(selectedURL)
+        let url = documentFileStore.normalizedEditorDocumentURL(selectedURL)
 
         do {
             try writeDocument(to: url)
@@ -347,15 +386,15 @@ extension EditorController {
         let panel = NSSavePanel()
         panel.allowedContentTypes = editableDocumentContentTypes
         panel.canCreateDirectories = true
-        panel.nameFieldStringValue = suggestedDocumentName(fileExtension: "rtf")
+        panel.nameFieldStringValue = suggestedDocumentName(fileExtension: NativeEditorDocumentCodec.fileExtension)
         panel.directoryURL = documentDirectoryURLForPanels
 
         guard panel.runModal() == .OK, let selectedURL = panel.url else { return }
 
-        let url = documentFileStore.normalizedTextDocumentURL(selectedURL)
+        let url = documentFileStore.normalizedEditorDocumentURL(selectedURL)
         guard let snapshot = documentSnapshot() else { return }
         beginBackgroundDocumentWrite(
-            snapshot.attributedString,
+            snapshot.document,
             to: url,
             generation: snapshot.generation,
             updatesDocumentURL: true
@@ -377,7 +416,8 @@ extension EditorController {
         exportOperationID = operationID
         setDocumentStatus("Exporting PDF...")
 
-        documentFileService.writePDF(snapshot.attributedString, to: url) { [weak self] result in
+        guard let selectedTab = snapshot.document.selectedTab else { return }
+        documentFileService.writePDF(selectedTab.attributedString, to: url) { [weak self] result in
             guard let self, self.exportOperationID == operationID else { return }
 
             switch result {
@@ -397,6 +437,14 @@ extension EditorController {
     }
 
     private func confirmUnsavedChanges(messageText: String) -> Bool {
+        guard !isDocumentWriteInProgress else {
+            showMessage(
+                "Lite Text Editor is still saving.",
+                informativeText: "Wait for the current save to finish before changing documents."
+            )
+            return false
+        }
+
         guard isDocumentEdited else { return true }
 
         let alert = NSAlert()
@@ -420,22 +468,15 @@ extension EditorController {
     private func resetToBlankDocument() {
         guard let textView else { return }
 
-        textView.textStorage?.setAttributedString(NSAttributedString(string: "", attributes: documentFileStore.defaultTypingAttributes))
-        textView.contentGeneration &+= 1
-        textView.invalidatePageMeasurementCache()
-        textView.typingAttributes = documentFileStore.defaultTypingAttributes
+        documentReadOperationID = UUID()
+        textView.isEditable = true
+        installDocument(EditorDocument.blank())
         currentDocumentURL = nil
         pendingDocumentDirectoryURL = nil
         documentTitle = "Untitled"
         LastDocumentStore.clearLastDocumentURL()
         textView.window?.title = ChromeStyle.windowTitle
         textView.window?.representedURL = nil
-        textView.resizeForCurrentPages()
-        textView.moveInsertionPointToDocumentStartAndScrollToPageTop()
-        textView.refreshSuggestion()
-        textView.undoManager?.removeAllActions()
-        refreshDocumentStatistics()
-        refreshFormattingState()
         clearDocumentEdited()
     }
 
@@ -448,15 +489,24 @@ extension EditorController {
         onFailure: (() -> Void)? = nil
     ) {
         let operationID = UUID()
-        documentOperationID = operationID
+        let startingGeneration = documentGeneration
+        documentReadOperationID = operationID
+        textView.isEditable = false
         setDocumentStatus("Opening...")
 
-        documentFileService.readDocument(from: url) { [weak self, weak textView] result in
-            guard let self, self.documentOperationID == operationID, let textView else { return }
+        documentFileService.readEditorDocument(from: url) { [weak self, weak textView] result in
+            guard let self, self.documentReadOperationID == operationID, let textView else { return }
+
+            textView.isEditable = true
 
             switch result {
-            case .success(let attributedString):
-                self.applyLoadedDocument(attributedString, from: url, into: textView)
+            case .success(let document):
+                guard self.documentGeneration == startingGeneration else {
+                    self.setDocumentStatus("Open canceled")
+                    return
+                }
+
+                self.applyLoadedDocument(document, from: url, into: textView)
                 self.currentDocumentURL = url
                 self.pendingDocumentDirectoryURL = nil
                 LastDocumentStore.saveLastDocumentURL(url)
@@ -476,36 +526,30 @@ extension EditorController {
     }
 
     private func applyLoadedDocument(
-        _ attributedString: NSAttributedString,
+        _ document: EditorDocument,
         from url: URL,
         into textView: AutocompleteTextView
     ) {
-        textView.textStorage?.setAttributedString(attributedString)
-        textView.contentGeneration &+= 1
-        textView.invalidatePageMeasurementCache()
-        textView.typingAttributes = documentFileStore.defaultTypingAttributes
-        textView.resizeForCurrentPages()
-        textView.moveInsertionPointToDocumentStartAndScrollToPageTop()
-        textView.refreshSuggestion()
-        textView.undoManager?.removeAllActions()
+        installDocument(document)
         updateWindowTitle(for: url)
         documentTitle = title(from: url)
-        refreshDocumentStatistics()
-        refreshFormattingState()
     }
 
     private func beginBackgroundDocumentWrite(
-        _ attributedString: NSAttributedString,
+        _ document: EditorDocument,
         to url: URL,
         generation: Int,
         updatesDocumentURL: Bool
     ) {
         let operationID = UUID()
-        documentOperationID = operationID
+        documentWriteOperationID = operationID
+        isDocumentWriteInProgress = true
         setDocumentStatus("Saving...")
 
-        documentFileService.writeDocument(attributedString, to: url) { [weak self] result in
-            guard let self, self.documentOperationID == operationID else { return }
+        documentFileService.writeEditorDocument(document, to: url) { [weak self] result in
+            guard let self, self.documentWriteOperationID == operationID else { return }
+
+            self.isDocumentWriteInProgress = false
 
             switch result {
             case .success:
@@ -519,7 +563,7 @@ extension EditorController {
                 self.noteRecentDocument(url)
                 self.updateWindowTitle(for: url)
 
-                if self.textView?.contentGeneration == generation {
+                if self.documentGeneration == generation {
                     self.clearDocumentEdited()
                     self.setDocumentStatus("Saved")
                 } else {
@@ -532,23 +576,20 @@ extension EditorController {
         }
     }
 
-    private func documentSnapshot() -> (attributedString: NSAttributedString, generation: Int)? {
-        guard let textView,
-              let attributedString = textView.textStorage?.copy() as? NSAttributedString else {
-            return nil
-        }
-
-        return (attributedString, textView.contentGeneration)
+    private func documentSnapshot() -> (document: EditorDocument, generation: Int)? {
+        editorDocumentSnapshot()
     }
 
     private func writeDocument(to url: URL) throws {
-        guard let attributedString = documentSnapshot()?.attributedString else { return }
-        try documentFileStore.writeDocument(attributedString, to: url)
+        guard let document = documentSnapshot()?.document else {
+            throw DocumentFileStoreError.invalidDocumentState
+        }
+        try documentFileStore.writeEditorDocument(document, to: url)
     }
 
     private func writePDF(to url: URL) throws {
-        guard let attributedString = documentSnapshot()?.attributedString else { return }
-        try documentFileStore.writePDF(attributedString, to: url)
+        guard let selectedTab = documentSnapshot()?.document.selectedTab else { return }
+        try documentFileStore.writePDF(selectedTab.attributedString, to: url)
     }
 
     private func updateWindowTitle(for url: URL) {
@@ -615,6 +656,11 @@ extension EditorController {
 }
 
 private extension UTType {
+    static let liteTextEditorDocument = UTType(
+        filenameExtension: NativeEditorDocumentCodec.fileExtension,
+        conformingTo: .data
+    ) ?? UTType(exportedAs: "com.openai.lite-text-editor.document", conformingTo: .data)
+
     static let docxTextDocument = UTType(filenameExtension: "docx")
         ?? UTType(importedAs: "org.openxmlformats.wordprocessingml.document")
 

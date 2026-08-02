@@ -80,7 +80,7 @@ struct RichTextEditor: NSViewRepresentable {
         textView.undoManager?.levelsOfUndo = 200
         textView.isRichText = true
         textView.importsGraphics = false
-        textView.usesFontPanel = true
+        textView.usesFontPanel = false
         textView.usesFindPanel = true
         textView.usesRuler = false
         textView.isRulerVisible = false
@@ -113,16 +113,14 @@ struct RichTextEditor: NSViewRepresentable {
         textView.onFormattingSampleLocationChanged = { [weak controller] in
             controller?.scheduleFormattingStateRefresh()
         }
-        textView.typingAttributes = [
-            .font: NSFont.systemFont(ofSize: 11),
-            .foregroundColor: NSColor.black
-        ]
+        textView.typingAttributes = EditorTypography.defaultTypingAttributes
 
         scrollView.documentView = textView
         scrollView.didLayout = { [weak controller] in
             controller?.refreshZoomForLayout()
         }
         controller.textView = textView
+        controller.activateSelectedDocumentTabUndoManager()
         controller.scrollView = scrollView
         controller.restoreLastSessionIfNeeded()
         controller.refreshDocumentStatistics()
@@ -180,6 +178,7 @@ struct RichTextEditor: NSViewRepresentable {
 
         if controller.textView !== textView {
             controller.textView = textView
+            controller.activateSelectedDocumentTabUndoManager()
         }
 
         if controller.scrollView !== nsView {

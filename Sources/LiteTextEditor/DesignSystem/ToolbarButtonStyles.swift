@@ -272,6 +272,13 @@ struct ToolbarPopoverActionRow: View {
 }
 
 extension View {
+    func toolbarDropdownControlFrame(width: CGFloat) -> some View {
+        self
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(width: width, height: ChromeStyle.toolbarDropdownControlHeight)
+            .frame(height: ChromeStyle.toolbarControlHeight, alignment: .center)
+    }
+
     @ViewBuilder
     func accessibilitySelectedState(_ isSelected: Bool?) -> some View {
         if let isSelected {

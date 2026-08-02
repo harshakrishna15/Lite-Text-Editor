@@ -23,7 +23,7 @@ final class FormattingStateTests: XCTestCase {
         fixture.controller.refreshFormattingState()
 
         XCTAssertEqual(fixture.controller.formattingState.fontSize, 18, accuracy: 0.001)
-        XCTAssertEqual(fixture.controller.formattingState.fontFamilyName, expectedFamilyName(for: font))
+        XCTAssertEqual(fixture.controller.formattingState.fontFamilyName, EditorTypography.displayName)
         XCTAssertTrue(fixture.controller.formattingState.isUnderline)
         XCTAssertTrue(fixture.controller.formattingState.isStrikethrough)
         XCTAssertTrue(fixture.controller.formattingState.textColor.isEqual(NSColor.systemRed))
@@ -57,7 +57,7 @@ final class FormattingStateTests: XCTestCase {
         fixture.controller.refreshFormattingState()
 
         XCTAssertEqual(fixture.controller.formattingState.fontSize, 22, accuracy: 0.001)
-        XCTAssertEqual(fixture.controller.formattingState.fontFamilyName, expectedFamilyName(for: sampledFont))
+        XCTAssertEqual(fixture.controller.formattingState.fontFamilyName, EditorTypography.displayName)
         XCTAssertTrue(fixture.controller.formattingState.textColor.isEqual(NSColor.systemBlue))
     }
 
@@ -122,7 +122,4 @@ final class FormattingStateTests: XCTestCase {
         return Fixture(controller: controller, textView: textView)
     }
 
-    private func expectedFamilyName(for font: NSFont) -> String {
-        SystemFontName.displayName(for: font)
-    }
 }

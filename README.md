@@ -6,25 +6,17 @@ Lite Text Editor is a native macOS rich-text writing app prototype for Apple Sil
 
 - Native `NSTextView` rich-text editor
 - Native macOS menu-bar sections for Home, Insert, Layout, and Review
-- One-row icon/dropdown style bar with tooltip labels
+- Simplified one-row toolbar with document tabs, outline access, and bold/italic/underline controls
 - App settings sheet for writing and autocomplete configuration
 - File menu actions for open, save, save as, PDF export, and print
 - Paper-style writing surface with a centered 8.5 x 11 inch Letter page, 1-inch margins, and desk background
 - Content-driven full-page rendering: one full page until text spills, then two full pages, and so on
 - Optimized page rendering that redraws only visible page areas while scrolling
 - Symmetric desk space above and below the document page
-- Empty new document default with black 11 pt system text
+- Empty new document default with black 12 pt Courier text
+- Multiple named tabs inside one document, including quick Outline and Notes tabs
 - macOS spellcheck, optional autocorrect, grammar checking, smart quotes, and smart dashes
-- Formatting toolbar with:
-  - Text presets
-  - Editable installed macOS font-family dropdown
-  - Editable font-size dropdown
-  - Bold, italic, underline
-  - Text color presets and saved custom color palette
-  - Highlight and clear formatting
-  - Left, center, right, and justified alignment
-  - Bulleted and numbered lists
-  - Simple indent and outdent
+- Courier-only document typography with regular, bold, and italic variants
 - Bottom zoom bar with a fixed-size dropdown, step buttons, and a click/drag zoom slider
 - Bottom-left document counter dropdown for words, characters, sentences, paragraphs, lines, pages, and reading time
 - Google Docs-style spelling review card with Enter-to-change and automatic next-issue navigation
@@ -35,8 +27,9 @@ Lite Text Editor is a native macOS rich-text writing app prototype for Apple Sil
 - `Tab` accepts one word at a time
 - `Option+Right` also accepts one word
 - `Esc` dismisses the current suggestion
-- Open and save `.rtf`, `.txt`, `.docx`, and `.odt` documents
-- Export the current document to `.pdf`
+- Save multi-tab documents as a single `.ltedoc` file
+- Open legacy `.rtf`, `.txt`, `.docx`, and `.odt` files as one-tab documents
+- Export the active tab to `.pdf`
 
 ## Architecture
 
@@ -56,7 +49,7 @@ swift run "Lite Text Editor"
 
 ## Keyboard Shortcuts
 
-- `Command+O`: open RTF, TXT, DOCX, or ODT
+- `Command+O`: open LTEDOC, RTF, TXT, DOCX, or ODT
 - `Command+S`: save
 - `Command+Shift+S`: save as
 - `Command+Shift+E`: export PDF
@@ -64,7 +57,6 @@ swift run "Lite Text Editor"
 - `Command+I`: italic
 - `Command+U`: underline
 - `Command+L`: align left
-- `Command+E`: align center
 - `Command+R`: align right
 - `Command+J`: justify
 - `Command+Shift+8`: bulleted list
