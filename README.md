@@ -6,7 +6,7 @@ Lite Text Editor is a native macOS rich-text writing app prototype for Apple Sil
 
 - Native `NSTextView` rich-text editor
 - Native macOS menu-bar sections for Home, Insert, Layout, and Review
-- Simplified one-row toolbar with document tabs, outline access, and bold/italic/underline controls
+- Compact macOS titlebar with document tabs, outline access, and bold/italic/underline controls
 - App settings sheet for writing and autocomplete configuration
 - File menu actions for open, save, save as, PDF export, and print
 - Paper-style writing surface with a centered 8.5 x 11 inch Letter page, 1-inch margins, and desk background
@@ -14,8 +14,10 @@ Lite Text Editor is a native macOS rich-text writing app prototype for Apple Sil
 - Optimized page rendering that redraws only visible page areas while scrolling
 - Symmetric desk space above and below the document page
 - Empty new document default with black 12 pt Courier text
-- Multiple named tabs inside one document, including quick Outline and Notes tabs
+- Multiple renameable tabs inside one document, automatically named Tab 1, Tab 2, and upward
 - macOS spellcheck, optional autocorrect, grammar checking, smart quotes, and smart dashes
+- Google Docs-style typed list shortcuts (`- ` or `* ` for bullets, `1. ` for numbering, and checkbox syntax)
+- Google Docs-style list editing with Enter to continue, Enter twice to exit, and Tab/Shift+Tab to nest
 - Courier-only document typography with regular, bold, and italic variants
 - Bottom zoom bar with a fixed-size dropdown, step buttons, and a click/drag zoom slider
 - Bottom-left document counter dropdown for words, characters, sentences, paragraphs, lines, pages, and reading time

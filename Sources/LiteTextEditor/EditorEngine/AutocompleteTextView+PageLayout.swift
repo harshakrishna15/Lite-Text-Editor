@@ -93,18 +93,6 @@ extension AutocompleteTextView {
         max(viewportWidth, paperWidth)
     }
 
-    static func pageTopPadding(for magnification: CGFloat) -> CGFloat {
-        documentPadding(forVisiblePadding: pageTopVisiblePadding, magnification: magnification)
-    }
-
-    static func pageBottomPadding(for magnification: CGFloat) -> CGFloat {
-        documentPadding(forVisiblePadding: pageBottomVisiblePadding, magnification: magnification)
-    }
-
-    private static func documentPadding(forVisiblePadding visiblePadding: CGFloat, magnification: CGFloat) -> CGFloat {
-        visiblePadding / max(magnification, 0.01)
-    }
-
     func resizeForCurrentPages() {
         pendingPageRefreshWorkItem?.cancel()
         pendingPageRefreshWorkItem = nil
@@ -113,14 +101,6 @@ extension AutocompleteTextView {
 
     func resizeForCachedPages() {
         applyFrameSizeIfNeeded(targetFrameSize(forPageCount: renderedPageCount))
-    }
-
-    func resizeForCachedPages(at magnification: CGFloat) {
-        documentLayoutScale = min(max(magnification, 0.01), 10)
-        applyFrameSizeIfNeeded(
-            targetFrameSize(forPageCount: renderedPageCount, magnification: magnification),
-            preservesVisibleOrigin: false
-        )
     }
 
     func prepareForUserScroll() {
@@ -170,13 +150,7 @@ extension AutocompleteTextView {
     func updatePagesAfterTextChange() {
         guard let pageCount = measuredPageCount() else { return }
         guard pageCount != renderedPageCount else { return }
-
-        renderedPageCount = pageCount
-
-        applyFrameSizeIfNeeded(
-            targetFrameSize(forPageCount: pageCount),
-            pageCountChanged: true
-        )
+        applyMeasuredPageCount(pageCount)
     }
 
     func schedulePageRefreshAfterTextChange() {
@@ -201,13 +175,7 @@ extension AutocompleteTextView {
         pendingPageRefreshWorkItem?.cancel()
         pendingPageRefreshWorkItem = nil
         guard let pageCount = measuredPageCount() else { return }
-        let oldRenderedPageCount = renderedPageCount
-        renderedPageCount = pageCount
-
-        applyFrameSizeIfNeeded(
-            targetFrameSize(forPageCount: pageCount),
-            pageCountChanged: oldRenderedPageCount != renderedPageCount
-        )
+        applyMeasuredPageCount(pageCount)
     }
 
     func restoreVisibleOrigin(_ origin: NSPoint) {
@@ -224,24 +192,13 @@ extension AutocompleteTextView {
             y: min(max(origin.y, bounds.minY), maxOrigin.y)
         )
 
-        let physicalOrigin = NSPoint(
-            x: clampedOrigin.x * documentLayoutScale,
-            y: clampedOrigin.y * documentLayoutScale
-        )
-        guard abs(clipView.bounds.origin.x - physicalOrigin.x) > 0.5
-            || abs(clipView.bounds.origin.y - physicalOrigin.y) > 0.5 else {
+        guard abs(clipView.bounds.origin.x - clampedOrigin.x) > 0.5
+            || abs(clipView.bounds.origin.y - clampedOrigin.y) > 0.5 else {
             return
         }
 
-        if let paperScrollView = scrollView as? PaperScrollView {
-            paperScrollView.performProgrammaticHorizontalScroll {
-                clipView.scroll(to: physicalOrigin)
-                scrollView.reflectScrolledClipView(clipView)
-            }
-        } else {
-            clipView.scroll(to: physicalOrigin)
-            scrollView.reflectScrolledClipView(clipView)
-        }
+        clipView.scroll(to: clampedOrigin)
+        scrollView.reflectScrolledClipView(clipView)
     }
 
     func centerPageHorizontallyPreservingVerticalPosition() {
@@ -357,22 +314,21 @@ extension AutocompleteTextView {
         }
     }
 
-    private func targetFrameSize(forPageCount pageCount: Int, magnification: CGFloat? = nil) -> NSSize {
-        let layoutScale = magnification ?? documentLayoutScale
-        let contentHeight = Self.pageStackHeight(forPageCount: pageCount)
-            + Self.pageTopPadding(for: layoutScale)
-            + Self.pageBottomPadding(for: layoutScale)
-        let scale = max(
-            min(layoutScale, Self.minimumStableCanvasMagnification),
-            0.01
+    private func targetFrameSize(forPageCount pageCount: Int) -> NSSize {
+        let paddedPageStackHeight = Self.pageStackHeight(forPageCount: pageCount)
+            + Self.pageTopVisiblePadding
+            + Self.pageBottomVisiblePadding
+        let viewportSize = enclosingScrollView?.contentSize ?? .zero
+        let minimumZoom = Self.minimumStableCanvasMagnification
+        let targetWidth = Self.documentWidth(
+            forViewportWidth: viewportSize.width / minimumZoom
         )
-        let viewportWidth = max(
-            (enclosingScrollView?.contentSize.width ?? 0) / scale,
-            (enclosingScrollView?.contentView.bounds.width ?? 0) / scale
+        let targetHeight = max(
+            paddedPageStackHeight,
+            viewportSize.height / minimumZoom
         )
-        let targetWidth = Self.documentWidth(forViewportWidth: viewportWidth)
 
-        return NSSize(width: targetWidth, height: contentHeight)
+        return NSSize(width: targetWidth, height: targetHeight)
     }
 
     func invalidatePageMeasurementCache() {
@@ -439,37 +395,81 @@ extension AutocompleteTextView {
     private func applyFrameSizeIfNeeded(
         _ targetSize: NSSize,
         pageCountChanged: Bool = false,
-        preservesVisibleOrigin: Bool = true
+        previousPageFrame: NSRect? = nil
     ) {
-        let targetFrameSize = NSSize(
-            width: targetSize.width * documentLayoutScale,
-            height: targetSize.height * documentLayoutScale
-        )
-
-        guard abs(bounds.height - targetSize.height) > 1
+        let frameSizeChanged = abs(bounds.height - targetSize.height) > 1
             || abs(bounds.width - targetSize.width) > 1
-            || abs(frame.height - targetFrameSize.height) > 1
-            || abs(frame.width - targetFrameSize.width) > 1 else {
-            if pageCountChanged {
-                needsDisplay = true
-            }
-            return
+            || abs(frame.height - targetSize.height) > 1
+            || abs(frame.width - targetSize.width) > 1
+        guard frameSizeChanged || pageCountChanged else { return }
+
+        let visibleRect = enclosingScrollView?.contentView.documentVisibleRect
+        let oldPageFrame = previousPageFrame ?? currentPageStackFrame
+        let pageRelativeAnchor: NSPoint?
+
+        if let visibleRect, oldPageFrame.intersects(visibleRect) {
+            let anchor = ZoomViewportCalculator.stableCenter(
+                for: visibleRect,
+                pageFrame: oldPageFrame
+            )
+            pageRelativeAnchor = NSPoint(
+                x: anchor.x - oldPageFrame.minX,
+                y: anchor.y - oldPageFrame.minY
+            )
+        } else {
+            pageRelativeAnchor = nil
         }
 
-        let visibleOrigin = preservesVisibleOrigin
-            ? enclosingScrollView?.contentView.documentVisibleRect.origin
-            : nil
-        super.setFrameSize(targetFrameSize)
-        setBoundsSize(targetSize)
+        if frameSizeChanged {
+            super.setFrameSize(targetSize)
+            setBoundsSize(targetSize)
+        }
         updatePaperLayout()
+        if pageCountChanged {
+            needsDisplay = true
+        }
 
-        if let visibleOrigin {
-            restoreVisibleOrigin(visibleOrigin)
+        if let visibleRect, let pageRelativeAnchor {
+            let newPageFrame = currentPageStackFrame
+            let anchor = NSPoint(
+                x: min(
+                    max(newPageFrame.minX + pageRelativeAnchor.x, newPageFrame.minX),
+                    newPageFrame.maxX
+                ),
+                y: min(
+                    max(newPageFrame.minY + pageRelativeAnchor.y, newPageFrame.minY),
+                    newPageFrame.maxY
+                )
+            )
+            restoreVisibleOrigin(
+                ZoomViewportCalculator.clampedVisibleOrigin(
+                    centeredAt: anchor,
+                    visibleSize: visibleRect.size,
+                    documentBounds: bounds
+                )
+            )
+        } else if let visibleRect {
+            restoreVisibleOrigin(visibleRect.origin)
         }
     }
 
+    private func applyMeasuredPageCount(_ pageCount: Int) {
+        let pageCountChanged = pageCount != renderedPageCount
+        let previousPageFrame = pageCountChanged ? currentPageStackFrame : nil
+        renderedPageCount = pageCount
+
+        applyFrameSizeIfNeeded(
+            targetFrameSize(forPageCount: pageCount),
+            pageCountChanged: pageCountChanged,
+            previousPageFrame: previousPageFrame
+        )
+    }
+
     private func pageOriginY(forPageCount pageCount: Int, boundsHeight: CGFloat) -> CGFloat {
-        Self.pageTopPadding(for: documentLayoutScale)
+        max(
+            Self.pageTopVisiblePadding,
+            (boundsHeight - Self.pageStackHeight(forPageCount: pageCount)) / 2
+        )
     }
 
     private func pageHorizontalOrigin(forBoundsWidth boundsWidth: CGFloat) -> CGFloat {
@@ -486,7 +486,7 @@ extension AutocompleteTextView {
         restoreVisibleOrigin(
             NSPoint(
                 x: min(max(proposedX, bounds.minX), maxX),
-                y: bounds.minY
+                y: max(bounds.minY, pageFrame.minY - Self.pageTopVisiblePadding)
             )
         )
     }

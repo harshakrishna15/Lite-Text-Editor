@@ -222,6 +222,42 @@ final class FormattingOptionsCommandTests: XCTestCase {
         }
     }
 
+    func testTypedListMarkersConvertLikeGoogleDocs() {
+        let cases = [
+            ("- ", "• "),
+            ("* ", "• "),
+            ("1. ", "1. "),
+            ("[] ", "☐ "),
+            ("[ ] ", "☐ "),
+            ("  * ", "  • ")
+        ]
+
+        for (typed, expected) in cases {
+            let fixture = makeFixture(typed)
+            fixture.textView.setSelectedRange(NSRange(location: typed.utf16.count, length: 0))
+
+            let converted = fixture.textView.convertTypedListMarkerIfNeeded()
+
+            XCTAssertEqual(fixture.textView.string, expected)
+            XCTAssertEqual(converted, typed != expected)
+        }
+    }
+
+    func testTabIndentOnlyAppliesInsideAList() {
+        let listFixture = makeFixture("• Item")
+        listFixture.textView.setSelectedRange(NSRange(location: 6, length: 0))
+
+        XCTAssertTrue(listFixture.textView.indentListAtInsertionPoint(decrease: false))
+        XCTAssertEqual(listFixture.textView.string, "\t• Item")
+        XCTAssertTrue(listFixture.textView.indentListAtInsertionPoint(decrease: true))
+        XCTAssertEqual(listFixture.textView.string, "• Item")
+
+        let paragraphFixture = makeFixture("Plain text")
+        paragraphFixture.textView.setSelectedRange(NSRange(location: 5, length: 0))
+        XCTAssertFalse(paragraphFixture.textView.indentListAtInsertionPoint(decrease: false))
+        XCTAssertEqual(paragraphFixture.textView.string, "Plain text")
+    }
+
     func testBulletedToolbarCommandUsesBulletMarkerOnEmptyDocument() {
         let fixture = makeFixture("")
         fixture.textView.setSelectedRange(NSRange(location: 0, length: 0))

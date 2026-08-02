@@ -13,7 +13,6 @@ struct RichTextEditor: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = PaperScrollView()
-        scrollView.contentView = PaperClipView()
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
@@ -21,7 +20,7 @@ struct RichTextEditor: NSViewRepresentable {
         scrollView.verticalScrollElasticity = .allowed
         scrollView.horizontalScrollElasticity = .none
         scrollView.contentInsets = NSEdgeInsets(
-            top: ChromeStyle.regularToolbarHeight,
+            top: 0,
             left: 0,
             bottom: 0,
             right: 0
@@ -29,7 +28,7 @@ struct RichTextEditor: NSViewRepresentable {
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = true
         scrollView.backgroundColor = .liteTextEditorDesk
-        scrollView.allowsMagnification = false
+        scrollView.allowsMagnification = true
         scrollView.hasHorizontalRuler = false
         scrollView.hasVerticalRuler = false
         scrollView.rulersVisible = false
@@ -116,7 +115,7 @@ struct RichTextEditor: NSViewRepresentable {
         textView.typingAttributes = EditorTypography.defaultTypingAttributes
 
         scrollView.documentView = textView
-        scrollView.didLayout = { [weak controller] in
+        scrollView.onViewportSizeChanged = { [weak controller] in
             controller?.refreshZoomForLayout()
         }
         controller.textView = textView

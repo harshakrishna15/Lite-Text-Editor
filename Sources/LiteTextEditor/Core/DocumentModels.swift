@@ -370,6 +370,7 @@ struct FormattingState: Equatable {
 
 enum DocumentZoomPreset: String, CaseIterable, Identifiable {
     case fitPage
+    case custom
     case percent50
     case percent75
     case actualSize
@@ -383,6 +384,8 @@ enum DocumentZoomPreset: String, CaseIterable, Identifiable {
         switch self {
         case .fitPage:
             return "Fit Page"
+        case .custom:
+            return "Custom"
         case .percent50:
             return "50%"
         case .percent75:
@@ -400,7 +403,7 @@ enum DocumentZoomPreset: String, CaseIterable, Identifiable {
 
     var magnification: CGFloat? {
         switch self {
-        case .fitPage:
+        case .fitPage, .custom:
             return nil
         case .percent50:
             return 0.5

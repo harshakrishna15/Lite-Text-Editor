@@ -21,42 +21,44 @@ struct TitlebarDocumentTitleView: View {
             titleLabel
         }
         .buttonStyle(.plain)
-            .fixedSize(horizontal: true, vertical: false)
-            .frame(minHeight: TitlebarDocumentTitleLayout.height, maxHeight: TitlebarDocumentTitleLayout.height, alignment: .leading)
-            .padding(.horizontal, 8)
-            .background(titleBackground)
-            .contentShape(RoundedRectangle(cornerRadius: TitlebarDocumentTitleLayout.cornerRadius, style: .continuous))
-            .onHover { isHovered = $0 }
-            .onChange(of: editor.documentTitle) { title in
-                titleState.syncDocumentTitle(title, isEditing: isPopoverPresented)
-            }
-            .onChange(of: isPopoverPresented) { isPresented in
-                if !isPresented {
-                    guard !didCommitCurrentPopover else {
-                        didCommitCurrentPopover = false
-                        return
-                    }
-
-                    commitTitle()
+        .frame(
+            width: TitlebarDocumentTitleLayout.maximumWidth,
+            height: TitlebarDocumentTitleLayout.height,
+            alignment: .leading
+        )
+        .background(titleBackground)
+        .contentShape(RoundedRectangle(cornerRadius: TitlebarDocumentTitleLayout.cornerRadius, style: .continuous))
+        .onHover { isHovered = $0 }
+        .onChange(of: editor.documentTitle) { title in
+            titleState.syncDocumentTitle(title, isEditing: isPopoverPresented)
+        }
+        .onChange(of: isPopoverPresented) { isPresented in
+            if !isPresented {
+                guard !didCommitCurrentPopover else {
+                    didCommitCurrentPopover = false
+                    return
                 }
+
+                commitTitle()
             }
-            .animation(nil, value: isHovered)
-            .animation(nil, value: isPopoverPresented)
-            .popover(isPresented: $isPopoverPresented, arrowEdge: .top) {
-                TitlebarDocumentTitlePopover(
-                    draftTitle: $titleState.draftTitle,
-                    locationText: editor.documentLocationDisplayText,
-                    onChooseLocation: {
-                        editor.chooseDocumentSaveLocation()
-                    },
-                    onCommit: {
-                        didCommitCurrentPopover = true
-                        commitTitle()
-                        isPopoverPresented = false
-                    }
-                )
-            }
-            .help("Document Title")
+        }
+        .animation(nil, value: isHovered)
+        .animation(nil, value: isPopoverPresented)
+        .popover(isPresented: $isPopoverPresented, arrowEdge: .top) {
+            TitlebarDocumentTitlePopover(
+                draftTitle: $titleState.draftTitle,
+                locationText: editor.documentLocationDisplayText,
+                onChooseLocation: {
+                    editor.chooseDocumentSaveLocation()
+                },
+                onCommit: {
+                    didCommitCurrentPopover = true
+                    commitTitle()
+                    isPopoverPresented = false
+                }
+            )
+        }
+        .help("Document Title")
     }
 
     private var titleLabel: some View {
@@ -64,12 +66,13 @@ struct TitlebarDocumentTitleView: View {
             Text(titleState.displayTitle)
                 .lineLimit(1)
                 .truncationMode(.middle)
-                .frame(maxWidth: 240, alignment: .leading)
+                .frame(maxWidth: 132, alignment: .leading)
 
             Image(systemName: "chevron.down")
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(ChromeStyle.secondaryTextColor)
         }
+        .padding(.horizontal, 7)
         .font(.system(size: 13, weight: .semibold))
         .foregroundStyle(ChromeStyle.controlTextColor)
     }

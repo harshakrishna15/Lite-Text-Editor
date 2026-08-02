@@ -12,14 +12,16 @@ extension EditorController {
 
     var requiresNativeDocumentFormat: Bool {
         guard documentTabs.count == 1, let onlyTab = documentTabs.first else { return true }
-        return onlyTab.title.caseInsensitiveCompare("Draft") != .orderedSame
+        guard EditorDocument.isLegacyCompatibleTabTitle(onlyTab.title) else { return true }
+        return nextAutomaticDocumentTabNumber != EditorDocument.defaultNextAutomaticTabNumber
     }
 
-    func addDocumentTab(named requestedTitle: String = "Untitled") {
+    func addDocumentTab(named requestedTitle: String? = nil) {
         flushSelectedDocumentTab()
 
         let id = UUID()
-        let title = uniqueDocumentTabTitle(basedOn: requestedTitle)
+        let title = requestedTitle.map { uniqueDocumentTabTitle(basedOn: $0) }
+            ?? nextAutomaticDocumentTabTitle()
         let descriptor = DocumentTabDescriptor(id: id, title: title)
         documentTabs.append(descriptor)
         documentTabContents[id] = blankTabContents()
@@ -110,13 +112,27 @@ extension EditorController {
         alert.accessoryView = field
 
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        renameDocumentTab(id, to: field.stringValue)
+        guard let normalized = sanitizedDocumentTabTitle(field.stringValue) else { return }
+
+        if normalized != descriptor.title,
+           automaticDocumentTabNumber(from: normalized) != nil {
+            let reservedNameAlert = NSAlert()
+            reservedNameAlert.alertStyle = .informational
+            reservedNameAlert.messageText = "Choose a Custom Tab Name"
+            reservedNameAlert.informativeText = "Names such as “Tab 4” are reserved so automatic tab numbering stays in order."
+            reservedNameAlert.addButton(withTitle: "OK")
+            reservedNameAlert.runModal()
+            return
+        }
+
+        renameDocumentTab(id, to: normalized)
     }
 
     func renameDocumentTab(_ id: UUID, to requestedTitle: String) {
         guard let index = documentTabs.firstIndex(where: { $0.id == id }) else { return }
-        let normalized = normalizedDocumentTabTitle(requestedTitle)
-        guard normalized.caseInsensitiveCompare(documentTabs[index].title) != .orderedSame else { return }
+        guard let normalized = sanitizedDocumentTabTitle(requestedTitle) else { return }
+        guard normalized != documentTabs[index].title else { return }
+        guard automaticDocumentTabNumber(from: normalized) == nil else { return }
 
         documentTabs[index].title = uniqueDocumentTabTitle(basedOn: normalized, excluding: id)
         markDocumentEdited()
@@ -131,6 +147,14 @@ extension EditorController {
         documentTabs = installedDocument.tabs.map {
             DocumentTabDescriptor(id: $0.id, title: normalizedDocumentTabTitle($0.title))
         }
+        let derivedNextNumber = automaticDocumentTabNumber(after: documentTabs)
+        let persistedNextNumber = installedDocument.nextAutomaticTabNumber.flatMap { number in
+            (1...EditorDocument.maximumAutomaticTabNumber).contains(number) ? number : nil
+        }
+        nextAutomaticDocumentTabNumber = max(
+            persistedNextNumber ?? derivedNextNumber,
+            derivedNextNumber
+        )
         documentTabContents = Dictionary(
             uniqueKeysWithValues: installedDocument.tabs.map { tab in
                 (
@@ -167,7 +191,11 @@ extension EditorController {
         guard tabs.count == documentTabs.count else { return nil }
 
         return (
-            EditorDocument(tabs: tabs, selectedTabID: selectedDocumentTabID),
+            EditorDocument(
+                tabs: tabs,
+                selectedTabID: selectedDocumentTabID,
+                nextAutomaticTabNumber: nextAutomaticDocumentTabNumber
+            ),
             documentGeneration
         )
     }
@@ -280,11 +308,53 @@ extension EditorController {
     }
 
     private func normalizedDocumentTabTitle(_ title: String) -> String {
+        sanitizedDocumentTabTitle(title) ?? "Untitled"
+    }
+
+    private func sanitizedDocumentTabTitle(_ title: String) -> String? {
         let singleLine = title
             .components(separatedBy: .newlines)
             .joined(separator: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        return singleLine.isEmpty ? "Untitled" : String(singleLine.prefix(40))
+        guard !singleLine.isEmpty else { return nil }
+        return String(singleLine.prefix(40))
+    }
+
+    private func nextAutomaticDocumentTabTitle() -> String {
+        let number = min(
+            max(1, nextAutomaticDocumentTabNumber),
+            EditorDocument.maximumAutomaticTabNumber
+        )
+        let title = uniqueDocumentTabTitle(basedOn: "Tab \(number)")
+        if number < EditorDocument.maximumAutomaticTabNumber {
+            nextAutomaticDocumentTabNumber = number + 1
+        }
+        return title
+    }
+
+    private func automaticDocumentTabNumber(after tabs: [DocumentTabDescriptor]) -> Int {
+        let highestExistingNumber = tabs
+            .compactMap { automaticDocumentTabNumber(from: $0.title) }
+            .max() ?? 0
+        let nextHighestNumber = min(
+            highestExistingNumber + 1,
+            EditorDocument.maximumAutomaticTabNumber
+        )
+        let nextPositionNumber = min(
+            tabs.count,
+            EditorDocument.maximumAutomaticTabNumber - 1
+        ) + 1
+        return max(nextHighestNumber, nextPositionNumber)
+    }
+
+    private func automaticDocumentTabNumber(from title: String) -> Int? {
+        let components = title.split(separator: " ", omittingEmptySubsequences: false)
+        guard components.count == 2,
+              String(components[0]).caseInsensitiveCompare("Tab") == .orderedSame,
+              let number = Int(components[1]),
+              number > 0,
+              number <= EditorDocument.maximumAutomaticTabNumber else { return nil }
+        return number
     }
 
     private func uniqueDocumentTabTitle(basedOn title: String, excluding excludedID: UUID? = nil) -> String {

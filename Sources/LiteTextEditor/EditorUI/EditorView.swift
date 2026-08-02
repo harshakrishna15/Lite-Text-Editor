@@ -6,7 +6,6 @@ struct EditorView: View {
     @State private var suggestionWords: Double
     @State private var suggestionWordsText: String
     @State private var isSettingsPresented = false
-    @State private var isOutlineVisible = false
     @State private var isLiveResizing = false
     @State private var editorWindowID: ObjectIdentifier?
     private let suggestionWordOptions = ["2", "3", "4", "5"]
@@ -42,14 +41,14 @@ struct EditorView: View {
                         onIgnore: editor.ignoreCurrentSpellingIssue,
                         onClose: editor.closeSpellingReview
                     )
-                    .padding(.top, editorOverlayTopInset + 14)
+                    .padding(.top, 14)
                     .padding(.trailing, 18)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                     .zIndex(2)
                 }
 
                 GeometryReader { proxy in
-                    if isOutlineVisible {
+                    if editor.isOutlineVisible {
                         let panelHeight = outlinePanelHeight(for: proxy.size.height)
 
                         if panelHeight > 0 {
@@ -61,25 +60,17 @@ struct EditorView: View {
                                 height: panelHeight,
                                 onSelect: editor.selectOutlineItem
                             ) {
-                                withAnimation(ChromeStyle.outlinePanelAnimation) {
-                                    isOutlineVisible = false
-                                }
+                                closeOutline()
                             }
-                                .padding(.leading, ChromeStyle.outlinePanelLeadingOffset)
-                                .padding(.top, editorOverlayTopInset + ChromeStyle.outlinePanelTopInset)
-                                .transition(.move(edge: .leading).combined(with: .opacity))
-                                .zIndex(2)
+                            .padding(.leading, ChromeStyle.outlinePanelLeadingOffset)
+                            .padding(.top, ChromeStyle.outlinePanelTopInset)
+                            .transition(.move(edge: .leading).combined(with: .opacity))
+                            .zIndex(2)
                         }
                     }
                 }
-
-                EditorFormattingToolbarView(
-                    editor: editor,
-                    isOutlineVisible: $isOutlineVisible
-                )
-                .zIndex(3)
             }
-            .animation(ChromeStyle.outlinePanelAnimation, value: isOutlineVisible)
+            .animation(ChromeStyle.outlinePanelAnimation, value: editor.isOutlineVisible)
 
             Divider()
 
@@ -102,7 +93,7 @@ struct EditorView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .liteTextEditorToggleOutline)) { _ in
             withAnimation(ChromeStyle.outlinePanelAnimation) {
-                isOutlineVisible.toggle()
+                editor.isOutlineVisible.toggle()
             }
         }
         .sheet(isPresented: $isSettingsPresented) {
@@ -152,11 +143,13 @@ struct EditorView: View {
     }
 
     private func outlinePanelHeight(for editorHeight: CGFloat) -> CGFloat {
-        max(0, editorHeight - editorOverlayTopInset - ChromeStyle.outlinePanelTopInset - ChromeStyle.outlinePanelBottomInset)
+        max(0, editorHeight - ChromeStyle.outlinePanelTopInset - ChromeStyle.outlinePanelBottomInset)
     }
 
-    private var editorOverlayTopInset: CGFloat {
-        ChromeStyle.regularToolbarHeight
+    private func closeOutline() {
+        withAnimation(ChromeStyle.outlinePanelAnimation) {
+            editor.isOutlineVisible = false
+        }
     }
 
     private func isEditorWindowNotification(_ notification: Notification) -> Bool {

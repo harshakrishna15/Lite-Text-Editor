@@ -14,7 +14,7 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
     private static let minimumWindowSize = NSSize(width: 960, height: 600)
 
     private var window: NSWindow?
-    private var titlebarTitleView: NSHostingView<TitlebarDocumentTitleView>?
+    private var titlebarAccessoryController: NSTitlebarAccessoryViewController?
     private var appDelegateRetainer: LiteTextEditorApplication?
     private let recentDocumentStore = RecentDocumentStore()
     private weak var openRecentMenu: NSMenu?
@@ -77,7 +77,7 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         window.center()
         window.contentView = hostingView
         window.delegate = self
-        installLeadingTitlebarTitle(for: window, editor: editor)
+        installTitlebarChrome(for: window, editor: editor)
         window.makeKeyAndOrderFront(nil)
 
         self.window = window
@@ -114,32 +114,23 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         )
     }
 
-    private func installLeadingTitlebarTitle(for window: NSWindow, editor: EditorController) {
-        guard let titlebarView = window.standardWindowButton(.closeButton)?.superview else { return }
-        let leadingAnchor = window.standardWindowButton(.zoomButton)?.trailingAnchor ?? titlebarView.leadingAnchor
+    private func installTitlebarChrome(for window: NSWindow, editor: EditorController) {
+        let size = NSSize(
+            width: TitlebarEditorChromeLayout.width,
+            height: TitlebarEditorChromeLayout.height
+        )
+        let hostingView = NSHostingView(rootView: TitlebarEditorChromeView(editor: editor))
+        hostingView.frame = NSRect(origin: .zero, size: size)
+        hostingView.appearance = ChromeStyle.appearance
+        hostingView.wantsLayer = false
 
-        let titleView = NSHostingView(rootView: TitlebarDocumentTitleView(editor: editor))
-        titleView.translatesAutoresizingMaskIntoConstraints = false
-        titleView.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        titleView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        titleView.wantsLayer = false
+        let accessoryController = NSTitlebarAccessoryViewController()
+        accessoryController.layoutAttribute = .left
+        accessoryController.preferredContentSize = size
+        accessoryController.view = hostingView
+        window.addTitlebarAccessoryViewController(accessoryController)
 
-        titlebarView.addSubview(titleView)
-        NSLayoutConstraint.activate([
-            titleView.leadingAnchor.constraint(
-                equalTo: leadingAnchor,
-                constant: TitlebarDocumentTitleLayout.leadingGapAfterTrafficButtons
-            ),
-            titleView.trailingAnchor.constraint(
-                lessThanOrEqualTo: titlebarView.trailingAnchor,
-                constant: -TitlebarDocumentTitleLayout.trailingInset
-            ),
-            titleView.centerYAnchor.constraint(equalTo: titlebarView.centerYAnchor),
-            titleView.widthAnchor.constraint(greaterThanOrEqualToConstant: TitlebarDocumentTitleLayout.minimumWidth),
-            titleView.heightAnchor.constraint(equalToConstant: TitlebarDocumentTitleLayout.height)
-        ])
-
-        titlebarTitleView = titleView
+        titlebarAccessoryController = accessoryController
     }
 
     @objc private func openDocument() {
@@ -190,7 +181,7 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
     @objc private func showLiteTextEditorHelp() {
         let alert = NSAlert()
         alert.messageText = "Lite Text Editor Help"
-        alert.informativeText = "Use the toolbar to switch document tabs and apply simple formatting. Add Outline or Notes tabs with the + button."
+        alert.informativeText = "Use the compact tabs beside the traffic lights to switch sections. Press + to add Tab 2, Tab 3, and so on; double-click or right-click a tab to rename it. Outline and simple formatting controls are also in the titlebar. All document text uses Courier automatically."
         alert.alertStyle = .informational
         alert.runModal()
     }

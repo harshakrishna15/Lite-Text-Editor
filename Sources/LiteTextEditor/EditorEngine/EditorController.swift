@@ -9,10 +9,17 @@ final class EditorController: ObservableObject {
     weak var textView: AutocompleteTextView?
     weak var scrollView: NSScrollView? {
         didSet {
-            (oldValue as? PaperScrollView)?.onMagnifyGesture = nil
+            zoomMagnificationObservation?.invalidate()
+            zoomMagnificationObservation = nil
+            if let zoomClipBoundsObservation {
+                NotificationCenter.default.removeObserver(zoomClipBoundsObservation)
+                self.zoomClipBoundsObservation = nil
+            }
             configureZoomForCurrentScrollView()
         }
     }
+    var zoomMagnificationObservation: NSKeyValueObservation?
+    var zoomClipBoundsObservation: NSObjectProtocol?
 
     @Published var selectedZoomPreset: DocumentZoomPreset = .percent125
     @Published var zoomDisplayText = "125%"
@@ -30,6 +37,7 @@ final class EditorController: ObservableObject {
     @Published var pendingDocumentDirectoryURL: URL?
     @Published var documentTabs: [DocumentTabDescriptor] = []
     @Published var selectedDocumentTabID: UUID?
+    @Published var isOutlineVisible = false
     @Published var isContinuousSpellCheckingEnabled = WritingSettingsStore.loadIsContinuousSpellCheckingEnabled()
     @Published var isGrammarCheckingEnabled = WritingSettingsStore.loadIsGrammarCheckingEnabled()
     @Published var isAutomaticTextReplacementEnabled = TextCorrectionSettingsStore.loadIsAutomaticReplacementEnabled()
@@ -44,6 +52,7 @@ final class EditorController: ObservableObject {
     var documentTabSelections: [UUID: NSRange] = [:]
     var documentTabVisibleOrigins: [UUID: NSPoint] = [:]
     var documentTabUndoManagers: [UUID: UndoManager] = [:]
+    var nextAutomaticDocumentTabNumber = 1
     var documentGeneration = 0
     var isEnforcingEditorTypography = false
     var pendingDocumentStatisticsRefresh: DispatchWorkItem?
@@ -59,7 +68,7 @@ final class EditorController: ObservableObject {
     let documentFileService = DocumentFileService()
     let recentDocumentStore = RecentDocumentStore()
     let spellingReviewController = SpellingReviewController()
-    let minimumZoom: CGFloat = 0.5
+    let minimumZoom = AutocompleteTextView.minimumStableCanvasMagnification
     let maximumZoom: CGFloat = 2.0
 
     func cut() {
@@ -87,6 +96,13 @@ final class EditorController: ObservableObject {
         }
 
         installDocument(EditorDocument.blank(), loadsSelectedTab: false)
+    }
+
+    deinit {
+        zoomMagnificationObservation?.invalidate()
+        if let zoomClipBoundsObservation {
+            NotificationCenter.default.removeObserver(zoomClipBoundsObservation)
+        }
     }
 
     func copy() {

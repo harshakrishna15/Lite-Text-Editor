@@ -22,7 +22,7 @@ struct DocumentFileStore {
         let attributedString = try readDocument(from: url)
         let tab = EditorDocumentTab(
             id: UUID(),
-            title: "Draft",
+            title: EditorDocument.defaultTabTitle,
             attributedString: attributedString
         )
         return EditorDocument(tabs: [tab], selectedTabID: tab.id)
@@ -36,7 +36,9 @@ struct DocumentFileStore {
 
         guard document.tabs.count == 1,
               let tab = document.tabs.first,
-              tab.title.caseInsensitiveCompare("Draft") == .orderedSame else {
+              EditorDocument.isLegacyCompatibleTabTitle(tab.title),
+              (document.nextAutomaticTabNumber ?? EditorDocument.defaultNextAutomaticTabNumber)
+                == EditorDocument.defaultNextAutomaticTabNumber else {
             throw DocumentFileStoreError.multipleTabsRequireNativeFormat
         }
 
@@ -305,7 +307,7 @@ enum DocumentFileStoreError: LocalizedError {
         case .unreadableTextEncoding:
             return "Lite Text Editor could not determine the text encoding."
         case .multipleTabsRequireNativeFormat:
-            return "Documents with named or multiple tabs must be saved as a .ltedoc file."
+            return "Documents with tab names, multiple tabs, or preserved tab numbering must be saved as a .ltedoc file."
         case .invalidDocumentState:
             return "Lite Text Editor could not create a complete document snapshot."
         }

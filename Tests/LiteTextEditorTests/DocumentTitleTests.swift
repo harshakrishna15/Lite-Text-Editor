@@ -108,10 +108,19 @@ final class DocumentTitleTests: XCTestCase {
         XCTAssertEqual(state.draftTitle, "Draft Renamed")
     }
 
-    func testTitlebarTitleUsesLeadingAlignment() {
-        XCTAssertEqual(TitlebarDocumentTitleLayout.textAlignment, .leading)
-        XCTAssertGreaterThan(TitlebarDocumentTitleLayout.leadingGapAfterTrafficButtons, 0)
-        XCTAssertGreaterThanOrEqual(TitlebarDocumentTitleLayout.minimumWidth, 120)
+    func testTitlebarTitleAndTabsFitOneCompactRow() {
+        XCTAssertEqual(TitlebarEditorChromeLayout.height, TitlebarDocumentTitleLayout.height)
+        XCTAssertGreaterThanOrEqual(TitlebarDocumentTabsLayout.tabHeight, 16)
+        XCTAssertLessThanOrEqual(TitlebarDocumentTabsLayout.tabHeight, 20)
+        XCTAssertGreaterThanOrEqual(TitlebarDocumentTabsLayout.addButtonSize, 18)
+        XCTAssertLessThanOrEqual(TitlebarDocumentTabsLayout.addButtonSize, 20)
+        XCTAssertGreaterThanOrEqual(TitlebarDocumentTabsLayout.maximumTabWidth, 72)
+        XCTAssertLessThanOrEqual(TitlebarDocumentTabsLayout.maximumTabWidth, 96)
+        XCTAssertLessThanOrEqual(TitlebarEditorChromeLayout.minimumFormattingControlsWidth, 100)
+        XCTAssertGreaterThanOrEqual(
+            TitlebarEditorChromeLayout.width,
+            TitlebarEditorChromeLayout.minimumContentWidth
+        )
     }
 
     func testLastDocumentStoreCanClearLastDocumentURL() {

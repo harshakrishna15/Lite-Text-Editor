@@ -1,38 +1,10 @@
 import AppKit
 
-final class PaperClipView: NSClipView {
-    var allowsProgrammaticHorizontalScroll = false
-
-    override func constrainBoundsRect(_ proposedBounds: NSRect) -> NSRect {
-        var constrainedBounds = super.constrainBoundsRect(proposedBounds)
-
-        if !allowsProgrammaticHorizontalScroll {
-            constrainedBounds.origin.x = bounds.origin.x
-        }
-
-        return constrainedBounds
-    }
-
-    override func setBoundsOrigin(_ newOrigin: NSPoint) {
-        super.setBoundsOrigin(horizontalLockAdjustedOrigin(newOrigin))
-    }
-
-    override func scroll(to newOrigin: NSPoint) {
-        super.scroll(to: horizontalLockAdjustedOrigin(newOrigin))
-    }
-
-    private func horizontalLockAdjustedOrigin(_ proposedOrigin: NSPoint) -> NSPoint {
-        guard !allowsProgrammaticHorizontalScroll else { return proposedOrigin }
-        return NSPoint(x: bounds.origin.x, y: proposedOrigin.y)
-    }
-}
-
 final class PaperScrollView: NSScrollView {
     static let scrollerRevealEdgeInset: CGFloat = 28
     static let horizontalWheelTolerance: CGFloat = 0.5
 
-    var didLayout: (() -> Void)?
-    var onMagnifyGesture: ((CGFloat, NSEvent.Phase) -> Void)?
+    var onViewportSizeChanged: (() -> Void)?
     private var pendingDocumentResize = false
     private var resizeGeneration = 0
     private var hasPreparedFirstScroll = false
@@ -40,7 +12,11 @@ final class PaperScrollView: NSScrollView {
     private var didRecentlyFlashScrollers = false
     private var isDeferringDocumentResizeDuringLiveResize = false
 
-    static func shouldRevealScrollers(for point: NSPoint, in bounds: NSRect, edgeInset: CGFloat = scrollerRevealEdgeInset) -> Bool {
+    static func shouldRevealScrollers(
+        for point: NSPoint,
+        in bounds: NSRect,
+        edgeInset: CGFloat = scrollerRevealEdgeInset
+    ) -> Bool {
         guard bounds.contains(point) else { return false }
         return point.x >= bounds.maxX - edgeInset || point.y <= bounds.minY + edgeInset
     }
@@ -49,10 +25,11 @@ final class PaperScrollView: NSScrollView {
         abs(deltaX) > horizontalWheelTolerance && abs(deltaY) <= horizontalWheelTolerance
     }
 
-    override func layout() {
-        super.layout()
-        resizeDocumentForCurrentViewport()
-        didLayout?()
+    static func shouldAllowHorizontalPanning(
+        visibleDocumentWidth: CGFloat,
+        pageWidth: CGFloat = AutocompleteTextView.paperWidth
+    ) -> Bool {
+        visibleDocumentWidth + horizontalWheelTolerance < pageWidth
     }
 
     override func viewDidMoveToWindow() {
@@ -63,10 +40,19 @@ final class PaperScrollView: NSScrollView {
     }
 
     override func setFrameSize(_ newSize: NSSize) {
+        let previousContentSize = contentSize
         super.setFrameSize(newSize)
         hasPreparedFirstScroll = false
-        resizeDocumentForCurrentViewport()
-        scheduleDocumentResize()
+
+        if !isDeferringDocumentResizeDuringLiveResize {
+            resizeDocumentForCurrentViewport()
+            scheduleDocumentResize()
+        }
+
+        if abs(previousContentSize.width - contentSize.width) > 0.5
+            || abs(previousContentSize.height - contentSize.height) > 0.5 {
+            onViewportSizeChanged?()
+        }
     }
 
     override func viewWillStartLiveResize() {
@@ -81,6 +67,7 @@ final class PaperScrollView: NSScrollView {
         isDeferringDocumentResizeDuringLiveResize = false
         resizeDocumentForCurrentViewport()
         scheduleDocumentResize()
+        onViewportSizeChanged?()
     }
 
     override func updateTrackingAreas() {
@@ -117,11 +104,22 @@ final class PaperScrollView: NSScrollView {
     }
 
     override func scrollWheel(with event: NSEvent) {
-        if Self.shouldIgnoreHorizontalOnlyWheel(deltaX: event.scrollingDeltaX, deltaY: event.scrollingDeltaY) {
+        prepareDocumentForFirstScrollIfNeeded()
+
+        if Self.shouldAllowHorizontalPanning(
+            visibleDocumentWidth: contentView.documentVisibleRect.width
+        ) {
+            super.scrollWheel(with: event)
             return
         }
 
-        prepareDocumentForFirstScrollIfNeeded()
+        if Self.shouldIgnoreHorizontalOnlyWheel(
+            deltaX: event.scrollingDeltaX,
+            deltaY: event.scrollingDeltaY
+        ) {
+            return
+        }
+
         let originalX = contentView.bounds.origin.x
         super.scrollWheel(with: event)
         let didDriftHorizontally = abs(contentView.bounds.origin.x - originalX) > 0.5
@@ -132,10 +130,6 @@ final class PaperScrollView: NSScrollView {
                 self?.restoreHorizontalOrigin(originalX)
             }
         }
-    }
-
-    override func magnify(with event: NSEvent) {
-        onMagnifyGesture?(event.magnification, event.phase)
     }
 
     private func scheduleDocumentResize() {
@@ -149,7 +143,7 @@ final class PaperScrollView: NSScrollView {
             guard self.pendingDocumentResize, self.resizeGeneration == generation else { return }
             self.pendingDocumentResize = false
             (self.documentView as? AutocompleteTextView)?.resizeForCurrentPages()
-            self.didLayout?()
+            self.onViewportSizeChanged?()
         }
     }
 
@@ -163,26 +157,13 @@ final class PaperScrollView: NSScrollView {
         resizeGeneration += 1
         pendingDocumentResize = false
         (documentView as? AutocompleteTextView)?.prepareForUserScroll()
-        didLayout?()
     }
 
     private func restoreHorizontalOrigin(_ x: CGFloat) {
         guard abs(contentView.bounds.origin.x - x) > 0.5 else { return }
 
-        performProgrammaticHorizontalScroll {
-            contentView.scroll(to: NSPoint(x: x, y: contentView.bounds.origin.y))
-            reflectScrolledClipView(contentView)
-        }
-    }
-
-    func performProgrammaticHorizontalScroll(_ changes: () -> Void) {
-        let paperClipView = contentView as? PaperClipView
-        paperClipView?.allowsProgrammaticHorizontalScroll = true
-        defer {
-            paperClipView?.allowsProgrammaticHorizontalScroll = false
-        }
-
-        changes()
+        contentView.scroll(to: NSPoint(x: x, y: contentView.bounds.origin.y))
+        reflectScrolledClipView(contentView)
     }
 
     private func revealScrollersForEdgeHover() {

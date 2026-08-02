@@ -236,7 +236,7 @@ final class PageLayoutTests: XCTestCase {
         let fixture = makeZoomFixture()
         fixture.scrollView.allowsMagnification = false
         fixture.scrollView.magnification = 1
-        fixture.textView.resizeForCachedPages(at: 1)
+        fixture.textView.resizeForCachedPages()
         fixture.textView.restoreVisibleOrigin(NSPoint(x: fixture.textView.bounds.maxX, y: 200))
 
         fixture.textView.moveInsertionPointToDocumentStartAndScrollToPageTop()
@@ -246,17 +246,25 @@ final class PageLayoutTests: XCTestCase {
             fixture.textView.currentPageStackFrame.midX,
             accuracy: 1
         )
-        XCTAssertEqual(fixture.scrollView.contentView.documentVisibleRect.minY, 0, accuracy: 1)
+        XCTAssertEqual(
+            fixture.scrollView.contentView.documentVisibleRect.minY,
+            fixture.textView.currentPageStackFrame.minY - AutocompleteTextView.pageTopVisiblePadding,
+            accuracy: 1
+        )
     }
 
-    func testRestoreVisibleOriginComparesPhysicalOriginAtZoomScale() {
+    func testRestoreVisibleOriginUsesLogicalDocumentCoordinatesAtNativeZoomScale() {
         let fixture = makeZoomFixture()
-        fixture.textView.resizeForCachedPages(at: 2)
+        fixture.scrollView.allowsMagnification = true
+        fixture.scrollView.minMagnification = 0.5
+        fixture.scrollView.maxMagnification = 2
+        fixture.scrollView.magnification = 2
+        fixture.textView.resizeForCachedPages()
 
         fixture.textView.restoreVisibleOrigin(NSPoint(x: 32, y: 48))
 
-        XCTAssertEqual(fixture.scrollView.contentView.bounds.origin.x, 64, accuracy: 1)
-        XCTAssertEqual(fixture.scrollView.contentView.bounds.origin.y, 96, accuracy: 1)
+        XCTAssertEqual(fixture.scrollView.contentView.bounds.origin.x, 32, accuracy: 1)
+        XCTAssertEqual(fixture.scrollView.contentView.bounds.origin.y, 48, accuracy: 1)
     }
 
     func testTextLayoutDimensionSupportsLongDocumentsBeyondOldCap() {
@@ -288,7 +296,7 @@ final class PageLayoutTests: XCTestCase {
     func testCenteringAfterViewportResizeKeepsPageHorizontallyCentered() {
         let fixture = makeZoomFixture()
         fixture.scrollView.setFrameSize(NSSize(width: 700, height: 320))
-        fixture.textView.resizeForCachedPages(at: 1)
+        fixture.textView.resizeForCachedPages()
         fixture.textView.restoreVisibleOrigin(NSPoint(x: fixture.textView.bounds.maxX, y: 0))
 
         fixture.scrollView.setFrameSize(NSSize(width: 1_000, height: 320))
@@ -316,7 +324,7 @@ final class PageLayoutTests: XCTestCase {
         )
     }
 
-    func testSinglePageLayoutLeavesChromeClearanceAroundPageStack() {
+    func testSinglePageLayoutCentersPageInMinimumZoomCanvas() {
         let fixture = makeZoomFixture()
 
         fixture.textView.resizeForCurrentPages()
@@ -325,8 +333,119 @@ final class PageLayoutTests: XCTestCase {
         let topGap = pageFrame.minY
         let bottomGap = fixture.textView.bounds.height - pageFrame.maxY
 
-        XCTAssertEqual(topGap, AutocompleteTextView.pageTopPadding(for: fixture.textView.documentLayoutScale), accuracy: 1)
-        XCTAssertEqual(bottomGap, AutocompleteTextView.pageBottomPadding(for: fixture.textView.documentLayoutScale), accuracy: 1)
+        XCTAssertEqual(topGap, bottomGap, accuracy: 1)
+        XCTAssertGreaterThanOrEqual(topGap, AutocompleteTextView.pageTopVisiblePadding)
+        XCTAssertGreaterThanOrEqual(
+            fixture.textView.bounds.width,
+            fixture.scrollView.contentSize.width / AutocompleteTextView.minimumStableCanvasMagnification
+        )
+        XCTAssertGreaterThanOrEqual(
+            fixture.textView.bounds.height,
+            fixture.scrollView.contentSize.height / AutocompleteTextView.minimumStableCanvasMagnification
+        )
+    }
+
+    func testPageCountTransitionsKeepTextAlignedAndPreservePageRelativeAnchor() {
+        for (newlineCount, expectedPageCount) in [(50, 2), (120, 3)] {
+            let fixture = makeZoomFixture()
+            fixture.textView.resizeForCurrentPages()
+
+            let boundsBefore = fixture.textView.bounds
+            let pageFrameBefore = fixture.textView.currentPageStackFrame
+            let originalInset = fixture.textView.textContainerInset
+            let initialVisibleSize = fixture.scrollView.contentView.documentVisibleRect.size
+            let initialAnchor = NSPoint(x: pageFrameBefore.midX, y: pageFrameBefore.midY)
+            fixture.textView.restoreVisibleOrigin(
+                ZoomViewportCalculator.clampedVisibleOrigin(
+                    centeredAt: initialAnchor,
+                    visibleSize: initialVisibleSize,
+                    documentBounds: fixture.textView.bounds
+                )
+            )
+
+            let visibleRectBefore = fixture.scrollView.contentView.documentVisibleRect
+            let stableAnchorBefore = ZoomViewportCalculator.stableCenter(
+                for: visibleRectBefore,
+                pageFrame: pageFrameBefore
+            )
+            let pageRelativeAnchor = NSPoint(
+                x: stableAnchorBefore.x - pageFrameBefore.minX,
+                y: stableAnchorBefore.y - pageFrameBefore.minY
+            )
+
+            setFixedLineHeightText(
+                String(repeating: "\n", count: newlineCount),
+                lineHeight: 13,
+                in: fixture.textView
+            )
+            fixture.textView.resizeForCurrentPages()
+
+            XCTAssertEqual(fixture.textView.currentPageCount, expectedPageCount)
+            let pageFrameAfter = fixture.textView.currentPageStackFrame
+            XCTAssertEqual(
+                fixture.textView.textContainerInset.height,
+                pageFrameAfter.minY + AutocompleteTextView.pageMargin,
+                accuracy: 1
+            )
+            XCTAssertNotEqual(fixture.textView.textContainerInset.height, originalInset.height, accuracy: 1)
+
+            let mappedAnchor = NSPoint(
+                x: pageFrameAfter.minX + pageRelativeAnchor.x,
+                y: pageFrameAfter.minY + pageRelativeAnchor.y
+            )
+            let expectedOrigin = ZoomViewportCalculator.clampedVisibleOrigin(
+                centeredAt: mappedAnchor,
+                visibleSize: visibleRectBefore.size,
+                documentBounds: fixture.textView.bounds
+            )
+            let visibleOriginAfter = fixture.scrollView.contentView.documentVisibleRect.origin
+            XCTAssertEqual(visibleOriginAfter.x, expectedOrigin.x, accuracy: 1)
+            XCTAssertEqual(visibleOriginAfter.y, expectedOrigin.y, accuracy: 1)
+
+            if expectedPageCount == 2 {
+                XCTAssertEqual(fixture.textView.bounds, boundsBefore)
+            } else {
+                XCTAssertGreaterThan(fixture.textView.bounds.height, boundsBefore.height)
+            }
+        }
+    }
+
+    func testShrinkingDocumentClampsOldPageAnchorIntoRemainingPage() {
+        let fixture = makeZoomFixture()
+        setFixedLineHeightText(
+            String(repeating: "\n", count: 120),
+            lineHeight: 13,
+            in: fixture.textView
+        )
+        fixture.textView.resizeForCurrentPages()
+        XCTAssertEqual(fixture.textView.currentPageCount, 3)
+
+        let oldPageFrame = fixture.textView.currentPageStackFrame
+        let lastPageCenter = NSPoint(
+            x: oldPageFrame.midX,
+            y: oldPageFrame.maxY - (AutocompleteTextView.pageHeight / 2)
+        )
+        fixture.textView.restoreVisibleOrigin(
+            ZoomViewportCalculator.clampedVisibleOrigin(
+                centeredAt: lastPageCenter,
+                visibleSize: fixture.scrollView.contentView.documentVisibleRect.size,
+                documentBounds: fixture.textView.bounds
+            )
+        )
+
+        setFixedLineHeightText("Short document", lineHeight: 13, in: fixture.textView)
+        fixture.textView.resizeForCurrentPages()
+
+        XCTAssertEqual(fixture.textView.currentPageCount, 1)
+        let remainingPage = fixture.textView.currentPageStackFrame
+        let visibleRect = fixture.scrollView.contentView.documentVisibleRect
+        XCTAssertTrue(remainingPage.intersects(visibleRect))
+        XCTAssertEqual(visibleRect.midY, remainingPage.maxY, accuracy: 1)
+        XCTAssertEqual(
+            fixture.textView.textContainerInset.height,
+            remainingPage.minY + AutocompleteTextView.pageMargin,
+            accuracy: 1
+        )
     }
 
     func testMultiPageLayoutLeavesChromeClearanceAroundPageStack() {
@@ -339,22 +458,30 @@ final class PageLayoutTests: XCTestCase {
         let topGap = pageFrame.minY
         let bottomGap = fixture.textView.bounds.height - pageFrame.maxY
 
-        XCTAssertEqual(topGap, AutocompleteTextView.pageTopPadding(for: fixture.textView.documentLayoutScale), accuracy: 1)
-        XCTAssertEqual(bottomGap, AutocompleteTextView.pageBottomPadding(for: fixture.textView.documentLayoutScale), accuracy: 1)
+        XCTAssertEqual(topGap, AutocompleteTextView.pageTopVisiblePadding, accuracy: 1)
+        XCTAssertEqual(bottomGap, AutocompleteTextView.pageBottomVisiblePadding, accuracy: 1)
     }
 
-    func testPageChromeClearanceStaysVisuallyStableAcrossZoomLevels() {
+    func testNativeZoomKeepsDocumentFrameAndLogicalPageClearanceStable() {
         let fixture = makeZoomFixture()
+        fixture.scrollView.allowsMagnification = true
+        fixture.scrollView.minMagnification = 0.5
+        fixture.scrollView.maxMagnification = 2
+        fixture.textView.resizeForCachedPages()
+        let frameBeforeZoom = fixture.textView.frame
+        let boundsBeforeZoom = fixture.textView.bounds
 
         for magnification in [0.5, 1.0, 2.0] {
-            fixture.textView.resizeForCachedPages(at: magnification)
+            fixture.scrollView.magnification = magnification
 
             let pageFrame = fixture.textView.currentPageStackFrame
             let topGap = pageFrame.minY
             let bottomGap = fixture.textView.bounds.height - pageFrame.maxY
 
-            XCTAssertEqual(topGap * magnification, AutocompleteTextView.pageTopVisiblePadding, accuracy: 1)
-            XCTAssertEqual(bottomGap * magnification, AutocompleteTextView.pageBottomVisiblePadding, accuracy: 1)
+            XCTAssertEqual(topGap, bottomGap, accuracy: 1)
+            XCTAssertGreaterThanOrEqual(topGap, AutocompleteTextView.pageTopVisiblePadding)
+            XCTAssertEqual(fixture.textView.frame, frameBeforeZoom)
+            XCTAssertEqual(fixture.textView.bounds, boundsBeforeZoom)
         }
     }
 

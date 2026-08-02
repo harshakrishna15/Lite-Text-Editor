@@ -13,19 +13,33 @@ struct EditorDocumentTab {
 }
 
 struct EditorDocument {
+    static let defaultTabTitle = "Tab 1"
+    static let legacyDefaultTabTitle = "Draft"
+    static let defaultNextAutomaticTabNumber = 2
+    static let maximumAutomaticTabNumber = 1_000_000
+
+    static func isLegacyCompatibleTabTitle(_ title: String) -> Bool {
+        title == defaultTabTitle || title == legacyDefaultTabTitle
+    }
+
     var tabs: [EditorDocumentTab]
     var selectedTabID: UUID
+    var nextAutomaticTabNumber: Int? = nil
 
     static func blank() -> EditorDocument {
         let tab = EditorDocumentTab(
             id: UUID(),
-            title: "Draft",
+            title: defaultTabTitle,
             attributedString: NSAttributedString(
                 string: "",
                 attributes: EditorTypography.defaultTypingAttributes
             )
         )
-        return EditorDocument(tabs: [tab], selectedTabID: tab.id)
+        return EditorDocument(
+            tabs: [tab],
+            selectedTabID: tab.id,
+            nextAutomaticTabNumber: defaultNextAutomaticTabNumber
+        )
     }
 
     var selectedTab: EditorDocumentTab? {
@@ -36,7 +50,7 @@ struct EditorDocument {
 enum NativeEditorDocumentCodec {
     static let fileExtension = "ltedoc"
     private static let identifier = "com.openai.lite-text-editor.document"
-    private static let currentVersion = 1
+    private static let currentVersion = 2
 
     static func encode(_ document: EditorDocument) throws -> Data {
         try validate(document)
@@ -52,6 +66,7 @@ enum NativeEditorDocumentCodec {
             identifier: identifier,
             version: currentVersion,
             selectedTabID: document.selectedTabID,
+            nextAutomaticTabNumber: document.nextAutomaticTabNumber,
             tabs: tabs
         )
         let encoder = JSONEncoder()
@@ -87,7 +102,11 @@ enum NativeEditorDocumentCodec {
                 )
             )
         }
-        let document = EditorDocument(tabs: tabs, selectedTabID: envelope.selectedTabID)
+        let document = EditorDocument(
+            tabs: tabs,
+            selectedTabID: envelope.selectedTabID,
+            nextAutomaticTabNumber: envelope.nextAutomaticTabNumber
+        )
         try validate(document)
         return document
     }
@@ -103,6 +122,10 @@ enum NativeEditorDocumentCodec {
         }
         guard ids.contains(document.selectedTabID) else {
             throw NativeEditorDocumentError.invalidSelectedTab
+        }
+        if let nextAutomaticTabNumber = document.nextAutomaticTabNumber,
+           !(1...EditorDocument.maximumAutomaticTabNumber).contains(nextAutomaticTabNumber) {
+            throw NativeEditorDocumentError.invalidDocument
         }
     }
 
@@ -134,6 +157,7 @@ enum NativeEditorDocumentCodec {
         let identifier: String
         let version: Int
         let selectedTabID: UUID
+        let nextAutomaticTabNumber: Int?
         let tabs: [NativeTab]
     }
 

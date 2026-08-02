@@ -80,8 +80,6 @@ final class AutocompleteTextView: NSTextView {
     var lastPaperLayoutWidth: CGFloat = -1
     var cachedPageMeasurementKey: PageMeasurementKey?
     var cachedMeasuredPageCount = 1
-    var documentLayoutScale: CGFloat = 1
-    private(set) var zoomLayoutRefreshCount = 0
     private var preservedVisibleOriginDuringChange: NSPoint?
     private var visibleOriginPreservationDepth = 0
     private var formattingTrackingArea: NSTrackingArea?
@@ -132,9 +130,15 @@ final class AutocompleteTextView: NSTextView {
             return
         }
 
-        if event.keyCode == 48, currentSuggestion != nil {
-            acceptSuggestion()
-            return
+        if event.keyCode == 48 {
+            if currentSuggestion != nil {
+                acceptSuggestion()
+                return
+            }
+
+            if indentListAtInsertionPoint(decrease: event.modifierFlags.contains(.shift)) {
+                return
+            }
         }
 
         if event.keyCode == 124, event.modifierFlags.contains(.option), currentSuggestion != nil {
@@ -143,6 +147,14 @@ final class AutocompleteTextView: NSTextView {
         }
 
         super.keyDown(with: event)
+    }
+
+    override func insertText(_ insertString: Any, replacementRange: NSRange) {
+        super.insertText(insertString, replacementRange: replacementRange)
+
+        let insertedText = (insertString as? String) ?? (insertString as? NSAttributedString)?.string
+        guard insertedText == " " else { return }
+        convertTypedListMarkerIfNeeded()
     }
 
     override func insertNewline(_ sender: Any?) {
@@ -320,26 +332,6 @@ final class AutocompleteTextView: NSTextView {
         }
     }
 
-    func refreshLayoutAfterZoomChange() {
-        zoomLayoutRefreshCount += 1
-
-        if let layoutManager, let textContainer {
-            layoutManager.ensureLayout(for: textContainer)
-        }
-
-        refreshDisplayAfterZoomFrameChange()
-    }
-
-    func refreshDisplayAfterZoomFrameChange() {
-        needsDisplay = true
-        updateInsertionPointStateAndRestartTimer(true)
-
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.updateInsertionPointStateAndRestartTimer(true)
-        }
-    }
-
     @discardableResult
     func performUndoableAttributeEdit(
         in range: NSRange,
@@ -501,6 +493,62 @@ final class AutocompleteTextView: NSTextView {
 
     private func listStyle(for line: String) -> ListStyleOption? {
         parsedListLine(from: line)?.style
+    }
+
+    @discardableResult
+    func convertTypedListMarkerIfNeeded() -> Bool {
+        let selection = selectedRange()
+        guard selection.length == 0, selection.location > 0 else { return false }
+
+        let nsString = string as NSString
+        let paragraphRange = nsString.paragraphRange(
+            for: NSRange(location: min(selection.location - 1, max(nsString.length - 1, 0)), length: 0)
+        )
+        let typedRange = NSRange(location: paragraphRange.location, length: selection.location - paragraphRange.location)
+        let typedPrefix = nsString.substring(with: typedRange)
+        let indentation = String(typedPrefix.prefix { $0 == " " || $0 == "\t" })
+        let marker = String(typedPrefix.dropFirst(indentation.count))
+
+        let replacement: String
+        switch marker {
+        case "- ", "* ":
+            replacement = "\(indentation)• "
+        case "1. ":
+            replacement = "\(indentation)1. "
+        case "[] ", "[ ] ":
+            replacement = "\(indentation)☐ "
+        default:
+            return false
+        }
+
+        guard replacement != typedPrefix,
+              shouldChangeText(in: typedRange, replacementString: replacement) else { return false }
+
+        textStorage?.replaceCharacters(in: typedRange, with: replacement)
+        setSelectedRange(NSRange(location: typedRange.location + (replacement as NSString).length, length: 0))
+        didChangeText()
+        undoManager?.setActionName("Start List")
+        breakUndoCoalescing()
+        return true
+    }
+
+    @discardableResult
+    func indentListAtInsertionPoint(decrease: Bool) -> Bool {
+        let selection = selectedRange()
+        guard selection.length == 0 else { return false }
+
+        let nsString = string as NSString
+        guard nsString.length > 0 else { return false }
+        let location = min(selection.location, nsString.length - 1)
+        let paragraphRange = nsString.paragraphRange(for: NSRange(location: location, length: 0))
+        guard parsedListLine(from: nsString.substring(with: paragraphRange)) != nil else { return false }
+
+        let didChange = decrease ? decreasePlainIndent() : increasePlainIndent()
+        guard didChange else { return false }
+
+        let delta = decrease ? -1 : 1
+        setSelectedRange(NSRange(location: max(paragraphRange.location, selection.location + delta), length: 0))
+        return true
     }
 
     private func removingListPrefix(from line: String) -> String {

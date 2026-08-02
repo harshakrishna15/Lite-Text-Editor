@@ -26,82 +26,117 @@ extension EditorController {
     }
 
     func setZoomMagnification(_ magnification: Double) {
-        let clampedMagnification = min(max(magnification, minimumZoomMagnification), maximumZoomMagnification)
-        let nextPreset = matchingPreset(for: CGFloat(clampedMagnification)) ?? .actualSize
-        if selectedZoomPreset != nextPreset {
-            selectedZoomPreset = nextPreset
-        }
-        applyZoom(CGFloat(clampedMagnification))
-    }
-
-    func applyTrackpadZoom(delta: CGFloat, phase: NSEvent.Phase) {
-        guard !phase.contains(.ended), !phase.contains(.cancelled) else { return }
-        guard abs(delta) > 0.0001 else { return }
-
-        let boundedDelta = min(max(delta, -0.2), 0.2)
-        let nextMagnification = zoomMagnification * Double(1 + boundedDelta)
-        let clampedMagnification = min(max(nextMagnification, minimumZoomMagnification), maximumZoomMagnification)
-        let nextPreset = matchingPreset(for: CGFloat(clampedMagnification)) ?? .actualSize
-        if selectedZoomPreset != nextPreset {
-            selectedZoomPreset = nextPreset
-        }
-        applyZoom(CGFloat(clampedMagnification), shouldResizePages: false)
+        let clampedMagnification = clampedZoom(CGFloat(magnification))
+        selectedZoomPreset = matchingPreset(for: clampedMagnification) ?? .custom
+        setNativeMagnification(clampedMagnification)
     }
 
     func setZoomPreset(_ preset: DocumentZoomPreset) {
-        if selectedZoomPreset != preset {
-            selectedZoomPreset = preset
+        selectedZoomPreset = preset
+        let magnification: CGFloat
+        switch preset {
+        case .fitPage:
+            magnification = fitPageMagnification()
+        case .custom:
+            magnification = scrollView?.magnification ?? CGFloat(zoomMagnification)
+        default:
+            magnification = preset.magnification ?? 1
         }
-
-        if preset == .fitPage {
-            applyZoom(fitPageMagnification())
-            return
-        }
-
-        applyZoom(preset.magnification ?? 1)
+        setNativeMagnification(magnification)
     }
 
     func refreshZoomForLayout() {
+        guard let scrollView else { return }
+
         if selectedZoomPreset == .fitPage {
-            applyZoom(fitPageMagnification(), shouldResizePages: false)
+            setNativeMagnification(fitPageMagnification())
         } else {
-            updateZoomDisplayText(for: CGFloat(zoomMagnification))
-            centerPageForCurrentLayout(queuesFollowUpCentering: !(scrollView?.inLiveResize ?? false))
+            synchronizeNativeMagnification(scrollView.magnification)
         }
     }
 
     func configureZoomForCurrentScrollView() {
         guard let scrollView else { return }
 
-        scrollView.allowsMagnification = false
+        scrollView.allowsMagnification = true
         scrollView.minMagnification = minimumZoom
         scrollView.maxMagnification = maximumZoom
-        scrollView.magnification = 1
-        (scrollView as? PaperScrollView)?.onMagnifyGesture = { [weak self] delta, phase in
-            self?.applyTrackpadZoom(delta: delta, phase: phase)
+        textView?.resizeForCachedPages()
+
+        zoomMagnificationObservation = scrollView.observe(
+            \.magnification,
+            options: [.new]
+        ) { [weak self] observedScrollView, _ in
+            self?.synchronizeNativeMagnification(observedScrollView.magnification)
+        }
+        scrollView.contentView.postsBoundsChangedNotifications = true
+        zoomClipBoundsObservation = NotificationCenter.default.addObserver(
+            forName: NSView.boundsDidChangeNotification,
+            object: scrollView.contentView,
+            queue: .main
+        ) { [weak self] _ in
+            self?.centerPageHorizontallyIfItFits()
         }
 
         setZoomPreset(selectedZoomPreset)
     }
 
-    private func stepZoom(direction: Int) {
-        let current = CGFloat(zoomMagnification)
+    func synchronizeNativeMagnification(_ magnification: CGFloat) {
+        guard magnification.isFinite else { return }
+        let clampedMagnification = clampedZoom(magnification)
+        let stillMatchesFitPage = selectedZoomPreset == .fitPage
+            && abs(clampedMagnification - clampedZoom(fitPageMagnification())) < 0.0005
 
+        if !stillMatchesFitPage {
+            selectedZoomPreset = matchingPreset(for: clampedMagnification) ?? .custom
+        }
+
+        updateZoomDisplay(for: clampedMagnification)
+    }
+
+    private func stepZoom(direction: Int) {
+        let currentMagnification = scrollView?.magnification ?? CGFloat(zoomMagnification)
         let nextPreset: DocumentZoomPreset?
 
         if direction > 0 {
             nextPreset = DocumentZoomPreset.fixedPresets.first {
-                ($0.magnification ?? 1) > current + 0.01
+                ($0.magnification ?? 1) > currentMagnification + 0.01
             }
         } else {
             nextPreset = DocumentZoomPreset.fixedPresets.reversed().first {
-                ($0.magnification ?? 1) < current - 0.01
+                ($0.magnification ?? 1) < currentMagnification - 0.01
             }
         }
 
         if let nextPreset {
             setZoomPreset(nextPreset)
         }
+    }
+
+    private func setNativeMagnification(_ magnification: CGFloat) {
+        let clampedMagnification = clampedZoom(magnification)
+        updateZoomDisplay(for: clampedMagnification)
+
+        guard let scrollView else { return }
+        guard abs(scrollView.magnification - clampedMagnification) > 0.001 else { return }
+
+        scrollView.setMagnification(
+            clampedMagnification,
+            centeredAt: nativeZoomAnchor()
+        )
+    }
+
+    private func nativeZoomAnchor() -> NSPoint {
+        guard let scrollView, let textView else { return .zero }
+
+        let visibleRect = scrollView.contentView.documentVisibleRect
+        let pageFrame = textView.currentPageStackFrame
+
+        if pageFrame.intersects(visibleRect) {
+            return ZoomViewportCalculator.stableCenter(for: visibleRect, pageFrame: pageFrame)
+        }
+
+        return NSPoint(x: pageFrame.midX, y: pageFrame.midY)
     }
 
     private func fitPageMagnification() -> CGFloat {
@@ -112,45 +147,14 @@ extension EditorController {
         )
     }
 
-    private func applyZoom(_ magnification: CGFloat, shouldResizePages: Bool = true) {
-        let clampedMagnification = min(max(magnification, minimumZoom), maximumZoom)
-        updateZoomDisplayText(for: clampedMagnification)
-
-        guard let scrollView, let textView else { return }
-        let shouldRefreshTextLayout = abs(textView.documentLayoutScale - clampedMagnification) > 0.001
-
-        if abs(scrollView.magnification - 1) > 0.001 {
-            scrollView.magnification = 1
-        }
-
-        textView.resizeForCachedPages(at: clampedMagnification)
-        keepPageCentered()
-
-        if shouldRefreshTextLayout {
-            textView.refreshDisplayAfterZoomFrameChange()
-        }
+    private func clampedZoom(_ magnification: CGFloat) -> CGFloat {
+        min(max(magnification, minimumZoom), maximumZoom)
     }
 
-    private func keepPageCentered() {
-        centerPageForCurrentLayout(queuesFollowUpCentering: !(scrollView?.inLiveResize ?? false))
-    }
-
-    private func centerPageForCurrentLayout(queuesFollowUpCentering: Bool = true) {
-        guard let textView else { return }
-
-        textView.centerPageHorizontallyPreservingVerticalPosition()
-
-        guard queuesFollowUpCentering else { return }
-
-        DispatchQueue.main.async { [weak self] in
-            self?.textView?.centerPageHorizontallyPreservingVerticalPosition()
-        }
-    }
-
-    private func updateZoomDisplayText(for magnification: CGFloat) {
-        let text = percentText(for: magnification)
-        if zoomDisplayText != text {
-            zoomDisplayText = text
+    private func updateZoomDisplay(for magnification: CGFloat) {
+        let displayText = "\(Int((magnification * 100).rounded()))%"
+        if zoomDisplayText != displayText {
+            zoomDisplayText = displayText
         }
 
         let value = Double(magnification)
@@ -159,8 +163,14 @@ extension EditorController {
         }
     }
 
-    private func percentText(for magnification: CGFloat) -> String {
-        "\(Int((magnification * 100).rounded()))%"
+    private func centerPageHorizontallyIfItFits() {
+        guard let scrollView, let textView else { return }
+        guard scrollView.contentView.documentVisibleRect.width + PaperScrollView.horizontalWheelTolerance
+            >= AutocompleteTextView.paperWidth else {
+            return
+        }
+
+        textView.centerPageHorizontallyPreservingVerticalPosition()
     }
 
     private func matchingPreset(for magnification: CGFloat) -> DocumentZoomPreset? {
