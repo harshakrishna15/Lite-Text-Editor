@@ -1,12 +1,12 @@
 import SwiftUI
 
 enum TitlebarEditorChromeLayout {
-    static let width: CGFloat = 640
+    static let width: CGFloat = 712
     static let height: CGFloat = 24
     static let dividerHeight: CGFloat = 14
     static let dividerWidth: CGFloat = 1
     static let sectionSpacing: CGFloat = 8
-    static let minimumFormattingControlsWidth: CGFloat = 96
+    static let minimumFormattingControlsWidth: CGFloat = 168
 
     static var minimumContentWidth: CGFloat {
         TitlebarDocumentTabsLayout.sectionWidth
@@ -185,47 +185,95 @@ private struct TitlebarFormattingControlsView: View {
     @ObservedObject var editor: EditorController
 
     var body: some View {
-        HStack(spacing: 2) {
-            TitlebarIconButton(
-                symbol: "sidebar.left",
-                help: editor.isOutlineVisible ? "Hide Outline" : "Show Outline",
-                isSelected: editor.isOutlineVisible
-            ) {
-                withAnimation(ChromeStyle.outlinePanelAnimation) {
-                    editor.isOutlineVisible.toggle()
-                }
+        HStack(spacing: 6) {
+            TitlebarFontSizePicker(editor: editor)
+
+            HStack(spacing: 2) {
+                TitlebarIconButton(
+                    symbol: "bold",
+                    help: "Bold",
+                    isSelected: editor.formattingState.isBold,
+                    action: editor.toggleBold
+                )
+
+                TitlebarIconButton(
+                    symbol: "italic",
+                    help: "Italic",
+                    isSelected: editor.formattingState.isItalic,
+                    action: editor.toggleItalic
+                )
+
+                TitlebarIconButton(
+                    symbol: "underline",
+                    help: "Underline",
+                    isSelected: editor.formattingState.isUnderline,
+                    action: editor.toggleUnderline
+                )
             }
-
-            Rectangle()
-                .fill(Color(nsColor: .separatorColor).opacity(0.60))
-                .frame(width: 1, height: 12)
-                .padding(.horizontal, 2)
-                .accessibilityHidden(true)
-
-            TitlebarIconButton(
-                symbol: "bold",
-                help: "Bold",
-                isSelected: editor.formattingState.isBold,
-                action: editor.toggleBold
-            )
-
-            TitlebarIconButton(
-                symbol: "italic",
-                help: "Italic",
-                isSelected: editor.formattingState.isItalic,
-                action: editor.toggleItalic
-            )
-
-            TitlebarIconButton(
-                symbol: "underline",
-                help: "Underline",
-                isSelected: editor.formattingState.isUnderline,
-                action: editor.toggleUnderline
-            )
         }
         .frame(height: TitlebarEditorChromeLayout.height)
         .fixedSize(horizontal: true, vertical: false)
         .frame(minWidth: TitlebarEditorChromeLayout.minimumFormattingControlsWidth)
+    }
+}
+
+private struct TitlebarFontSizePicker: View {
+    @ObservedObject var editor: EditorController
+    @State private var draftText: String
+
+    init(editor: EditorController) {
+        self.editor = editor
+        _draftText = State(
+            initialValue: FontSizePickerModel.displayText(
+                for: editor.formattingState.fontSize
+            )
+        )
+    }
+
+    var body: some View {
+        HStack(spacing: 1) {
+            TitlebarIconButton(symbol: "minus", help: "Decrease Font Size") {
+                stepFontSize(by: -1)
+            }
+
+            EditableComboBox(
+                text: $draftText,
+                items: FontSizePickerModel.commonSizeTitles,
+                visibleItemCount: 8,
+                onCommit: commitFontSize
+            )
+            .frame(width: 54, height: ChromeStyle.toolbarDropdownControlHeight)
+            .help("Font Size")
+            .accessibilityLabel("Font Size")
+
+            TitlebarIconButton(symbol: "plus", help: "Increase Font Size") {
+                stepFontSize(by: 1)
+            }
+        }
+        .onChange(of: editor.formattingState.fontSize) { size in
+            draftText = FontSizePickerModel.displayText(for: size)
+        }
+    }
+
+    private func commitFontSize(_ text: String) {
+        guard let size = FontSizePickerModel.size(from: text) else {
+            draftText = FontSizePickerModel.displayText(
+                for: editor.formattingState.fontSize
+            )
+            return
+        }
+
+        editor.applyFontSize(size)
+        draftText = FontSizePickerModel.displayText(for: size)
+    }
+
+    private func stepFontSize(by direction: Int) {
+        let size = FontSizePickerModel.steppedSize(
+            from: editor.formattingState.fontSize,
+            direction: direction
+        )
+        editor.applyFontSize(size)
+        draftText = FontSizePickerModel.displayText(for: size)
     }
 }
 

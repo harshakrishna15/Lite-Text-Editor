@@ -60,13 +60,22 @@ struct EditorView: View {
                                 height: panelHeight,
                                 onSelect: editor.selectOutlineItem
                             ) {
-                                closeOutline()
+                                collapseOutline()
                             }
                             .padding(.leading, ChromeStyle.outlinePanelLeadingOffset)
                             .padding(.top, ChromeStyle.outlinePanelTopInset)
                             .transition(.move(edge: .leading).combined(with: .opacity))
                             .zIndex(2)
                         }
+                    } else {
+                        FloatingOutlineButton(
+                            currentHeading: editor.currentOutlineHeadingText,
+                            onOpen: expandOutline
+                        )
+                        .padding(.leading, ChromeStyle.outlinePanelLeadingOffset)
+                        .padding(.top, ChromeStyle.outlinePanelTopInset)
+                        .transition(.move(edge: .leading).combined(with: .opacity))
+                        .zIndex(2)
                     }
                 }
             }
@@ -127,18 +136,9 @@ struct EditorView: View {
                     set: { editor.setShouldReopenLastDocument($0) }
                 ),
                 suggestionWordsText: $suggestionWordsText,
-                localModelState: editor.localModelState,
                 suggestionWordOptions: suggestionWordOptions,
-                onRefreshLocalModelState: editor.refreshLocalModelState,
-                onDownloadLocalModel: editor.downloadLocalModel,
-                onCancelLocalModelDownload: editor.cancelLocalModelDownload,
-                onUninstallLocalModel: editor.uninstallLocalModel,
-                onShowLocalModelDownloadLocation: editor.showLocalModelDownloadLocation,
                 onSuggestionWordsCommit: applySuggestionWordsText
             )
-        }
-        .onAppear {
-            editor.refreshLocalModelState()
         }
     }
 
@@ -146,7 +146,13 @@ struct EditorView: View {
         max(0, editorHeight - ChromeStyle.outlinePanelTopInset - ChromeStyle.outlinePanelBottomInset)
     }
 
-    private func closeOutline() {
+    private func expandOutline() {
+        withAnimation(ChromeStyle.outlinePanelAnimation) {
+            editor.isOutlineVisible = true
+        }
+    }
+
+    private func collapseOutline() {
         withAnimation(ChromeStyle.outlinePanelAnimation) {
             editor.isOutlineVisible = false
         }

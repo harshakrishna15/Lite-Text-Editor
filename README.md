@@ -6,7 +6,7 @@ Lite Text Editor is a native macOS rich-text writing app prototype for Apple Sil
 
 - Native `NSTextView` rich-text editor
 - Native macOS menu-bar sections for Home, Insert, Layout, and Review
-- Compact macOS titlebar with document tabs, outline access, and bold/italic/underline controls
+- Compact macOS titlebar with document tabs, an editable font-size picker, and bold/italic/underline controls
 - App settings sheet for writing and autocomplete configuration
 - File menu actions for open, save, save as, PDF export, and print
 - Paper-style writing surface with a centered 8.5 x 11 inch Letter page, 1-inch margins, and desk background
@@ -15,14 +15,14 @@ Lite Text Editor is a native macOS rich-text writing app prototype for Apple Sil
 - Symmetric desk space above and below the document page
 - Empty new document default with black 12 pt Courier text
 - Multiple renameable tabs inside one document, automatically named Tab 1, Tab 2, and upward
+- Floating current-heading control that expands into the complete document outline
 - macOS spellcheck, optional autocorrect, grammar checking, smart quotes, and smart dashes
 - Google Docs-style typed list shortcuts (`- ` or `* ` for bullets, `1. ` for numbering, and checkbox syntax)
 - Google Docs-style list editing with Enter to continue, Enter twice to exit, and Tab/Shift+Tab to nest
 - Courier-only document typography with regular, bold, and italic variants
-- Bottom zoom bar with a fixed-size dropdown, step buttons, and a click/drag zoom slider
 - Bottom-left document counter dropdown for words, characters, sentences, paragraphs, lines, pages, and reading time
 - Google Docs-style spelling review card with Enter-to-change and automatic next-issue navigation
-- Local phrase autocomplete fallback
+- Local phrase autocomplete with no model download
 - Document-aware suggestion request pipeline
 - Document-memory suggestions from repeated wording in the current document
 - 2-5 word suggestion limit, configurable from `Lite Text Editor > Settings...`
@@ -35,7 +35,7 @@ Lite Text Editor is a native macOS rich-text writing app prototype for Apple Sil
 
 ## Architecture
 
-Source files are split into feature modules under `Sources/LiteTextEditor` so editor surface work, writing tools, suggestions, local AI, documents, formatting, and UI can be changed independently. See `ARCHITECTURE.md` for the dependency rules.
+Source files are split into feature modules under `Sources/LiteTextEditor` so editor surface work, writing tools, suggestions, documents, formatting, and UI can be changed independently. See `ARCHITECTURE.md` for the dependency rules.
 
 ## Build
 
@@ -67,21 +67,5 @@ swift run "Lite Text Editor"
 - `Command+]`: increase indent
 - `Command+Option+X`: open spelling review
 - `Enter`: change the current spelling review suggestion
-- `Command++`: zoom in
-- `Command+-`: zoom out
-- `Command+0`: actual size
-- `Command+Option+0`: fit page to screen
 - `Tab`: accept the next autocomplete word
 - `Command+P`: print
-
-## Local AI Plan
-
-The app already has a `LocalModelSuggestionProviding` boundary. Each request includes:
-
-- Compact current document context
-- Current paragraph
-- Text immediately before the cursor
-- Text immediately after the cursor
-- The configured 2-5 word limit
-
-The next step is to wire that request to MLX Swift LM with a small local 4-bit model, then use the same 2-5 word post-processing before showing suggestions.

@@ -1,5 +1,88 @@
 import SwiftUI
 
+struct FloatingOutlineButton: View {
+    let currentHeading: String?
+    let onOpen: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: onOpen) {
+            HStack(spacing: 8) {
+                Image(systemName: "list.bullet.rectangle")
+                    .font(ChromeStyle.controlSymbolFont)
+                    .foregroundStyle(
+                        currentHeading == nil
+                            ? ChromeStyle.controlTextColor
+                            : ChromeStyle.secondaryTextColor
+                    )
+
+                if let currentHeading {
+                    Text(currentHeading)
+                        .font(ChromeStyle.smallTextFont.weight(.semibold))
+                        .foregroundStyle(ChromeStyle.controlTextColor)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(ChromeStyle.secondaryTextColor)
+                }
+            }
+            .padding(.horizontal, currentHeading == nil ? 0 : 10)
+            .frame(
+                width: currentHeading == nil
+                    ? ChromeStyle.outlineCollapsedIconButtonWidth
+                    : ChromeStyle.outlineCollapsedButtonWidth,
+                height: ChromeStyle.outlineCollapsedButtonHeight,
+                alignment: currentHeading == nil ? .center : .leading
+            )
+            .contentShape(
+                RoundedRectangle(
+                    cornerRadius: ChromeStyle.outlineCollapsedButtonCornerRadius,
+                    style: .continuous
+                )
+            )
+        }
+        .buttonStyle(.plain)
+        .chromeGlassBackground(
+            .panel,
+            in: RoundedRectangle(
+                cornerRadius: ChromeStyle.outlineCollapsedButtonCornerRadius,
+                style: .continuous
+            )
+        )
+        .overlay {
+            RoundedRectangle(
+                cornerRadius: ChromeStyle.outlineCollapsedButtonCornerRadius,
+                style: .continuous
+            )
+            .fill(isHovered ? ChromeStyle.toolbarHoverOverlay : Color.clear)
+            .allowsHitTesting(false)
+        }
+        .overlay {
+            RoundedRectangle(
+                cornerRadius: ChromeStyle.outlineCollapsedButtonCornerRadius,
+                style: .continuous
+            )
+            .strokeBorder(
+                isHovered ? ChromeStyle.toolbarHoverBorder : Color.clear,
+                lineWidth: isHovered ? 1 : 0
+            )
+            .allowsHitTesting(false)
+        }
+        .chromeFloatingPanelShadow()
+        .onHover { isHovered = $0 }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Show Outline")
+        .accessibilityValue(
+            currentHeading.map { "Current heading: \($0)" } ?? "No current heading"
+        )
+        .help(currentHeading.map { "Show Outline — \($0)" } ?? "Show Outline")
+    }
+}
+
 struct OutlineSidebarView: View {
     let items: [DocumentOutlineItem]
     let activeItemID: String?
@@ -48,7 +131,7 @@ struct OutlineSidebarView: View {
 
             Spacer()
 
-            OutlineCloseButton(action: onClose)
+            OutlineCollapseButton(action: onClose)
         }
         .padding(.horizontal, 14)
         .padding(.top, 12)
@@ -202,14 +285,14 @@ private struct OutlineRow: View {
     }
 }
 
-private struct OutlineCloseButton: View {
+private struct OutlineCollapseButton: View {
     let action: () -> Void
 
     @State private var isHovered = false
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: "xmark")
+            Image(systemName: "chevron.left")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(isHovered ? ChromeStyle.controlTextColor : ChromeStyle.secondaryTextColor)
                 .frame(width: 22, height: 22)
@@ -226,7 +309,7 @@ private struct OutlineCloseButton: View {
         }
         .buttonStyle(.borderless)
         .onHover { isHovered = $0 }
-        .accessibilityLabel("Hide Outline")
-        .help("Hide Outline")
+        .accessibilityLabel("Collapse Outline")
+        .help("Collapse Outline")
     }
 }

@@ -38,10 +38,6 @@ Spelling and autocorrect review logic. This module finds spelling issues and tra
 
 Autocomplete request models, context building, fallback phrase suggestions, and provider pipeline. This module should not know about `NSTextView`, SwiftUI, or page layout.
 
-### LocalAI
-
-Local model integration behind `SuggestionProviding`. Model loading and inference belong here so model work can change without touching the editor surface.
-
 ### Formatting
 
 Text presets, font previews, and formatting helpers. Formatting commands are coordinated by the editor engine because they mutate rich text directly.
@@ -60,7 +56,7 @@ Shared models used across systems. Keep this layer small and stable.
 
 ## Rules
 
-- `AutocompleteTextView` displays and accepts suggestions; it does not choose the app's model provider.
+- `AutocompleteTextView` displays and accepts suggestions; it does not choose the app's suggestion provider.
 - `EditorController` wires systems together and exposes state to UI.
 - `SuggestionProviding` is the boundary for autocomplete engines.
 - `SpellingReviewController` owns spelling detection and ignored issue tracking.

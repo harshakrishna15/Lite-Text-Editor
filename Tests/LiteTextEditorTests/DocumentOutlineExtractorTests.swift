@@ -48,7 +48,7 @@ final class DocumentOutlineExtractorTests: XCTestCase {
         Added
         The app can save files.
         Fixed
-        Zoom remains stable.
+        Page remains stable.
         Polish
         Menus look better.
         """)

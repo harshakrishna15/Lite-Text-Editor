@@ -150,6 +150,45 @@ extension EditorController {
         applyFont(font)
     }
 
+    func applyFontSize(_ size: Double) {
+        guard let textView, size.isFinite else { return }
+        let pointSize = CGFloat(
+            min(max(size, FontSizePickerModel.minimumSize), FontSizePickerModel.maximumSize)
+        )
+        let range = textView.effectiveRangeForFormatting()
+
+        if range.length > 0 {
+            textView.performUndoableAttributeEdit(in: range, actionName: "Font Size") { textStorage, editRange in
+                var fontRuns: [(range: NSRange, font: NSFont)] = []
+                textStorage.enumerateAttribute(.font, in: editRange) { value, effectiveRange, _ in
+                    let font = value as? NSFont
+                        ?? EditorTypography.font(size: EditorTypography.defaultPointSize)
+                    fontRuns.append((effectiveRange, font))
+                }
+
+                let changedRuns = fontRuns.filter {
+                    abs($0.font.pointSize - pointSize) > 0.001
+                }
+                changedRuns.forEach { run in
+                    textStorage.addAttribute(
+                        .font,
+                        value: run.font.withPointSize(pointSize),
+                        range: run.range
+                    )
+                }
+                return !changedRuns.isEmpty
+            }
+
+            refreshOutlineItems()
+            refreshFormattingState()
+        } else {
+            let font = textView.typingAttributes[.font] as? NSFont
+                ?? EditorTypography.font(size: EditorTypography.defaultPointSize)
+            textView.typingAttributes[.font] = font.withPointSize(pointSize)
+            formattingState.fontSize = Double(pointSize)
+        }
+    }
+
     func applyTextColor(_ color: Color) {
         guard let textView else { return }
         let nsColor = NSColor(color)
@@ -754,6 +793,10 @@ extension EditorController {
 }
 
 private extension NSFont {
+    func withPointSize(_ pointSize: CGFloat) -> NSFont {
+        NSFont(descriptor: fontDescriptor, size: pointSize) ?? self
+    }
+
     func togglingSymbolicTrait(_ trait: NSFontDescriptor.SymbolicTraits) -> NSFont {
         settingSymbolicTrait(
             trait,

@@ -11,7 +11,6 @@ final class AutocompleteTextView: NSTextView {
     static let pageTextWidth = paperWidth - (pageMargin * 2)
     static let pageContentHeight = pageHeight - (pageMargin * 2)
     static let textLayoutDimensionLimit: CGFloat = 1_000_000
-    static let minimumStableCanvasMagnification: CGFloat = 0.5
     static let suggestionRefreshDelay: TimeInterval = 0.12
     static let pageRefreshDelay: TimeInterval = 0.1
 
@@ -64,7 +63,7 @@ final class AutocompleteTextView: NSTextView {
 
     var suggestionProvider: SuggestionProviding = SuggestionPipeline(
         providers: [
-            LocalAISuggestionProvider()
+            PhraseSuggestionEngine()
         ]
     )
     let suggestionLabel = NSTextField(labelWithString: "")

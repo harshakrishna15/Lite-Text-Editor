@@ -89,6 +89,48 @@ final class FormattingStateTests: XCTestCase {
         XCTAssertTrue(fixture.controller.formattingState.textColor.isEqual(NSColor.black))
     }
 
+    func testApplyingFontSizeToSelectionPreservesFontTraits() throws {
+        let fixture = makeFixture()
+        let boldFont = EditorTypography.font(size: 12, weight: .bold)
+        fixture.textView.textStorage?.setAttributedString(
+            NSAttributedString(
+                string: "Selected text",
+                attributes: [.font: boldFont]
+            )
+        )
+        fixture.textView.setSelectedRange(NSRange(location: 0, length: 13))
+
+        fixture.controller.applyFontSize(24)
+
+        let appliedFont = try XCTUnwrap(
+            fixture.textView.textStorage?.attribute(
+                .font,
+                at: 0,
+                effectiveRange: nil
+            ) as? NSFont
+        )
+        XCTAssertEqual(appliedFont.pointSize, 24, accuracy: 0.001)
+        XCTAssertTrue(appliedFont.fontDescriptor.symbolicTraits.contains(.bold))
+        XCTAssertEqual(fixture.controller.formattingState.fontSize, 24, accuracy: 0.001)
+    }
+
+    func testApplyingFontSizeAtInsertionPointUpdatesTypingFont() throws {
+        let fixture = makeFixture()
+        let baseFont = EditorTypography.font(size: 12)
+        let italicFont = NSFont(
+            descriptor: baseFont.fontDescriptor.withSymbolicTraits(.italic),
+            size: 12
+        ) ?? baseFont
+        fixture.textView.typingAttributes[.font] = italicFont
+
+        fixture.controller.applyFontSize(18)
+
+        let typingFont = try XCTUnwrap(fixture.textView.typingAttributes[.font] as? NSFont)
+        XCTAssertEqual(typingFont.pointSize, 18, accuracy: 0.001)
+        XCTAssertTrue(typingFont.fontDescriptor.symbolicTraits.contains(.italic))
+        XCTAssertEqual(fixture.controller.formattingState.fontSize, 18, accuracy: 0.001)
+    }
+
     private struct Fixture {
         let controller: EditorController
         let textView: AutocompleteTextView

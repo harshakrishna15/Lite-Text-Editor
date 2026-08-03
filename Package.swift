@@ -14,8 +14,13 @@ let package = Package(
         .executableTarget(
             name: "LiteTextEditor",
             path: "Sources/LiteTextEditor",
+            exclude: [
+                "Resources/.DS_Store",
+                "Resources/AppIcon.iconset",
+                "Resources/AppIcon.png"
+            ],
             resources: [
-                .process("Resources")
+                .process("Resources/AppIcon.icns")
             ]
         ),
         .testTarget(

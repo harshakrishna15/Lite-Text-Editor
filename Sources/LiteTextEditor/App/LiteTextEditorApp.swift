@@ -181,7 +181,7 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
     @objc private func showLiteTextEditorHelp() {
         let alert = NSAlert()
         alert.messageText = "Lite Text Editor Help"
-        alert.informativeText = "Use the compact tabs beside the traffic lights to switch sections. Press + to add Tab 2, Tab 3, and so on; double-click or right-click a tab to rename it. Outline and simple formatting controls are also in the titlebar. All document text uses Courier automatically."
+        alert.informativeText = "Use the compact tabs beside the traffic lights to switch sections. Press + to add Tab 2, Tab 3, and so on; double-click or right-click a tab to rename it. The floating heading button opens the full outline. Simple formatting controls remain in the titlebar, and all document text uses Courier automatically."
         alert.alertStyle = .informational
         alert.runModal()
     }
@@ -316,22 +316,6 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
 
     @objc private func toggleKeepWithNext() {
         NotificationCenter.default.post(name: .liteTextEditorToggleKeepWithNext, object: nil)
-    }
-
-    @objc private func zoomIn() {
-        NotificationCenter.default.post(name: .liteTextEditorZoomIn, object: nil)
-    }
-
-    @objc private func zoomOut() {
-        NotificationCenter.default.post(name: .liteTextEditorZoomOut, object: nil)
-    }
-
-    @objc private func fitPageToScreen() {
-        NotificationCenter.default.post(name: .liteTextEditorZoomFitPage, object: nil)
-    }
-
-    @objc private func actualSize() {
-        NotificationCenter.default.post(name: .liteTextEditorZoomActualSize, object: nil)
     }
 
     @objc private func toggleOutline() {
@@ -477,12 +461,11 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
 
         let viewMenuItem = NSMenuItem()
         let viewMenu = NSMenu(title: "View")
-        viewMenu.addItem(commandItem("Toggle Outline", action: #selector(toggleOutline), key: "1", modifiers: [.command, .option]))
+        viewMenu.addItem(commandItem("Expand or Collapse Outline", action: #selector(toggleOutline), key: "1", modifiers: [.command, .option]))
         viewMenu.addItem(NSMenuItem.separator())
-        viewMenu.addItem(commandItem("Zoom In", action: #selector(zoomIn), key: "="))
-        viewMenu.addItem(commandItem("Zoom Out", action: #selector(zoomOut), key: "-"))
-        viewMenu.addItem(commandItem("Actual Size", action: #selector(actualSize), key: "0"))
-        viewMenu.addItem(commandItem("Fit Page", action: #selector(fitPageToScreen), key: "0", modifiers: [.command, .option]))
+        viewMenu.addItem(responderCommandItem("Zoom In", action: #selector(PaperScrollView.zoomDocumentIn(_:)), key: "="))
+        viewMenu.addItem(responderCommandItem("Zoom Out", action: #selector(PaperScrollView.zoomDocumentOut(_:)), key: "-"))
+        viewMenu.addItem(responderCommandItem("Actual Size", action: #selector(PaperScrollView.resetDocumentZoom(_:)), key: "0"))
         viewMenu.addItem(NSMenuItem.separator())
         viewMenu.addItem(NSMenuItem(title: "Enter Full Screen", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f"))
         viewMenu.items.last?.keyEquivalentModifierMask = [.control, .command]
@@ -492,7 +475,6 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         let windowMenuItem = NSMenuItem()
         let windowMenu = NSMenu(title: "Window")
         windowMenu.addItem(NSMenuItem(title: "Minimize", action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m"))
-        windowMenu.addItem(NSMenuItem(title: "Zoom", action: #selector(NSWindow.zoom(_:)), keyEquivalent: ""))
         windowMenu.addItem(NSMenuItem.separator())
         windowMenu.addItem(NSMenuItem(title: "Bring All to Front", action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: ""))
         windowMenuItem.submenu = windowMenu
@@ -543,6 +525,16 @@ final class LiteTextEditorApplication: NSObject, NSApplicationDelegate {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
         item.target = self
         item.keyEquivalentModifierMask = modifiers
+        return item
+    }
+
+    private func responderCommandItem(
+        _ title: String,
+        action: Selector,
+        key: String
+    ) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+        item.keyEquivalentModifierMask = [.command]
         return item
     }
 
@@ -641,10 +633,6 @@ extension Notification.Name {
     static let liteTextEditorApplyParagraphIndent = Notification.Name("liteTextEditorApplyParagraphIndent")
     static let liteTextEditorToggleKeepParagraphTogether = Notification.Name("liteTextEditorToggleKeepParagraphTogether")
     static let liteTextEditorToggleKeepWithNext = Notification.Name("liteTextEditorToggleKeepWithNext")
-    static let liteTextEditorZoomIn = Notification.Name("liteTextEditorZoomIn")
-    static let liteTextEditorZoomOut = Notification.Name("liteTextEditorZoomOut")
-    static let liteTextEditorZoomFitPage = Notification.Name("liteTextEditorZoomFitPage")
-    static let liteTextEditorZoomActualSize = Notification.Name("liteTextEditorZoomActualSize")
     static let liteTextEditorToggleOutline = Notification.Name("liteTextEditorToggleOutline")
     static let liteTextEditorRecentDocumentsChanged = Notification.Name("liteTextEditorRecentDocumentsChanged")
 }

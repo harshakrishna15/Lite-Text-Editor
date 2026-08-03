@@ -116,7 +116,8 @@ final class DocumentTitleTests: XCTestCase {
         XCTAssertLessThanOrEqual(TitlebarDocumentTabsLayout.addButtonSize, 20)
         XCTAssertGreaterThanOrEqual(TitlebarDocumentTabsLayout.maximumTabWidth, 72)
         XCTAssertLessThanOrEqual(TitlebarDocumentTabsLayout.maximumTabWidth, 96)
-        XCTAssertLessThanOrEqual(TitlebarEditorChromeLayout.minimumFormattingControlsWidth, 100)
+        XCTAssertGreaterThanOrEqual(TitlebarEditorChromeLayout.minimumFormattingControlsWidth, 160)
+        XCTAssertLessThanOrEqual(TitlebarEditorChromeLayout.width, 720)
         XCTAssertGreaterThanOrEqual(
             TitlebarEditorChromeLayout.width,
             TitlebarEditorChromeLayout.minimumContentWidth

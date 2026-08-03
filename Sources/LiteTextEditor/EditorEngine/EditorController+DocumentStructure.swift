@@ -15,12 +15,8 @@ extension EditorController {
         documentStructureMetadata.summaryText
     }
 
-    var activeStructureText: String {
-        guard let activeOutlineItem = outlineItems.first(where: { $0.id == activeOutlineItemID }) else {
-            return ""
-        }
-
-        return "\(activeOutlineItem.displayTitle) - \(activeOutlineItem.metadataText)"
+    var currentOutlineHeadingText: String? {
+        outlineItems.first(where: { $0.id == activeOutlineItemID })?.displayTitle
     }
 
     func refreshDocumentStatistics() {

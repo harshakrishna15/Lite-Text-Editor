@@ -3,14 +3,38 @@ import AppKit
 final class PaperScrollView: NSScrollView {
     static let scrollerRevealEdgeInset: CGFloat = 28
     static let horizontalWheelTolerance: CGFloat = 0.5
+    static let minimumMagnification: CGFloat = 1
+    static let maximumMagnification: CGFloat = 2
+    static let magnificationStep: CGFloat = 0.1
 
-    var onViewportSizeChanged: (() -> Void)?
     private var pendingDocumentResize = false
     private var resizeGeneration = 0
     private var hasPreparedFirstScroll = false
     private var scrollerRevealTrackingArea: NSTrackingArea?
     private var didRecentlyFlashScrollers = false
     private var isDeferringDocumentResizeDuringLiveResize = false
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        configureMagnification()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configureMagnification()
+    }
+
+    @objc func zoomDocumentIn(_ sender: Any?) {
+        setDocumentMagnification(magnification + Self.magnificationStep)
+    }
+
+    @objc func zoomDocumentOut(_ sender: Any?) {
+        setDocumentMagnification(magnification - Self.magnificationStep)
+    }
+
+    @objc func resetDocumentZoom(_ sender: Any?) {
+        setDocumentMagnification(Self.minimumMagnification)
+    }
 
     static func shouldRevealScrollers(
         for point: NSPoint,
@@ -42,16 +66,15 @@ final class PaperScrollView: NSScrollView {
     override func setFrameSize(_ newSize: NSSize) {
         let previousContentSize = contentSize
         super.setFrameSize(newSize)
+        let contentSizeChanged = abs(previousContentSize.width - contentSize.width) > 0.5
+            || abs(previousContentSize.height - contentSize.height) > 0.5
+        guard contentSizeChanged else { return }
+
         hasPreparedFirstScroll = false
 
         if !isDeferringDocumentResizeDuringLiveResize {
             resizeDocumentForCurrentViewport()
             scheduleDocumentResize()
-        }
-
-        if abs(previousContentSize.width - contentSize.width) > 0.5
-            || abs(previousContentSize.height - contentSize.height) > 0.5 {
-            onViewportSizeChanged?()
         }
     }
 
@@ -67,7 +90,6 @@ final class PaperScrollView: NSScrollView {
         isDeferringDocumentResizeDuringLiveResize = false
         resizeDocumentForCurrentViewport()
         scheduleDocumentResize()
-        onViewportSizeChanged?()
     }
 
     override func updateTrackingAreas() {
@@ -143,7 +165,6 @@ final class PaperScrollView: NSScrollView {
             guard self.pendingDocumentResize, self.resizeGeneration == generation else { return }
             self.pendingDocumentResize = false
             (self.documentView as? AutocompleteTextView)?.resizeForCurrentPages()
-            self.onViewportSizeChanged?()
         }
     }
 
@@ -170,5 +191,23 @@ final class PaperScrollView: NSScrollView {
         guard !didRecentlyFlashScrollers else { return }
         didRecentlyFlashScrollers = true
         flashScrollers()
+    }
+
+    private func configureMagnification() {
+        allowsMagnification = true
+        minMagnification = Self.minimumMagnification
+        maxMagnification = Self.maximumMagnification
+    }
+
+    private func setDocumentMagnification(_ proposedMagnification: CGFloat) {
+        let targetMagnification = min(
+            max(proposedMagnification, Self.minimumMagnification),
+            Self.maximumMagnification
+        )
+        let visibleRect = contentView.documentVisibleRect
+        setMagnification(
+            targetMagnification,
+            centeredAt: NSPoint(x: visibleRect.midX, y: visibleRect.midY)
+        )
     }
 }

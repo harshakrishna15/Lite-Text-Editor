@@ -13,7 +13,6 @@ enum ChromeStyle {
     static let largeSymbolFont = Font.system(size: 17, weight: .regular)
     static let toolbarControlHeight: CGFloat = 26
     static let toolbarDropdownControlHeight: CGFloat = 20
-    static let statusBarZoomDropdownHeight: CGFloat = 18
     static let toolbarControlCornerRadius: CGFloat = 5
     static let toolbarPopoverRowCornerRadius: CGFloat = 6
     static let toolbarPanelHeight: CGFloat = 34
@@ -40,6 +39,10 @@ enum ChromeStyle {
     static let outlinePanelLeadingOffset: CGFloat = 16
     static let outlinePanelTopInset: CGFloat = 16
     static let outlinePanelBottomInset: CGFloat = 16
+    static let outlineCollapsedButtonWidth: CGFloat = 196
+    static let outlineCollapsedIconButtonWidth: CGFloat = 32
+    static let outlineCollapsedButtonHeight: CGFloat = 32
+    static let outlineCollapsedButtonCornerRadius: CGFloat = 10
     static let outlinePanelAnimation = Animation.easeInOut(duration: 0.22)
     static let controlTextColor = Color.black.opacity(0.86)
     static let secondaryTextColor = Color.black.opacity(0.58)

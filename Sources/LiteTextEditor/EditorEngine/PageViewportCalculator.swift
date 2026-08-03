@@ -1,27 +1,6 @@
 import AppKit
 
-struct ZoomViewportCalculator {
-    static func fitPageMagnification(
-        contentSize: NSSize,
-        minimumZoom: CGFloat,
-        paperWidth: CGFloat = AutocompleteTextView.paperWidth,
-        pageHeight: CGFloat = AutocompleteTextView.pageHeight,
-        deskPadding: CGFloat = AutocompleteTextView.deskPadding
-    ) -> CGFloat {
-        let availableWidth = max(
-            contentSize.width - (deskPadding * 2),
-            paperWidth * minimumZoom
-        )
-        let availableHeight = max(
-            contentSize.height - (deskPadding * 2),
-            pageHeight * minimumZoom
-        )
-        let widthFit = availableWidth / paperWidth
-        let heightFit = availableHeight / pageHeight
-
-        return min(widthFit, heightFit)
-    }
-
+struct PageViewportCalculator {
     static func stableCenter(for visibleRect: NSRect, pageFrame: NSRect) -> NSPoint {
         NSPoint(
             x: visibleRect.width >= pageFrame.width
@@ -33,7 +12,11 @@ struct ZoomViewportCalculator {
         )
     }
 
-    static func clampedVisibleOrigin(centeredAt center: NSPoint, visibleSize: NSSize, documentBounds: NSRect) -> NSPoint {
+    static func clampedVisibleOrigin(
+        centeredAt center: NSPoint,
+        visibleSize: NSSize,
+        documentBounds: NSRect
+    ) -> NSPoint {
         let proposedOrigin = NSPoint(
             x: center.x - (visibleSize.width / 2),
             y: center.y - (visibleSize.height / 2)

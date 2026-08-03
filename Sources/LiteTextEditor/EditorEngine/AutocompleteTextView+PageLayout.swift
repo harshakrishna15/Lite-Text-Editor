@@ -214,8 +214,8 @@ extension AutocompleteTextView {
         if pageFrame.intersects(visibleRect) {
             targetY = visibleRect.origin.y
         } else {
-            let stableCenter = ZoomViewportCalculator.stableCenter(for: visibleRect, pageFrame: pageFrame)
-            targetY = ZoomViewportCalculator.clampedVisibleOrigin(
+            let stableCenter = PageViewportCalculator.stableCenter(for: visibleRect, pageFrame: pageFrame)
+            targetY = PageViewportCalculator.clampedVisibleOrigin(
                 centeredAt: stableCenter,
                 visibleSize: visibleRect.size,
                 documentBounds: bounds
@@ -319,13 +319,12 @@ extension AutocompleteTextView {
             + Self.pageTopVisiblePadding
             + Self.pageBottomVisiblePadding
         let viewportSize = enclosingScrollView?.contentSize ?? .zero
-        let minimumZoom = Self.minimumStableCanvasMagnification
         let targetWidth = Self.documentWidth(
-            forViewportWidth: viewportSize.width / minimumZoom
+            forViewportWidth: viewportSize.width
         )
         let targetHeight = max(
             paddedPageStackHeight,
-            viewportSize.height / minimumZoom
+            viewportSize.height
         )
 
         return NSSize(width: targetWidth, height: targetHeight)
@@ -408,7 +407,7 @@ extension AutocompleteTextView {
         let pageRelativeAnchor: NSPoint?
 
         if let visibleRect, oldPageFrame.intersects(visibleRect) {
-            let anchor = ZoomViewportCalculator.stableCenter(
+            let anchor = PageViewportCalculator.stableCenter(
                 for: visibleRect,
                 pageFrame: oldPageFrame
             )
@@ -442,7 +441,7 @@ extension AutocompleteTextView {
                 )
             )
             restoreVisibleOrigin(
-                ZoomViewportCalculator.clampedVisibleOrigin(
+                PageViewportCalculator.clampedVisibleOrigin(
                     centeredAt: anchor,
                     visibleSize: visibleRect.size,
                     documentBounds: bounds

@@ -28,7 +28,6 @@ struct RichTextEditor: NSViewRepresentable {
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = true
         scrollView.backgroundColor = .liteTextEditorDesk
-        scrollView.allowsMagnification = true
         scrollView.hasHorizontalRuler = false
         scrollView.hasVerticalRuler = false
         scrollView.rulersVisible = false
@@ -115,9 +114,6 @@ struct RichTextEditor: NSViewRepresentable {
         textView.typingAttributes = EditorTypography.defaultTypingAttributes
 
         scrollView.documentView = textView
-        scrollView.onViewportSizeChanged = { [weak controller] in
-            controller?.refreshZoomForLayout()
-        }
         controller.textView = textView
         controller.activateSelectedDocumentTabUndoManager()
         controller.scrollView = scrollView
@@ -133,7 +129,6 @@ struct RichTextEditor: NSViewRepresentable {
         )
         context.coordinator.registerDocumentCommands()
         context.coordinator.registerFormattingCommands()
-        context.coordinator.registerZoomCommands()
 
         return scrollView
     }
@@ -323,14 +318,6 @@ struct RichTextEditor: NSViewRepresentable {
             center.addObserver(self, selector: #selector(beginSpellingReview), name: .liteTextEditorBeginSpellingReview, object: nil)
         }
 
-        func registerZoomCommands() {
-            let center = NotificationCenter.default
-            center.addObserver(self, selector: #selector(zoomIn), name: .liteTextEditorZoomIn, object: nil)
-            center.addObserver(self, selector: #selector(zoomOut), name: .liteTextEditorZoomOut, object: nil)
-            center.addObserver(self, selector: #selector(fitPageToScreen), name: .liteTextEditorZoomFitPage, object: nil)
-            center.addObserver(self, selector: #selector(actualSize), name: .liteTextEditorZoomActualSize, object: nil)
-        }
-
         @objc private func toggleBold() {
             controller?.toggleBold()
         }
@@ -474,22 +461,6 @@ struct RichTextEditor: NSViewRepresentable {
 
         @objc private func beginSpellingReview() {
             controller?.beginSpellingReview()
-        }
-
-        @objc private func zoomIn() {
-            controller?.zoomIn()
-        }
-
-        @objc private func zoomOut() {
-            controller?.zoomOut()
-        }
-
-        @objc private func fitPageToScreen() {
-            controller?.fitPageToScreen()
-        }
-
-        @objc private func actualSize() {
-            controller?.actualSize()
         }
 
         func textDidChange(_ notification: Notification) {

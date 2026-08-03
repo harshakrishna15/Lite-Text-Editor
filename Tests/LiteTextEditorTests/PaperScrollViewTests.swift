@@ -54,33 +54,28 @@ final class PaperScrollViewTests: XCTestCase {
         XCTAssertFalse(PaperScrollView.shouldAllowHorizontalPanning(visibleDocumentWidth: 612))
     }
 
-    func testStockScrollViewMagnificationPreservesVisibleAnchor() {
+    func testNativeMagnificationIsConfiguredWithoutCustomZoomState() {
         let scrollView = PaperScrollView(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
-        scrollView.documentView = NSView(frame: NSRect(x: 0, y: 0, width: 1_200, height: 2_000))
-        scrollView.allowsMagnification = true
-        scrollView.minMagnification = 0.5
-        scrollView.maxMagnification = 2
-        let anchor = NSPoint(x: 600, y: 800)
-        scrollView.contentView.scroll(to: NSPoint(x: 400, y: 650))
-        scrollView.reflectScrolledClipView(scrollView.contentView)
 
-        scrollView.setMagnification(2, centeredAt: anchor)
-
-        XCTAssertEqual(scrollView.contentView.documentVisibleRect.midX, anchor.x, accuracy: 1)
-        XCTAssertEqual(scrollView.contentView.documentVisibleRect.midY, anchor.y, accuracy: 1)
+        XCTAssertTrue(scrollView.allowsMagnification)
+        XCTAssertEqual(scrollView.minMagnification, 1)
+        XCTAssertEqual(scrollView.maxMagnification, 2)
+        XCTAssertEqual(scrollView.magnification, 1)
     }
 
-    func testNativeMagnificationDoesNotPretendViewportSizeChanged() {
+    func testZoomCommandsStepAndResetNativeMagnification() {
         let scrollView = PaperScrollView(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
-        scrollView.documentView = NSView(frame: NSRect(x: 0, y: 0, width: 1_200, height: 2_000))
-        scrollView.allowsMagnification = true
-        var viewportChangeCount = 0
-        scrollView.onViewportSizeChanged = {
-            viewportChangeCount += 1
-        }
+        scrollView.documentView = NSView(frame: NSRect(x: 0, y: 0, width: 800, height: 1_000))
 
-        scrollView.setMagnification(1.5, centeredAt: NSPoint(x: 200, y: 150))
+        scrollView.zoomDocumentIn(nil)
+        XCTAssertEqual(scrollView.magnification, 1.1, accuracy: 0.001)
 
-        XCTAssertEqual(viewportChangeCount, 0)
+        scrollView.zoomDocumentOut(nil)
+        XCTAssertEqual(scrollView.magnification, 1, accuracy: 0.001)
+
+        scrollView.zoomDocumentIn(nil)
+        scrollView.resetDocumentZoom(nil)
+        XCTAssertEqual(scrollView.magnification, 1, accuracy: 0.001)
     }
+
 }

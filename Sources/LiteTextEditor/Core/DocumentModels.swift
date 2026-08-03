@@ -368,68 +368,6 @@ struct FormattingState: Equatable {
     var alignment: NSTextAlignment = .left
 }
 
-enum DocumentZoomPreset: String, CaseIterable, Identifiable {
-    case fitPage
-    case custom
-    case percent50
-    case percent75
-    case actualSize
-    case percent125
-    case percent150
-    case percent200
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .fitPage:
-            return "Fit Page"
-        case .custom:
-            return "Custom"
-        case .percent50:
-            return "50%"
-        case .percent75:
-            return "75%"
-        case .actualSize:
-            return "100%"
-        case .percent125:
-            return "125%"
-        case .percent150:
-            return "150%"
-        case .percent200:
-            return "200%"
-        }
-    }
-
-    var magnification: CGFloat? {
-        switch self {
-        case .fitPage, .custom:
-            return nil
-        case .percent50:
-            return 0.5
-        case .percent75:
-            return 0.75
-        case .actualSize:
-            return 1.0
-        case .percent125:
-            return 1.25
-        case .percent150:
-            return 1.5
-        case .percent200:
-            return 2.0
-        }
-    }
-
-    static let fixedPresets: [DocumentZoomPreset] = [
-        .percent50,
-        .percent75,
-        .actualSize,
-        .percent125,
-        .percent150,
-        .percent200
-    ]
-}
-
 private extension Character {
     var isDocumentWhitespace: Bool {
         unicodeScalars.allSatisfy { CharacterSet.whitespacesAndNewlines.contains($0) }

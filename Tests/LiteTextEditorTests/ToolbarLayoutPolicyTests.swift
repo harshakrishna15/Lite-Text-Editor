@@ -110,6 +110,25 @@ final class ToolbarLayoutPolicyTests: XCTestCase {
         XCTAssertEqual(popUpButton.intrinsicContentSize.height, ChromeStyle.toolbarDropdownControlHeight)
     }
 
+    func testTitlebarIncludesEditableFontSizePicker() {
+        let controller = EditorController()
+        let host = NSHostingView(
+            rootView: TitlebarEditorChromeView(editor: controller)
+        )
+        host.frame = NSRect(
+            x: 0,
+            y: 0,
+            width: TitlebarEditorChromeLayout.width,
+            height: TitlebarEditorChromeLayout.height
+        )
+        host.layoutSubtreeIfNeeded()
+
+        let comboBox = firstSubview(of: EditableComboBoxView.self, in: host)
+        XCTAssertNotNil(comboBox)
+        XCTAssertEqual(comboBox?.stringValue, "12")
+        XCTAssertEqual(comboBox?.frame.height, ChromeStyle.toolbarDropdownControlHeight)
+    }
+
     func testInitialModeUsesMiddleBreakpoint() {
         XCTAssertFalse(
             ToolbarLayoutPolicy.shouldUseCompactToolbar(
