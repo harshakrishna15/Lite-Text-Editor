@@ -9,7 +9,7 @@ A lightweight, native rich-text editor for macOS.
 - Text formatting, alignment, lists, and indentation
 - Document outline and writing statistics
 - Spelling, grammar, autocorrect, and smart punctuation
-- Local, document-aware autocomplete
+- Local phrase autocomplete
 - Open RTF, TXT, DOCX, and ODT files
 - Save multi-tab documents as LTEDOC files
 - Export to PDF or print

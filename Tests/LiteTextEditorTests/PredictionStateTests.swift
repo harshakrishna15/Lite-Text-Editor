@@ -7,10 +7,6 @@ final class PredictionStateTests: XCTestCase {
         XCTAssertNil(PredictionState.idle.statusText)
     }
 
-    func testPredictingStateProducesStatusText() {
-        XCTAssertEqual(PredictionState.predicting.statusText, "Predicting...")
-    }
-
     func testAvailableStateCountsSuggestionWords() {
         XCTAssertEqual(
             PredictionState.available(for: "other hand").statusText,
@@ -134,7 +130,8 @@ final class PredictionStateTests: XCTestCase {
 
         textView.refreshSuggestion()
 
-        XCTAssertTrue(publishedStates.contains(.predicting))
+        XCTAssertEqual(provider.callCount, 1)
+        XCTAssertTrue(publishedStates.contains(.available(wordCount: 2)))
     }
 
     func testDisabledInlineSuggestionsDoNotRequestPredictions() {

@@ -4,26 +4,6 @@
       "type": "swift",
       "request": "launch",
       "args": [],
-      "cwd": "${workspaceFolder:TypeAid}",
-      "name": "Debug TypeAid",
-      "target": "TypeAid",
-      "configuration": "debug",
-      "preLaunchTask": "swift: Build Debug TypeAid"
-    },
-    {
-      "type": "swift",
-      "request": "launch",
-      "args": [],
-      "cwd": "${workspaceFolder:TypeAid}",
-      "name": "Release TypeAid",
-      "target": "TypeAid",
-      "configuration": "release",
-      "preLaunchTask": "swift: Build Release TypeAid"
-    },
-    {
-      "type": "swift",
-      "request": "launch",
-      "args": [],
       "cwd": "${workspaceFolder:Lite Text Editor}",
       "name": "Debug Lite Text Editor",
       "target": "Lite Text Editor",

@@ -8,13 +8,6 @@ enum TitlebarEditorChromeLayout {
     static let sectionSpacing: CGFloat = 8
     static let minimumFormattingControlsWidth: CGFloat = 168
 
-    static var minimumContentWidth: CGFloat {
-        TitlebarDocumentTabsLayout.sectionWidth
-            + TitlebarDocumentTitleLayout.maximumWidth
-            + minimumFormattingControlsWidth
-            + (dividerWidth * 2)
-            + (sectionSpacing * 4)
-    }
 }
 
 enum TitlebarDocumentTabsLayout {
@@ -26,9 +19,6 @@ enum TitlebarDocumentTabsLayout {
     static let tabSpacing: CGFloat = 3
     static let cornerRadius: CGFloat = 6
 
-    static var sectionWidth: CGFloat {
-        stripWidth + addButtonSpacing + addButtonSize
-    }
 }
 
 struct TitlebarEditorChromeView: View {

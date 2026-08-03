@@ -7,10 +7,6 @@ struct DocumentOutlineExtractor {
         let metadata: DocumentStructureMetadata
     }
 
-    func makeOutlineItems(from attributedString: NSAttributedString) -> [DocumentOutlineItem] {
-        makeStructureSnapshot(from: attributedString).items
-    }
-
     func makeStructureSnapshot(from attributedString: NSAttributedString) -> StructureSnapshot {
         let string = attributedString.string as NSString
         guard string.length > 0 else {
@@ -30,7 +26,6 @@ struct DocumentOutlineExtractor {
             let sectionNumber = nextSectionNumber(for: candidate.level, counters: &sectionCounters)
             let boundary = boundaries[index]
             let sectionEnd = boundary.sectionEndLocation
-            let sectionLength = max(0, sectionEnd - candidate.location)
             let sectionBodyRange = bodyRange(for: candidate, sectionEnd: sectionEnd, stringLength: string.length)
             let sectionMetrics = metrics(in: sectionBodyRange, string: string)
 
@@ -40,10 +35,7 @@ struct DocumentOutlineExtractor {
                     level: candidate.level,
                     location: candidate.location,
                     headingLength: candidate.headingLength,
-                    sectionEndLocation: sectionEnd,
                     sectionNumber: sectionNumber,
-                    sectionLength: sectionLength,
-                    headingWordCount: wordCount(in: candidate.title),
                     wordCount: sectionMetrics.wordCount,
                     characterCount: sectionMetrics.characterCount,
                     paragraphCount: sectionMetrics.paragraphCount,
@@ -159,19 +151,6 @@ struct DocumentOutlineExtractor {
         return NSRange(location: bodyStart, length: max(0, bodyEnd - bodyStart))
     }
 
-    private func wordCount(in text: String) -> Int {
-        var count = 0
-        text.enumerateSubstrings(
-            in: text.startIndex..<text.endIndex,
-            options: [.byWords, .localized]
-        ) { substring, _, _, _ in
-            if let substring, !substring.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                count += 1
-            }
-        }
-        return count
-    }
-
     private func metrics(in range: NSRange, string: NSString) -> DocumentOutlineSectionMetrics {
         guard range.length > 0 else {
             return DocumentOutlineSectionMetrics(wordCount: 0, characterCount: 0, paragraphCount: 0)
@@ -244,8 +223,6 @@ struct DocumentOutlineExtractor {
             titleCount: titleItems.count,
             sectionCount: sectionItems.count,
             subsectionCount: nestedItems.count,
-            deepestLevel: items.map(\.level).max() ?? 0,
-            totalHeadingWords: items.reduce(0) { $0 + $1.headingWordCount },
             totalSectionWords: items.reduce(0) { $0 + $1.wordCount }
         )
     }

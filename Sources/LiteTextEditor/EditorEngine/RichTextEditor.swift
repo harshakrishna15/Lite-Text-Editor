@@ -382,7 +382,7 @@ struct RichTextEditor: NSViewRepresentable {
             guard let rawValue = notification.object as? String,
                   let preset = TextPreset(rawValue: rawValue) else { return }
 
-            controller?.applyPresetUsingCurrentFont(preset)
+            controller?.applyPreset(preset)
         }
 
         @objc private func toggleBulletedList() {

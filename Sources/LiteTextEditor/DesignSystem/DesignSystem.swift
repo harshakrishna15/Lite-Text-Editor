@@ -10,13 +10,9 @@ enum ChromeStyle {
     static let controlTextFont = Font.system(size: controlFontSize, weight: .regular)
     static let smallTextFont = Font.system(size: smallFontSize, weight: .regular)
     static let controlSymbolFont = Font.system(size: controlFontSize, weight: .medium)
-    static let largeSymbolFont = Font.system(size: 17, weight: .regular)
     static let toolbarControlHeight: CGFloat = 26
     static let toolbarDropdownControlHeight: CGFloat = 20
     static let toolbarControlCornerRadius: CGFloat = 5
-    static let toolbarPopoverRowCornerRadius: CGFloat = 6
-    static let toolbarIconWidth: CGFloat = 28
-    static let toolbarItemSpacing: CGFloat = 7
     static let outlinePanelWidth: CGFloat = 250
     static let outlinePanelLeadingOffset: CGFloat = 16
     static let outlinePanelTopInset: CGFloat = 16
@@ -29,8 +25,6 @@ enum ChromeStyle {
     static let controlTextColor = Color.black.opacity(0.86)
     static let secondaryTextColor = Color.black.opacity(0.58)
     static let glassControlTextColor = Color.black.opacity(0.82)
-    static let glassSecondaryTextColor = Color.black.opacity(0.58)
-    static let nsGlassControlTextColor = NSColor(calibratedWhite: 0.12, alpha: 0.92)
     static let chromeBarBackground = Color(nsColor: .controlBackgroundColor)
     static let chromePanelBackground = Color(nsColor: .windowBackgroundColor).opacity(0.98)
     static let chromeControlBackground = Color(nsColor: .controlColor).opacity(0.72)
@@ -40,7 +34,6 @@ enum ChromeStyle {
     static let chromeSelectedControlBackground = Color.accentColor.opacity(0.14)
     static let chromePressedControlBackground = Color.accentColor.opacity(0.18)
     static let toolbarHoverFill = Color(nsColor: .controlColor).opacity(0.72)
-    static let toolbarPressedFill = chromePressedControlBackground
     static let toolbarSelectedFill = chromeSelectedControlBackground
     static let toolbarSelectedBorder = Color.accentColor.opacity(0.62)
     static let toolbarHoverBorder = Color.accentColor.opacity(0.40)

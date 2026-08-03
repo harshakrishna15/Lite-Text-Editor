@@ -1,61 +1,12 @@
 import Foundation
 
 struct SuggestionRequest {
-    let documentText: String
-    let cursorLocation: Int
     let prefixContext: String
-    let suffixContext: String
-    let currentParagraph: String
-    let documentContext: String
     let maxWords: Int
-
-    var isAtSentenceBoundary: Bool {
-        let trimmed = prefixContext.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let last = trimmed.last else { return false }
-        return ".!?".contains(last)
-    }
 }
 
 protocol SuggestionProviding {
     func suggestion(for request: SuggestionRequest) -> String?
-}
-
-protocol AsyncSuggestionProviding: SuggestionProviding {
-    func suggestion(for request: SuggestionRequest) async -> String?
-}
-
-extension SuggestionProviding {
-    func asyncSuggestion(for request: SuggestionRequest) async -> String? {
-        if let asyncProvider = self as? AsyncSuggestionProviding {
-            return await asyncProvider.suggestion(for: request)
-        }
-
-        return suggestion(for: request)
-    }
-}
-
-struct SuggestionPipeline: AsyncSuggestionProviding {
-    let providers: [SuggestionProviding]
-
-    func suggestion(for request: SuggestionRequest) -> String? {
-        for provider in providers {
-            if let suggestion = provider.suggestion(for: request) {
-                return suggestion
-            }
-        }
-
-        return nil
-    }
-
-    func suggestion(for request: SuggestionRequest) async -> String? {
-        for provider in providers {
-            if let suggestion = await provider.asyncSuggestion(for: request) {
-                return suggestion
-            }
-        }
-
-        return nil
-    }
 }
 
 struct PhraseSuggestionEngine: SuggestionProviding {
@@ -77,17 +28,17 @@ struct PhraseSuggestionEngine: SuggestionProviding {
         ("this shows", "that the")
     ]
 
-    private let nextWordMap: [String: [String]] = [
-        "because": ["of the"],
-        "although": ["this may"],
-        "however": ["the main"],
-        "therefore": ["we can"],
-        "before": ["the next"],
-        "after": ["the first"],
-        "when": ["we look"],
-        "while": ["this is"],
-        "where": ["the main"],
-        "why": ["this matters"]
+    private let nextWordMap: [String: String] = [
+        "because": "of the",
+        "although": "this may",
+        "however": "the main",
+        "therefore": "we can",
+        "before": "the next",
+        "after": "the first",
+        "when": "we look",
+        "while": "this is",
+        "where": "the main",
+        "why": "this matters"
     ]
 
     func suggestion(for request: SuggestionRequest) -> String? {
@@ -103,8 +54,7 @@ struct PhraseSuggestionEngine: SuggestionProviding {
         }
 
         guard let lastWord = normalized.split(separator: " ").last.map(String.init),
-              let candidates = nextWordMap[lastWord],
-              let candidate = candidates.first else {
+              let candidate = nextWordMap[lastWord] else {
             return nil
         }
 

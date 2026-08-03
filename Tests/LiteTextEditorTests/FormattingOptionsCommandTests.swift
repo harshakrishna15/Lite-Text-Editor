@@ -27,9 +27,7 @@ final class FormattingOptionsCommandTests: XCTestCase {
         controller.applyHighlight(.clear)
         XCTAssertNil(attribute(.backgroundColor, at: 0, in: textView))
 
-        controller.applyTextColor(.red)
-        XCTAssertNotNil(attribute(.foregroundColor, at: 0, in: textView))
-
+        textView.textStorage?.addAttribute(.foregroundColor, value: NSColor.red, range: NSRange(location: 0, length: 5))
         controller.clearTextColor()
         XCTAssertNil(attribute(.foregroundColor, at: 0, in: textView))
 
@@ -193,11 +191,11 @@ final class FormattingOptionsCommandTests: XCTestCase {
         XCTAssertEqual(textView.string, "1. Before\n2. Prior\n3. Next\n4. Last")
 
         textView.setSelectedRange(NSRange(location: 0, length: textView.string.count))
-        controller.increaseListLevel()
+        controller.increaseIndent()
         XCTAssertTrue(textView.string.hasPrefix("\t1. Before"))
 
         textView.setSelectedRange(NSRange(location: 0, length: textView.string.count))
-        controller.decreaseListLevel()
+        controller.decreaseIndent()
         XCTAssertTrue(textView.string.hasPrefix("1. Before"))
     }
 
@@ -268,26 +266,6 @@ final class FormattingOptionsCommandTests: XCTestCase {
         XCTAssertEqual(fixture.textView.selectedRange(), NSRange(location: 2, length: 0))
     }
 
-    func testBulletedToolbarCommandUpdatesFormattingState() {
-        let fixture = makeFixture("First")
-        fixture.textView.setSelectedRange(NSRange(location: 0, length: fixture.textView.string.count))
-
-        fixture.controller.togglePlainList()
-        fixture.controller.refreshFormattingState()
-
-        XCTAssertTrue(fixture.controller.formattingState.isBulletedList)
-    }
-
-    func testNumberedToolbarCommandUpdatesFormattingState() {
-        let fixture = makeFixture("First")
-        fixture.textView.setSelectedRange(NSRange(location: 0, length: fixture.textView.string.count))
-
-        fixture.controller.toggleNumberedList()
-        fixture.controller.refreshFormattingState()
-
-        XCTAssertTrue(fixture.controller.formattingState.isNumberedList)
-    }
-
     func testToggleListStyleRemovesExistingMatchingMarkers() {
         let fixture = makeFixture("• First\n• Second")
         fixture.textView.setSelectedRange(NSRange(location: 0, length: fixture.textView.string.utf16.count))
@@ -326,7 +304,6 @@ final class FormattingOptionsCommandTests: XCTestCase {
         controller.toggleBold()
         controller.toggleItalic()
         controller.toggleUnderline()
-        controller.applyTextColor(.red)
         controller.setCharacterSpacing(.wider)
         controller.setBaseline(.superscript)
 
@@ -334,7 +311,6 @@ final class FormattingOptionsCommandTests: XCTestCase {
         XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.bold) == true)
         XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.italic) == true)
         XCTAssertNotNil(textView.typingAttributes[.underlineStyle])
-        XCTAssertNotNil(textView.typingAttributes[.foregroundColor])
         XCTAssertEqual(textView.typingAttributes[.kern] as? CGFloat, 1.0)
         XCTAssertEqual(textView.typingAttributes[.superscript] as? Int, 1)
     }
@@ -345,7 +321,7 @@ final class FormattingOptionsCommandTests: XCTestCase {
         let secondParagraphStart = (textView.string as NSString).range(of: "Second").location
         textView.setSelectedRange(NSRange(location: secondParagraphStart + 2, length: 0))
 
-        fixture.controller.applyPreset(.heading, fontName: "System")
+        fixture.controller.applyPreset(.heading)
 
         let firstFont = attribute(.font, at: 0, in: textView) as? NSFont
         let secondFont = attribute(.font, at: secondParagraphStart, in: textView) as? NSFont

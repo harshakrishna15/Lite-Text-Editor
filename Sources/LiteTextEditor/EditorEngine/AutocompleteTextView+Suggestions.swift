@@ -33,11 +33,8 @@ extension AutocompleteTextView {
     func refreshSuggestion() {
         pendingSuggestionRefreshWorkItem?.cancel()
         pendingSuggestionRefreshWorkItem = nil
-        pendingSuggestionTask?.cancel()
-        pendingSuggestionTask = nil
 
-        let refreshKey = suggestionRefreshKey()
-        lastSuggestionRefreshKey = refreshKey
+        lastSuggestionRefreshKey = suggestionRefreshKey()
 
         guard isInlineSuggestionEnabled else {
             clearSuggestion()
@@ -59,28 +56,10 @@ extension AutocompleteTextView {
             return
         }
 
-        let request = makeSuggestionRequest()
-        let provider = suggestionProvider
+        let suggestion = suggestionProvider.suggestion(for: makeSuggestionRequest())
         clearSuggestion()
-        publishPredictionState(.predicting)
-
-        pendingSuggestionTask = Task { [weak self] in
-            let suggestion = await provider.asyncSuggestion(for: request)
-            guard !Task.isCancelled else { return }
-
-            await MainActor.run {
-                guard let self else { return }
-                guard self.suggestionRefreshKey() == refreshKey else { return }
-
-                self.pendingSuggestionTask = nil
-                guard let suggestion else {
-                    self.clearSuggestion()
-                    return
-                }
-
-                self.showSuggestion(suggestion)
-            }
-        }
+        guard let suggestion else { return }
+        showSuggestion(suggestion)
     }
 
     func acceptSuggestion() {
@@ -138,8 +117,6 @@ extension AutocompleteTextView {
         let scheduledKey = suggestionRefreshKey()
         guard scheduledKey != lastSuggestionRefreshKey else { return }
 
-        pendingSuggestionTask?.cancel()
-        pendingSuggestionTask = nil
         if currentSuggestion != nil {
             clearSuggestion()
         }
@@ -158,8 +135,6 @@ extension AutocompleteTextView {
     }
 
     func clearSuggestion() {
-        pendingSuggestionTask?.cancel()
-        pendingSuggestionTask = nil
         publishPredictionState(.idle)
 
         guard currentSuggestion != nil || !suggestionLabel.isHidden || !suggestionLabel.stringValue.isEmpty else {
@@ -264,10 +239,9 @@ extension AutocompleteTextView {
     }
 
     private func makeSuggestionRequest() -> SuggestionRequest {
-        SuggestionContextBuilder().request(
-            documentText: string,
-            selectedRange: selectedRange(),
-            maxSuggestionWords: maxSuggestionWords
+        SuggestionRequest(
+            prefixContext: contextBeforeInsertionPoint(),
+            maxWords: AutocompleteSettingsStore.normalizedSuggestionWordCount(maxSuggestionWords)
         )
     }
 

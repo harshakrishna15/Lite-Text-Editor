@@ -156,7 +156,6 @@ extension EditorController {
         textView.scrollRangeToVisible(headingRange)
         textView.showFindIndicator(for: headingRange)
         activeOutlineItemID = item.id
-        documentStatusText = "Outline: \(item.displayTitle)"
     }
 
     private func applyStructureSnapshot(_ snapshot: DocumentOutlineExtractor.StructureSnapshot) {

@@ -139,10 +139,9 @@ final class PageLayoutTests: XCTestCase {
     }
 
     func testPageDrawingUsesSingleBoundedSoftShadowPass() {
-        XCTAssertEqual(AutocompleteTextView.PageDrawingStyle.blurredShadowPassCount, 1)
         XCTAssertLessThanOrEqual(AutocompleteTextView.PageDrawingStyle.shadowBlurRadius, 12)
         XCTAssertLessThanOrEqual(AutocompleteTextView.PageDrawingStyle.shadowOutset, 14)
-        XCTAssertLessThanOrEqual(AutocompleteTextView.PageDrawingStyle.maximumShadowAlpha, 0.11)
+        XCTAssertLessThanOrEqual(AutocompleteTextView.PageDrawingStyle.shadowAlpha, 0.11)
     }
 
     func testPageShadowUsesSubtleOffsetDepth() {
@@ -262,23 +261,6 @@ final class PageLayoutTests: XCTestCase {
 
         textView.pendingPageRefreshWorkItem?.cancel()
         textView.pendingPageRefreshWorkItem = nil
-    }
-
-    func testCenteringAfterViewportResizeKeepsPageHorizontallyCentered() {
-        let fixture = makePageFixture()
-        fixture.scrollView.setFrameSize(NSSize(width: 700, height: 320))
-        fixture.textView.resizeForCachedPages()
-        fixture.textView.restoreVisibleOrigin(NSPoint(x: fixture.textView.bounds.maxX, y: 0))
-
-        fixture.scrollView.setFrameSize(NSSize(width: 1_000, height: 320))
-        fixture.textView.resizeForCachedPages()
-        fixture.textView.centerPageHorizontallyPreservingVerticalPosition()
-
-        XCTAssertEqual(
-            fixture.scrollView.contentView.documentVisibleRect.midX,
-            fixture.textView.currentPageStackFrame.midX,
-            accuracy: 1
-        )
     }
 
     func testDocumentWidthMatchesViewportWhilePageFitsHorizontally() {

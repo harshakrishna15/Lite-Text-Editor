@@ -1,13 +1,11 @@
 import AppKit
 
-enum TextPreset: String, CaseIterable, Identifiable {
+enum TextPreset: String, CaseIterable {
     case title
     case heading
     case subheading
     case body
     case script
-
-    var id: String { rawValue }
 
     var title: String {
         switch self {

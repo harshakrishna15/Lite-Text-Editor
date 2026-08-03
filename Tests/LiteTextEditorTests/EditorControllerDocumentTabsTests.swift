@@ -67,7 +67,7 @@ final class EditorControllerDocumentTabsTests: XCTestCase {
 
         XCTAssertEqual(controller.documentTabs.map(\.id), [tabOneID, outlineID])
         XCTAssertEqual(controller.selectedDocumentTabID, outlineID)
-        XCTAssertEqual(controller.selectedDocumentTab?.title, "Notes 2")
+        XCTAssertEqual(selectedTab(in: controller)?.title, "Notes 2")
 
         controller.closeDocumentTab(tabOneID)
         XCTAssertEqual(controller.documentTabs.count, 1)
@@ -83,14 +83,14 @@ final class EditorControllerDocumentTabsTests: XCTestCase {
         let controller = makeFixture().controller
 
         XCTAssertEqual(controller.documentTabs.map(\.title), ["Tab 1"])
-        XCTAssertEqual(controller.selectedDocumentTab?.title, "Tab 1")
+        XCTAssertEqual(selectedTab(in: controller)?.title, "Tab 1")
         XCTAssertFalse(controller.requiresNativeDocumentFormat)
 
         controller.addDocumentTab()
         controller.addDocumentTab()
 
         XCTAssertEqual(controller.documentTabs.map(\.title), ["Tab 1", "Tab 2", "Tab 3"])
-        XCTAssertEqual(controller.selectedDocumentTab?.title, "Tab 3")
+        XCTAssertEqual(selectedTab(in: controller)?.title, "Tab 3")
         XCTAssertTrue(controller.requiresNativeDocumentFormat)
     }
 
@@ -179,7 +179,7 @@ final class EditorControllerDocumentTabsTests: XCTestCase {
 
         controller.renameDocumentTab(tabID, to: "notes")
         controller.renameDocumentTab(tabID, to: "Notes")
-        XCTAssertEqual(controller.selectedDocumentTab?.title, "Notes")
+        XCTAssertEqual(selectedTab(in: controller)?.title, "Notes")
         XCTAssertTrue(controller.requiresNativeDocumentFormat)
 
         controller.addDocumentTab()
@@ -226,7 +226,7 @@ final class EditorControllerDocumentTabsTests: XCTestCase {
 
         controller.renameDocumentTab(tabID, to: "  \n  ")
 
-        XCTAssertEqual(controller.selectedDocumentTab?.title, "Tab 1")
+        XCTAssertEqual(selectedTab(in: controller)?.title, "Tab 1")
         XCTAssertFalse(controller.requiresNativeDocumentFormat)
         XCTAssertFalse(controller.isDocumentEdited)
     }
@@ -302,5 +302,10 @@ final class EditorControllerDocumentTabsTests: XCTestCase {
 
     private func font(in textView: AutocompleteTextView) throws -> NSFont {
         try XCTUnwrap(textView.textStorage?.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)
+    }
+
+    private func selectedTab(in controller: EditorController) -> DocumentTabDescriptor? {
+        guard let selectedID = controller.selectedDocumentTabID else { return nil }
+        return controller.documentTabs.first { $0.id == selectedID }
     }
 }

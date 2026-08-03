@@ -1,6 +1,4 @@
 import AppKit
-import CoreText
-import SwiftUI
 
 extension NSAttributedString.Key {
     static let liteTextEditorKeepParagraphTogether = NSAttributedString.Key("liteTextEditorKeepParagraphTogether")
@@ -113,9 +111,9 @@ extension EditorController {
         refreshFormattingState()
     }
 
-    func applyPreset(_ preset: TextPreset, fontName: String) {
+    func applyPreset(_ preset: TextPreset) {
         guard let textView else { return }
-        let font = makeFont(name: fontName, size: preset.size, weight: preset.weight)
+        let font = EditorTypography.font(size: preset.size, weight: preset.weight)
         let range = textView.selectedRange().length == 0 && !textView.string.isEmpty
             ? textView.effectiveParagraphRangeForFormatting()
             : textView.effectiveRangeForFormatting()
@@ -139,15 +137,6 @@ extension EditorController {
 
         refreshOutlineItems()
         refreshFormattingState()
-    }
-
-    func applyPresetUsingCurrentFont(_ preset: TextPreset) {
-        applyPreset(preset, fontName: currentFontFamilyNameForFormatting())
-    }
-
-    func applyFont(name: String, size: Double) {
-        let font = makeFont(name: name, size: size, weight: .regular)
-        applyFont(font)
     }
 
     func applyFontSize(_ size: Double) {
@@ -187,23 +176,6 @@ extension EditorController {
             textView.typingAttributes[.font] = font.withPointSize(pointSize)
             formattingState.fontSize = Double(pointSize)
         }
-    }
-
-    func applyTextColor(_ color: Color) {
-        guard let textView else { return }
-        let nsColor = NSColor(color)
-        let range = textView.effectiveRangeForFormatting()
-
-        if range.length > 0 {
-            textView.performUndoableAttributeEdit(in: range, actionName: "Text Color") { textStorage, editRange in
-                textStorage.addAttribute(.foregroundColor, value: nsColor, range: editRange)
-                return true
-            }
-        } else {
-            textView.typingAttributes[.foregroundColor] = nsColor
-        }
-
-        refreshFormattingState()
     }
 
     func clearTextColor() {
@@ -541,14 +513,6 @@ extension EditorController {
         refreshFormattingState()
     }
 
-    func increaseListLevel() {
-        increaseIndent()
-    }
-
-    func decreaseListLevel() {
-        decreaseIndent()
-    }
-
     private func toggleAttribute(
         _ attribute: NSAttributedString.Key,
         value: Any,
@@ -598,23 +562,6 @@ extension EditorController {
         refreshFormattingState()
     }
 
-    private func applyFont(_ font: NSFont, range requestedRange: NSRange? = nil) {
-        guard let textView else { return }
-        let range = requestedRange ?? textView.effectiveRangeForFormatting()
-
-        if range.length > 0 {
-            textView.performUndoableAttributeEdit(in: range, actionName: "Font") { textStorage, editRange in
-                textStorage.addAttribute(.font, value: font, range: editRange)
-                return true
-            }
-        } else {
-            textView.typingAttributes[.font] = font
-        }
-
-        refreshOutlineItems()
-        refreshFormattingState()
-    }
-
     private func toggleFontTrait(_ trait: NSFontDescriptor.SymbolicTraits) {
         guard let textView else { return }
         let range = textView.effectiveRangeForFormatting()
@@ -656,22 +603,12 @@ extension EditorController {
         let attributes = representativeFormattingAttributes(in: textView)
         let font = attributes[.font] as? NSFont ?? EditorTypography.font(size: EditorTypography.defaultPointSize)
         let traits = font.fontDescriptor.symbolicTraits
-        let listState = currentListState(in: textView)
-
-        let highlightColor = attributes[.backgroundColor] as? NSColor
 
         return FormattingState(
-            fontFamilyName: displayFontFamilyName(for: font),
             fontSize: Double(font.pointSize),
-            textColor: attributes[.foregroundColor] as? NSColor ?? NSColor.black,
             isBold: traits.contains(.bold),
             isItalic: traits.contains(.italic),
-            isUnderline: attributes[.underlineStyle] != nil,
-            isStrikethrough: attributes[.strikethroughStyle] != nil,
-            highlightColor: highlightColor,
-            isBulletedList: listState.isBulleted,
-            isNumberedList: listState.isNumbered,
-            alignment: normalizedAlignment(currentParagraphStyle(in: textView).alignment)
+            isUnderline: attributes[.underlineStyle] != nil
         )
     }
 
@@ -732,64 +669,6 @@ extension EditorController {
         return paragraphStyle
     }
 
-    private func currentListState(in textView: AutocompleteTextView) -> (isBulleted: Bool, isNumbered: Bool) {
-        let nsString = textView.string as NSString
-        guard nsString.length > 0 else { return (false, false) }
-
-        let documentRange = NSRange(location: 0, length: nsString.length)
-        let paragraphRange = NSIntersectionRange(textView.effectiveParagraphRangeForFormatting(), documentRange)
-        guard paragraphRange.location != NSNotFound, paragraphRange.length > 0 else {
-            return (false, false)
-        }
-
-        var hasListCandidateLine = false
-        var allBulleted = true
-        var allNumbered = true
-
-        nsString.enumerateSubstrings(in: paragraphRange, options: [.byLines]) { substring, _, _, _ in
-            guard let line = substring?.trimmingCharacters(in: .whitespaces),
-                  !line.isEmpty else {
-                return
-            }
-
-            hasListCandidateLine = true
-            allBulleted = allBulleted && (line.hasPrefix("• ") || line.hasPrefix("- ") || line.hasPrefix("☐ "))
-            allNumbered = allNumbered && self.lineStartsWithNumberedListMarker(line)
-        }
-
-        guard hasListCandidateLine else { return (false, false) }
-        return (allBulleted, allNumbered)
-    }
-
-    private func lineStartsWithNumberedListMarker(_ line: String) -> Bool {
-        var index = line.startIndex
-        var sawDigit = false
-
-        while index < line.endIndex, line[index].isNumber {
-            sawDigit = true
-            index = line.index(after: index)
-        }
-
-        guard sawDigit, index < line.endIndex, line[index] == "." else { return false }
-        index = line.index(after: index)
-        return index < line.endIndex && line[index] == " "
-    }
-
-    private func normalizedAlignment(_ alignment: NSTextAlignment) -> NSTextAlignment {
-        alignment == .natural ? .left : alignment
-    }
-
-    private func displayFontFamilyName(for font: NSFont) -> String {
-        EditorTypography.displayName
-    }
-
-    private func makeFont(name: String, size: Double, weight: NSFont.Weight) -> NSFont {
-        EditorTypography.font(size: size, weight: weight)
-    }
-
-    private func currentFontFamilyNameForFormatting() -> String {
-        EditorTypography.displayName
-    }
 }
 
 private extension NSFont {

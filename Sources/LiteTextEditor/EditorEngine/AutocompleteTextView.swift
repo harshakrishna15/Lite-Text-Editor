@@ -61,18 +61,13 @@ final class AutocompleteTextView: NSTextView {
         pageStackFrame(forPageCount: renderedPageCount, boundsSize: bounds.size)
     }
 
-    var suggestionProvider: SuggestionProviding = SuggestionPipeline(
-        providers: [
-            PhraseSuggestionEngine()
-        ]
-    )
+    var suggestionProvider: SuggestionProviding = PhraseSuggestionEngine()
     let suggestionLabel = NSTextField(labelWithString: "")
     var currentSuggestion: String?
     var didRequestInitialFocus = false
     var isAcceptingSuggestionWord = false
     var pendingPageRefreshWorkItem: DispatchWorkItem?
     var pendingSuggestionRefreshWorkItem: DispatchWorkItem?
-    var pendingSuggestionTask: Task<Void, Never>?
     var contentGeneration = 0
     var lastSuggestionRefreshKey: SuggestionRefreshKey?
     var renderedPageCount = 1
@@ -320,14 +315,6 @@ final class AutocompleteTextView: NSTextView {
         restoreVisibleOrigin(visibleOrigin)
         DispatchQueue.main.async { [weak self] in
             self?.restoreVisibleOrigin(visibleOrigin)
-        }
-    }
-
-    func refreshLayoutAfterFormattingChange() {
-        preservingVisibleOrigin { [weak self] in
-            guard let self else { return }
-            self.updatePaperLayout()
-            self.ensurePaperHeightFitsContent()
         }
     }
 
@@ -772,66 +759,6 @@ final class AutocompleteTextView: NSTextView {
             }
 
             return line
-        }
-    }
-
-    func currentParagraphLineSpacing() -> CGFloat {
-        paragraphStyleForFormatting().lineSpacing
-    }
-
-    func setSelectedParagraphLineSpacing(_ spacing: CGFloat) {
-        let paragraphRange = effectiveParagraphRangeForFormatting()
-
-        let paragraphStyle = paragraphStyleForFormatting().mutableCopy() as? NSMutableParagraphStyle
-            ?? NSMutableParagraphStyle()
-        paragraphStyle.lineSpacing = min(max(spacing, 0), 48)
-
-        if paragraphRange.length > 0 {
-            guard shouldChangeText(in: paragraphRange, replacementString: nil) else { return }
-            textStorage?.addAttribute(.paragraphStyle, value: paragraphStyle, range: paragraphRange)
-            didChangeText()
-            undoManager?.setActionName("Line Spacing")
-            breakUndoCoalescing()
-        } else {
-            typingAttributes[.paragraphStyle] = paragraphStyle
-        }
-
-        if enclosingScrollView?.rulersVisible == true {
-            enclosingScrollView?.verticalRulerView?.needsDisplay = true
-        }
-    }
-
-    func currentParagraphIndents() -> (firstLine: CGFloat, head: CGFloat) {
-        let paragraphStyle = paragraphStyleForFormatting()
-        return (paragraphStyle.firstLineHeadIndent, paragraphStyle.headIndent)
-    }
-
-    func setSelectedParagraphIndents(firstLine: CGFloat? = nil, head: CGFloat? = nil) {
-        let paragraphRange = effectiveParagraphRangeForFormatting()
-
-        let paragraphStyle = paragraphStyleForFormatting().mutableCopy() as? NSMutableParagraphStyle
-            ?? NSMutableParagraphStyle()
-
-        if let firstLine {
-            paragraphStyle.firstLineHeadIndent = min(max(firstLine, 0), Self.pageTextWidth)
-        }
-
-        if let head {
-            paragraphStyle.headIndent = min(max(head, 0), Self.pageTextWidth)
-        }
-
-        if paragraphRange.length > 0 {
-            guard shouldChangeText(in: paragraphRange, replacementString: nil) else { return }
-            textStorage?.addAttribute(.paragraphStyle, value: paragraphStyle, range: paragraphRange)
-            didChangeText()
-            undoManager?.setActionName("Indent")
-            breakUndoCoalescing()
-        } else {
-            typingAttributes[.paragraphStyle] = paragraphStyle
-        }
-
-        if enclosingScrollView?.rulersVisible == true {
-            enclosingScrollView?.horizontalRulerView?.needsDisplay = true
         }
     }
 

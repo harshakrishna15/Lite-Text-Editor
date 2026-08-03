@@ -1,5 +1,4 @@
 import XCTest
-import SwiftUI
 @testable import LiteTextEditor
 
 final class DocumentTitleTests: XCTestCase {
@@ -9,7 +8,6 @@ final class DocumentTitleTests: XCTestCase {
         controller.commitDocumentTitle("  Project/Notes:Draft  ")
 
         XCTAssertEqual(controller.documentTitle, "Project-Notes-Draft")
-        XCTAssertEqual(controller.documentStatusText, "Title updated")
     }
 
     func testBlankUnsavedDocumentTitleFallsBackToUntitled() {
@@ -19,18 +17,15 @@ final class DocumentTitleTests: XCTestCase {
         controller.commitDocumentTitle("   ")
 
         XCTAssertEqual(controller.documentTitle, "Untitled")
-        XCTAssertEqual(controller.documentStatusText, "Title updated")
     }
 
-    func testUnchangedUnsavedDocumentTitleDoesNotChangeStatus() {
+    func testUnchangedUnsavedDocumentTitleRemainsUnchanged() {
         let controller = EditorController()
         controller.documentTitle = "Draft"
-        controller.documentStatusText = "Ready"
 
         controller.commitDocumentTitle("Draft")
 
         XCTAssertEqual(controller.documentTitle, "Draft")
-        XCTAssertEqual(controller.documentStatusText, "Ready")
     }
 
     func testUnsavedDocumentLocationDefaultsToDownloads() {
@@ -49,7 +44,6 @@ final class DocumentTitleTests: XCTestCase {
 
         XCTAssertEqual(controller.pendingDocumentDirectoryURL?.path, directoryURL.standardizedFileURL.path)
         XCTAssertEqual(controller.documentLocationDisplayText, "Documents")
-        XCTAssertEqual(controller.documentStatusText, "Location updated")
     }
 
     func testSavedDocumentLocationUsesCurrentDocumentDirectory() {
@@ -118,10 +112,6 @@ final class DocumentTitleTests: XCTestCase {
         XCTAssertLessThanOrEqual(TitlebarDocumentTabsLayout.maximumTabWidth, 96)
         XCTAssertGreaterThanOrEqual(TitlebarEditorChromeLayout.minimumFormattingControlsWidth, 160)
         XCTAssertLessThanOrEqual(TitlebarEditorChromeLayout.width, 720)
-        XCTAssertGreaterThanOrEqual(
-            TitlebarEditorChromeLayout.width,
-            TitlebarEditorChromeLayout.minimumContentWidth
-        )
     }
 
     func testLastDocumentStoreCanClearLastDocumentURL() {

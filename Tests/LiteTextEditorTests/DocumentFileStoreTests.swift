@@ -5,31 +5,6 @@ import XCTest
 final class DocumentFileStoreTests: XCTestCase {
     private let store = DocumentFileStore()
 
-    func testNormalizesTextDocumentURLs() {
-        let folder = URL(fileURLWithPath: "/tmp")
-
-        XCTAssertEqual(
-            store.normalizedTextDocumentURL(folder.appendingPathComponent("draft")),
-            folder.appendingPathComponent("draft.rtf")
-        )
-        XCTAssertEqual(
-            store.normalizedTextDocumentURL(folder.appendingPathComponent("draft.txt")),
-            folder.appendingPathComponent("draft.txt")
-        )
-        XCTAssertEqual(
-            store.normalizedTextDocumentURL(folder.appendingPathComponent("draft.rtf")),
-            folder.appendingPathComponent("draft.rtf")
-        )
-        XCTAssertEqual(
-            store.normalizedTextDocumentURL(folder.appendingPathComponent("draft.docx")),
-            folder.appendingPathComponent("draft.docx")
-        )
-        XCTAssertEqual(
-            store.normalizedTextDocumentURL(folder.appendingPathComponent("draft.odt")),
-            folder.appendingPathComponent("draft.odt")
-        )
-    }
-
     func testNormalizesPDFURLs() {
         let folder = URL(fileURLWithPath: "/tmp")
 
@@ -97,32 +72,6 @@ final class DocumentFileStoreTests: XCTestCase {
         let loaded = try store.readDocument(from: url)
 
         XCTAssertEqual(loaded.string, text)
-    }
-
-    func testDocumentFileServiceWritesAndReadsDocumentAsynchronously() {
-        let url = temporaryFileURL(extension: "txt")
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        let service = DocumentFileService()
-        let document = NSAttributedString(string: "Background document")
-        let writeExpectation = expectation(description: "write")
-        let readExpectation = expectation(description: "read")
-
-        service.writeDocument(document, to: url) { result in
-            do {
-                try result.get()
-            } catch {
-                XCTFail("Write failed: \(error)")
-            }
-            writeExpectation.fulfill()
-
-            service.readDocument(from: url) { result in
-                XCTAssertEqual(try? result.get().string, document.string)
-                readExpectation.fulfill()
-            }
-        }
-
-        wait(for: [writeExpectation, readExpectation], timeout: 2)
     }
 
     func testDocumentFileServiceExportsPDFAsynchronously() {

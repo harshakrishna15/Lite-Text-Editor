@@ -8,8 +8,6 @@ extension AutocompleteTextView {
         static let shadowYOffset: CGFloat = 2
         static let shadowAlpha: CGFloat = 0.11
         static let shadowOutset = shadowBlurRadius + max(abs(shadowXOffset), abs(shadowYOffset))
-        static let maximumShadowAlpha = shadowAlpha
-        static let blurredShadowPassCount = 1
         static let borderAlpha: CGFloat = 0.08
     }
 
@@ -199,35 +197,6 @@ extension AutocompleteTextView {
 
         clipView.scroll(to: clampedOrigin)
         scrollView.reflectScrolledClipView(clipView)
-    }
-
-    func centerPageHorizontallyPreservingVerticalPosition() {
-        guard let scrollView = enclosingScrollView else { return }
-
-        let visibleRect = scrollView.contentView.documentVisibleRect
-        let pageFrame = currentPageStackFrame
-        let proposedX = pageFrame.midX - (visibleRect.width / 2)
-        let maxX = max(bounds.minX, bounds.maxX - visibleRect.width)
-        let targetX = min(max(proposedX, bounds.minX), maxX)
-        let targetY: CGFloat
-
-        if pageFrame.intersects(visibleRect) {
-            targetY = visibleRect.origin.y
-        } else {
-            let stableCenter = PageViewportCalculator.stableCenter(for: visibleRect, pageFrame: pageFrame)
-            targetY = PageViewportCalculator.clampedVisibleOrigin(
-                centeredAt: stableCenter,
-                visibleSize: visibleRect.size,
-                documentBounds: bounds
-            ).y
-        }
-
-        restoreVisibleOrigin(
-            NSPoint(
-                x: targetX,
-                y: targetY
-            )
-        )
     }
 
     func drawPaperBackground(in dirtyRect: NSRect) {

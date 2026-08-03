@@ -1,11 +1,6 @@
 import AppKit
 
 extension EditorController {
-    var selectedDocumentTab: DocumentTabDescriptor? {
-        guard let selectedDocumentTabID else { return nil }
-        return documentTabs.first { $0.id == selectedDocumentTabID }
-    }
-
     var canCloseDocumentTab: Bool {
         documentTabs.count > 1
     }

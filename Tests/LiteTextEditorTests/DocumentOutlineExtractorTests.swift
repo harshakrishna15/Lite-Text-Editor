@@ -19,7 +19,7 @@ final class DocumentOutlineExtractorTests: XCTestCase {
         apply(font: .systemFont(ofSize: TextPreset.subheading.size, weight: TextPreset.subheading.weight), to: "Details", in: document)
         apply(font: .systemFont(ofSize: TextPreset.heading.size, weight: TextPreset.heading.weight), to: "Next Section", in: document)
 
-        let items = DocumentOutlineExtractor().makeOutlineItems(from: document)
+        let items = DocumentOutlineExtractor().makeStructureSnapshot(from: document).items
 
         XCTAssertEqual(items.map(\.title), ["Project Plan", "Overview", "Details", "Next Section"])
         XCTAssertEqual(items.map(\.level), [0, 1, 2, 1])
@@ -28,9 +28,6 @@ final class DocumentOutlineExtractorTests: XCTestCase {
         XCTAssertEqual(items[1].displayTitle, "1 Overview")
         XCTAssertEqual(items[2].displayTitle, "1.1 Details")
         XCTAssertEqual(items[3].displayTitle, "2 Next Section")
-        XCTAssertEqual(items[1].headingWordCount, 1)
-        XCTAssertGreaterThan(items[1].sectionLength, items[1].headingLength)
-        XCTAssertGreaterThan(items[1].sectionEndLocation, items[1].location)
     }
 
     func testIgnoresBodyTextBelowSubheadingSize() {
@@ -39,7 +36,7 @@ final class DocumentOutlineExtractorTests: XCTestCase {
             attributes: [.font: NSFont.systemFont(ofSize: 11)]
         )
 
-        XCTAssertTrue(DocumentOutlineExtractor().makeOutlineItems(from: document).isEmpty)
+        XCTAssertTrue(DocumentOutlineExtractor().makeStructureSnapshot(from: document).items.isEmpty)
     }
 
     func testStructureMetadataSummarizesDocumentSections() {
@@ -64,7 +61,6 @@ final class DocumentOutlineExtractorTests: XCTestCase {
         XCTAssertEqual(snapshot.metadata.titleCount, 1)
         XCTAssertEqual(snapshot.metadata.sectionCount, 2)
         XCTAssertEqual(snapshot.metadata.subsectionCount, 1)
-        XCTAssertEqual(snapshot.metadata.deepestLevel, 2)
         XCTAssertTrue(snapshot.metadata.hasStructure)
         XCTAssertEqual(snapshot.items.map(\.sectionNumber), ["", "1", "2", "2.1"])
     }
@@ -77,7 +73,7 @@ final class DocumentOutlineExtractorTests: XCTestCase {
 
         apply(font: .systemFont(ofSize: TextPreset.subheading.size, weight: TextPreset.subheading.weight), to: "Orphan Subheading", in: document)
 
-        let items = DocumentOutlineExtractor().makeOutlineItems(from: document)
+        let items = DocumentOutlineExtractor().makeStructureSnapshot(from: document).items
 
         XCTAssertEqual(items.map(\.sectionNumber), ["1.1"])
     }
@@ -97,7 +93,7 @@ final class DocumentOutlineExtractorTests: XCTestCase {
         apply(font: .systemFont(ofSize: TextPreset.heading.size, weight: TextPreset.heading.weight), to: "Second Section", in: document)
         apply(font: .systemFont(ofSize: TextPreset.subheading.size, weight: TextPreset.subheading.weight), to: "Third Child", in: document)
 
-        let items = DocumentOutlineExtractor().makeOutlineItems(from: document)
+        let items = DocumentOutlineExtractor().makeStructureSnapshot(from: document).items
 
         XCTAssertEqual(items.map(\.title), ["First Section", "First Child", "Second Child", "Second Section", "Third Child"])
         XCTAssertEqual(items.map(\.childCount), [2, 0, 0, 1, 0])
@@ -111,7 +107,7 @@ final class DocumentOutlineExtractorTests: XCTestCase {
 
         apply(font: .systemFont(ofSize: TextPreset.heading.size, weight: TextPreset.heading.weight), to: "First Section", in: document)
 
-        let item = DocumentOutlineExtractor().makeOutlineItems(from: document).first
+        let item = DocumentOutlineExtractor().makeStructureSnapshot(from: document).items.first
 
         XCTAssertEqual(item?.paragraphCount, 1)
         XCTAssertEqual(item?.characterCount, 1)

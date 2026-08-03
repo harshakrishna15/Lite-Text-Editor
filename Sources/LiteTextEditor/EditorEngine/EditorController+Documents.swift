@@ -19,7 +19,6 @@ extension EditorController {
             textView?.window?.isDocumentEdited = true
         }
 
-        setDocumentStatus(currentDocumentURL == nil ? "Unsaved changes" : "Edited")
     }
 
     func setContinuousSpellCheckingEnabled(_ isEnabled: Bool) {
@@ -42,7 +41,7 @@ extension EditorController {
         guard isAutomaticTextReplacementEnabled != isEnabled else { return }
 
         isAutomaticTextReplacementEnabled = isEnabled
-        TextCorrectionSettingsStore.saveIsAutomaticReplacementEnabled(isEnabled)
+        WritingSettingsStore.saveIsAutomaticReplacementEnabled(isEnabled)
         textView?.isAutomaticSpellingCorrectionEnabled = isEnabled
         textView?.isAutomaticTextReplacementEnabled = isEnabled
     }
@@ -87,28 +86,21 @@ extension EditorController {
         guard !hasRestoredLastSession, let textView else { return }
         hasRestoredLastSession = true
 
-        guard shouldReopenLastDocument else {
-            setDocumentStatus("Ready")
-            return
-        }
+        guard shouldReopenLastDocument else { return }
 
         if let url = LastDocumentStore.lastDocumentURL, FileManager.default.fileExists(atPath: url.path) {
             loadDocumentInBackground(
                 from: url,
                 into: textView,
-                successStatus: "Opened last document",
                 failureMessage: "The last document could not be restored.",
                 showsErrorOnFailure: false,
                 onFailure: { [weak self] in
                     LastDocumentStore.clearLastDocumentURL()
                     self?.resetToBlankDocument()
-                    self?.setDocumentStatus("Could not restore last document")
                 }
             )
             return
         }
-
-        setDocumentStatus("Ready")
     }
 
     func prepareTitleForLastRestorableDocument() {
@@ -140,7 +132,6 @@ extension EditorController {
     func newDocument() {
         guard confirmUnsavedChanges(messageText: "Do you want to save changes before creating a new document?") else { return }
         resetToBlankDocument()
-        setDocumentStatus("New document")
     }
 
     func openDocument() {
@@ -158,7 +149,6 @@ extension EditorController {
         loadDocumentInBackground(
             from: url,
             into: textView,
-            successStatus: "Opened",
             failureMessage: "The document could not be opened."
         )
     }
@@ -170,7 +160,6 @@ extension EditorController {
         loadDocumentInBackground(
             from: url,
             into: textView,
-            successStatus: "Opened",
             failureMessage: "The recent document could not be opened.",
             onFailure: { [weak self] in
                 self?.recentDocumentStore.remove(url)
@@ -193,7 +182,6 @@ extension EditorController {
 
         guard let currentDocumentURL else {
             documentTitle = nextTitle
-            setDocumentStatus("Title updated")
             return
         }
 
@@ -221,7 +209,6 @@ extension EditorController {
             LastDocumentStore.saveLastDocumentURL(newURL)
             noteRecentDocument(newURL)
             updateWindowTitle(for: newURL)
-            setDocumentStatus("Renamed")
         } catch {
             showError(error, message: "The document could not be renamed.")
         }
@@ -271,7 +258,6 @@ extension EditorController {
 
         guard let currentDocumentURL else {
             pendingDocumentDirectoryURL = standardizedDirectoryURL
-            setDocumentStatus("Location updated")
             return
         }
 
@@ -282,7 +268,6 @@ extension EditorController {
 
         guard newURL.standardizedFileURL.path != currentDocumentURL.standardizedFileURL.path else {
             pendingDocumentDirectoryURL = nil
-            setDocumentStatus("Location unchanged")
             return
         }
 
@@ -299,7 +284,6 @@ extension EditorController {
             LastDocumentStore.saveLastDocumentURL(newURL)
             noteRecentDocument(newURL)
             updateWindowTitle(for: newURL)
-            setDocumentStatus("Moved")
         } catch {
             showError(error, message: "The document could not be moved.")
         }
@@ -322,11 +306,9 @@ extension EditorController {
             noteRecentDocument(url)
             updateWindowTitle(for: url)
             clearDocumentEdited()
-            setDocumentStatus("Saved")
             return true
         } catch {
             showError(error, message: "The document could not be saved.")
-            setDocumentStatus("Save failed")
             return false
         }
     }
@@ -373,11 +355,9 @@ extension EditorController {
             noteRecentDocument(url)
             updateWindowTitle(for: url)
             clearDocumentEdited()
-            setDocumentStatus("Saved")
             return true
         } catch {
             showError(error, message: "The document could not be saved.")
-            setDocumentStatus("Save failed")
             return false
         }
     }
@@ -414,25 +394,14 @@ extension EditorController {
         guard let snapshot = documentSnapshot() else { return }
         let operationID = UUID()
         exportOperationID = operationID
-        setDocumentStatus("Exporting PDF...")
 
         guard let selectedTab = snapshot.document.selectedTab else { return }
         documentFileService.writePDF(selectedTab.attributedString, to: url) { [weak self] result in
             guard let self, self.exportOperationID == operationID else { return }
 
-            switch result {
-            case .success:
-                self.setDocumentStatus("Exported PDF")
-            case .failure(let error):
+            if case .failure(let error) = result {
                 self.showError(error, message: "The PDF could not be exported.")
-                self.setDocumentStatus("Export failed")
             }
-        }
-    }
-
-    private func setDocumentStatus(_ text: String) {
-        if documentStatusText != text {
-            documentStatusText = text
         }
     }
 
@@ -483,7 +452,6 @@ extension EditorController {
     private func loadDocumentInBackground(
         from url: URL,
         into textView: AutocompleteTextView,
-        successStatus: String,
         failureMessage: String,
         showsErrorOnFailure: Bool = true,
         onFailure: (() -> Void)? = nil
@@ -492,7 +460,6 @@ extension EditorController {
         let startingGeneration = documentGeneration
         documentReadOperationID = operationID
         textView.isEditable = false
-        setDocumentStatus("Opening...")
 
         documentFileService.readEditorDocument(from: url) { [weak self, weak textView] result in
             guard let self, self.documentReadOperationID == operationID, let textView else { return }
@@ -501,10 +468,7 @@ extension EditorController {
 
             switch result {
             case .success(let document):
-                guard self.documentGeneration == startingGeneration else {
-                    self.setDocumentStatus("Open canceled")
-                    return
-                }
+                guard self.documentGeneration == startingGeneration else { return }
 
                 self.applyLoadedDocument(document, from: url, into: textView)
                 self.currentDocumentURL = url
@@ -512,14 +476,10 @@ extension EditorController {
                 LastDocumentStore.saveLastDocumentURL(url)
                 self.noteRecentDocument(url)
                 self.clearDocumentEdited()
-                self.setDocumentStatus(successStatus)
             case .failure(let error):
                 onFailure?()
                 if showsErrorOnFailure {
                     self.showError(error, message: failureMessage)
-                }
-                if self.documentStatusText == "Opening..." {
-                    self.setDocumentStatus("Open failed")
                 }
             }
         }
@@ -544,7 +504,6 @@ extension EditorController {
         let operationID = UUID()
         documentWriteOperationID = operationID
         isDocumentWriteInProgress = true
-        setDocumentStatus("Saving...")
 
         documentFileService.writeEditorDocument(document, to: url) { [weak self] result in
             guard let self, self.documentWriteOperationID == operationID else { return }
@@ -565,13 +524,9 @@ extension EditorController {
 
                 if self.documentGeneration == generation {
                     self.clearDocumentEdited()
-                    self.setDocumentStatus("Saved")
-                } else {
-                    self.setDocumentStatus("Saved previous changes")
                 }
             case .failure(let error):
                 self.showError(error, message: "The document could not be saved.")
-                self.setDocumentStatus("Save failed")
             }
         }
     }
@@ -585,11 +540,6 @@ extension EditorController {
             throw DocumentFileStoreError.invalidDocumentState
         }
         try documentFileStore.writeEditorDocument(document, to: url)
-    }
-
-    private func writePDF(to url: URL) throws {
-        guard let selectedTab = documentSnapshot()?.document.selectedTab else { return }
-        try documentFileStore.writePDF(selectedTab.attributedString, to: url)
     }
 
     private func updateWindowTitle(for url: URL) {

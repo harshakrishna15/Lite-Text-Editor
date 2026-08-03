@@ -3,26 +3,23 @@ import Foundation
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
 let resources = root.appendingPathComponent("Sources/LiteTextEditor/Resources", isDirectory: true)
-let iconset = resources.appendingPathComponent("AppIcon.iconset", isDirectory: true)
 
-try FileManager.default.createDirectory(at: iconset, withIntermediateDirectories: true)
-
-struct IconImage {
-    let fileName: String
+struct IconRepresentation {
+    let type: String
     let pixels: Int
 }
 
-let images = [
-    IconImage(fileName: "icon_16x16.png", pixels: 16),
-    IconImage(fileName: "icon_16x16@2x.png", pixels: 32),
-    IconImage(fileName: "icon_32x32.png", pixels: 32),
-    IconImage(fileName: "icon_32x32@2x.png", pixels: 64),
-    IconImage(fileName: "icon_128x128.png", pixels: 128),
-    IconImage(fileName: "icon_128x128@2x.png", pixels: 256),
-    IconImage(fileName: "icon_256x256.png", pixels: 256),
-    IconImage(fileName: "icon_256x256@2x.png", pixels: 512),
-    IconImage(fileName: "icon_512x512.png", pixels: 512),
-    IconImage(fileName: "icon_512x512@2x.png", pixels: 1024)
+let representations = [
+    IconRepresentation(type: "icp4", pixels: 16),
+    IconRepresentation(type: "icp5", pixels: 32),
+    IconRepresentation(type: "ic07", pixels: 128),
+    IconRepresentation(type: "ic08", pixels: 256),
+    IconRepresentation(type: "ic09", pixels: 512),
+    IconRepresentation(type: "ic10", pixels: 1024),
+    IconRepresentation(type: "ic11", pixels: 32),
+    IconRepresentation(type: "ic12", pixels: 64),
+    IconRepresentation(type: "ic13", pixels: 256),
+    IconRepresentation(type: "ic14", pixels: 512)
 ]
 
 func roundedRect(_ rect: NSRect, radius: CGFloat) -> NSBezierPath {
@@ -165,8 +162,9 @@ func renderIcon(pixels: Int) throws -> Data {
         throw NSError(domain: "IconGeneration", code: 2)
     }
 
-    NSGraphicsContext.saveGraphicsState()
+    let previousContext = NSGraphicsContext.current
     NSGraphicsContext.current = context
+    NSGraphicsContext.saveGraphicsState()
     context.imageInterpolation = NSImageInterpolation.high
     let scale = CGFloat(pixels) / 1024
     let transform = NSAffineTransform()
@@ -174,6 +172,7 @@ func renderIcon(pixels: Int) throws -> Data {
     transform.concat()
     drawIcon()
     NSGraphicsContext.restoreGraphicsState()
+    NSGraphicsContext.current = previousContext
 
     guard let data = rep.representation(using: NSBitmapImageRep.FileType.png, properties: [:]) else {
         throw NSError(domain: "IconGeneration", code: 3)
@@ -182,11 +181,41 @@ func renderIcon(pixels: Int) throws -> Data {
     return data
 }
 
-for image in images {
-    let data = try renderIcon(pixels: image.pixels)
-    try data.write(to: iconset.appendingPathComponent(image.fileName))
+func encodedUInt32(_ value: UInt32) -> Data {
+    var value = value.bigEndian
+    return Data(bytes: &value, count: MemoryLayout<UInt32>.size)
 }
 
-try renderIcon(pixels: 1024).write(to: resources.appendingPathComponent("AppIcon.png"))
+func icnsChunk(type: String, data: Data) throws -> Data {
+    guard let typeData = type.data(using: .ascii), typeData.count == 4 else {
+        throw NSError(domain: "IconGeneration", code: 4)
+    }
+    guard data.count <= Int(UInt32.max) - 8 else {
+        throw NSError(domain: "IconGeneration", code: 5)
+    }
 
-print("Generated AppIcon.iconset and AppIcon.png")
+    var chunk = Data()
+    chunk.append(typeData)
+    chunk.append(encodedUInt32(UInt32(data.count + 8)))
+    chunk.append(data)
+    return chunk
+}
+
+var chunks = Data()
+var renderedImages: [Int: Data] = [:]
+
+for representation in representations {
+    let imageData = try renderedImages[representation.pixels] ?? renderIcon(pixels: representation.pixels)
+    renderedImages[representation.pixels] = imageData
+    chunks.append(try icnsChunk(type: representation.type, data: imageData))
+}
+
+var iconData = Data("icns".utf8)
+iconData.append(encodedUInt32(UInt32(chunks.count + 8)))
+iconData.append(chunks)
+try iconData.write(
+    to: resources.appendingPathComponent("AppIcon.icns"),
+    options: .atomic
+)
+
+print("Generated AppIcon.icns")

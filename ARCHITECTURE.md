@@ -36,15 +36,15 @@ Spelling and autocorrect review logic. This module finds spelling issues and tra
 
 ### Suggestions
 
-Autocomplete request models, context building, fallback phrase suggestions, and provider pipeline. This module should not know about `NSTextView`, SwiftUI, or page layout.
+Autocomplete request models and local phrase suggestions. This module should not know about `NSTextView`, SwiftUI, or page layout.
 
 ### Formatting
 
-Text presets, font previews, and formatting helpers. Formatting commands are coordinated by the editor engine because they mutate rich text directly.
+Text presets and formatting helpers. Formatting commands are coordinated by the editor engine because they mutate rich text directly.
 
 ### Documents
 
-Open/save/export, autosave policy, recent documents, preferences, and document structure extraction.
+Open/save/export, recent documents, preferences, and document structure extraction.
 
 ### DesignSystem
 

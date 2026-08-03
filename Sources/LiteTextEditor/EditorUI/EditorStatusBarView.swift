@@ -22,11 +22,11 @@ struct EditorStatusBarView: View {
             HStack(spacing: 4) {
                 Image(systemName: "sparkles")
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(predictionTint)
+                    .foregroundStyle(ChromeStyle.secondaryTextColor)
 
                 Text(statusText)
                     .font(ChromeStyle.smallTextFont)
-                    .foregroundStyle(predictionTint)
+                    .foregroundStyle(ChromeStyle.secondaryTextColor)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
@@ -51,12 +51,4 @@ struct EditorStatusBarView: View {
         .help("Document Statistics")
     }
 
-    private var predictionTint: Color {
-        switch editor.predictionState {
-        case .predicting:
-            return Color.accentColor
-        default:
-            return ChromeStyle.secondaryTextColor
-        }
-    }
 }

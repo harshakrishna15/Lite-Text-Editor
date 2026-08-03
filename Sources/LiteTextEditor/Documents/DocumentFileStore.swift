@@ -2,9 +2,8 @@ import AppKit
 import Foundation
 
 struct DocumentFileStore {
-    static let supportedTextFileExtensions = Set(["rtf", "txt", "docx", "odt"])
-    static let supportedEditorDocumentFileExtensions = supportedTextFileExtensions.union([
-        NativeEditorDocumentCodec.fileExtension
+    static let supportedEditorDocumentFileExtensions = Set([
+        "rtf", "txt", "docx", "odt", NativeEditorDocumentCodec.fileExtension
     ])
     private static let plainTextFallbackEncodings: [String.Encoding] = [
         .windowsCP1252,
@@ -157,16 +156,6 @@ struct DocumentFileStore {
         }
 
         context.closePDF()
-    }
-
-    func normalizedTextDocumentURL(_ url: URL) -> URL {
-        let fileExtension = url.pathExtension.lowercased()
-
-        if Self.supportedTextFileExtensions.contains(fileExtension) {
-            return url
-        }
-
-        return url.appendingPathExtension("rtf")
     }
 
     func normalizedEditorDocumentURL(_ url: URL) -> URL {

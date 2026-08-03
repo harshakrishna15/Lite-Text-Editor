@@ -3,7 +3,7 @@ import XCTest
 @testable import LiteTextEditor
 
 final class FormattingStateTests: XCTestCase {
-    func testEmptySelectionSamplesAttributesAtInsertionPoint() throws {
+    func testEmptySelectionSamplesAttributesAtInsertionPoint() {
         let fixture = makeFixture()
         let font = NSFont(name: "Helvetica", size: 18) ?? NSFont.systemFont(ofSize: 18)
         fixture.textView.textStorage?.setAttributedString(
@@ -11,10 +11,7 @@ final class FormattingStateTests: XCTestCase {
                 string: "Formatted text",
                 attributes: [
                     .font: font,
-                    .foregroundColor: NSColor.systemRed,
-                    .backgroundColor: NSColor.systemBlue.withAlphaComponent(0.25),
-                    .underlineStyle: NSUnderlineStyle.single.rawValue,
-                    .strikethroughStyle: NSUnderlineStyle.single.rawValue
+                    .underlineStyle: NSUnderlineStyle.single.rawValue
                 ]
             )
         )
@@ -23,13 +20,7 @@ final class FormattingStateTests: XCTestCase {
         fixture.controller.refreshFormattingState()
 
         XCTAssertEqual(fixture.controller.formattingState.fontSize, 18, accuracy: 0.001)
-        XCTAssertEqual(fixture.controller.formattingState.fontFamilyName, EditorTypography.displayName)
         XCTAssertTrue(fixture.controller.formattingState.isUnderline)
-        XCTAssertTrue(fixture.controller.formattingState.isStrikethrough)
-        XCTAssertTrue(fixture.controller.formattingState.textColor.isEqual(NSColor.systemRed))
-        XCTAssertTrue(fixture.controller.formattingState.hasHighlight)
-        let highlightColor = try XCTUnwrap(fixture.controller.formattingState.highlightColor)
-        XCTAssertEqual(highlightColor.alphaComponent, 0.25, accuracy: 0.001)
     }
 
     func testMouseFormattingSampleOverridesEmptySelection() {
@@ -38,16 +29,10 @@ final class FormattingStateTests: XCTestCase {
         let sampledFont = NSFont(name: "Helvetica", size: 22) ?? NSFont.systemFont(ofSize: 22)
         let text = NSMutableAttributedString(
             string: "Plain Sampled",
-            attributes: [
-                .font: firstFont,
-                .foregroundColor: NSColor.black
-            ]
+            attributes: [.font: firstFont]
         )
         text.addAttributes(
-            [
-                .font: sampledFont,
-                .foregroundColor: NSColor.systemBlue
-            ],
+            [.font: sampledFont],
             range: NSRange(location: 6, length: 7)
         )
         fixture.textView.textStorage?.setAttributedString(text)
@@ -57,8 +42,6 @@ final class FormattingStateTests: XCTestCase {
         fixture.controller.refreshFormattingState()
 
         XCTAssertEqual(fixture.controller.formattingState.fontSize, 22, accuracy: 0.001)
-        XCTAssertEqual(fixture.controller.formattingState.fontFamilyName, EditorTypography.displayName)
-        XCTAssertTrue(fixture.controller.formattingState.textColor.isEqual(NSColor.systemBlue))
     }
 
     func testNonEmptySelectionOverridesMouseFormattingSample() {
@@ -67,16 +50,10 @@ final class FormattingStateTests: XCTestCase {
         let hoveredFont = NSFont.systemFont(ofSize: 24)
         let text = NSMutableAttributedString(
             string: "Selected Hovered",
-            attributes: [
-                .font: selectedFont,
-                .foregroundColor: NSColor.black
-            ]
+            attributes: [.font: selectedFont]
         )
         text.addAttributes(
-            [
-                .font: hoveredFont,
-                .foregroundColor: NSColor.systemGreen
-            ],
+            [.font: hoveredFont],
             range: NSRange(location: 9, length: 7)
         )
         fixture.textView.textStorage?.setAttributedString(text)
@@ -86,7 +63,6 @@ final class FormattingStateTests: XCTestCase {
         fixture.controller.refreshFormattingState()
 
         XCTAssertEqual(fixture.controller.formattingState.fontSize, 16, accuracy: 0.001)
-        XCTAssertTrue(fixture.controller.formattingState.textColor.isEqual(NSColor.black))
     }
 
     func testApplyingFontSizeToSelectionPreservesFontTraits() throws {

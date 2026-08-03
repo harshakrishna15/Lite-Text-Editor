@@ -14,7 +14,6 @@ final class EditorController: ObservableObject {
     @Published var spellCorrectionState = SpellCorrectionState.inactive
     @Published var predictionState = PredictionState.idle
     @Published var formattingState = FormattingState()
-    @Published var documentStatusText = "Ready"
     @Published var documentTitle = "Untitled"
     @Published var pendingDocumentDirectoryURL: URL?
     @Published var documentTabs: [DocumentTabDescriptor] = []
@@ -22,7 +21,7 @@ final class EditorController: ObservableObject {
     @Published var isOutlineVisible = false
     @Published var isContinuousSpellCheckingEnabled = WritingSettingsStore.loadIsContinuousSpellCheckingEnabled()
     @Published var isGrammarCheckingEnabled = WritingSettingsStore.loadIsGrammarCheckingEnabled()
-    @Published var isAutomaticTextReplacementEnabled = TextCorrectionSettingsStore.loadIsAutomaticReplacementEnabled()
+    @Published var isAutomaticTextReplacementEnabled = WritingSettingsStore.loadIsAutomaticReplacementEnabled()
     @Published var isAutomaticQuoteSubstitutionEnabled = WritingSettingsStore.loadIsAutomaticQuoteSubstitutionEnabled()
     @Published var isAutomaticDashSubstitutionEnabled = WritingSettingsStore.loadIsAutomaticDashSubstitutionEnabled()
     @Published var isInlineSuggestionsEnabled = AutocompleteSettingsStore.loadIsInlineSuggestionsEnabled()
@@ -58,11 +57,7 @@ final class EditorController: ObservableObject {
     init(
         suggestionProvider: SuggestionProviding? = nil
     ) {
-        self.suggestionProvider = suggestionProvider ?? SuggestionPipeline(
-            providers: [
-                PhraseSuggestionEngine()
-            ]
-        )
+        self.suggestionProvider = suggestionProvider ?? PhraseSuggestionEngine()
 
         installDocument(EditorDocument.blank(), loadsSelectedTab: false)
     }

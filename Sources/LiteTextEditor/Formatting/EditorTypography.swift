@@ -1,7 +1,6 @@
 import AppKit
 
 enum EditorTypography {
-    static let displayName = "Courier"
     static let defaultPointSize: CGFloat = 12
 
     static var defaultTypingAttributes: [NSAttributedString.Key: Any] {
