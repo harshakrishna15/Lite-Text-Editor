@@ -6,8 +6,6 @@ struct EditorView: View {
     @State private var suggestionWords: Double
     @State private var suggestionWordsText: String
     @State private var isSettingsPresented = false
-    @State private var isLiveResizing = false
-    @State private var editorWindowID: ObjectIdentifier?
     private let suggestionWordOptions = ["2", "3", "4", "5"]
 
     init(editor: EditorController = EditorController()) {
@@ -86,17 +84,7 @@ struct EditorView: View {
             EditorStatusBarView(editor: editor)
         }
         .background(Color(nsColor: .liteTextEditorDesk))
-        .background(WindowLiveResizeReader(windowID: $editorWindowID))
         .preferredColorScheme(ChromeStyle.preferredColorScheme)
-        .environment(\.isChromeGlassLiveResizing, isLiveResizing)
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willStartLiveResizeNotification)) { notification in
-            guard isEditorWindowNotification(notification) else { return }
-            isLiveResizing = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEndLiveResizeNotification)) { notification in
-            guard isEditorWindowNotification(notification) else { return }
-            isLiveResizing = false
-        }
         .onReceive(NotificationCenter.default.publisher(for: .liteTextEditorShowSettings)) { _ in
             isSettingsPresented = true
         }
@@ -158,11 +146,6 @@ struct EditorView: View {
         }
     }
 
-    private func isEditorWindowNotification(_ notification: Notification) -> Bool {
-        guard let window = notification.object as? NSWindow else { return false }
-        return ObjectIdentifier(window) == editorWindowID
-    }
-
     private func applySuggestionWordsText(_ text: String) {
         let normalizedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -177,44 +160,4 @@ struct EditorView: View {
         AutocompleteSettingsStore.saveMaxSuggestionWords(clampedValue)
     }
 
-}
-
-private struct WindowLiveResizeReader: NSViewRepresentable {
-    @Binding var windowID: ObjectIdentifier?
-
-    func makeNSView(context: Context) -> WindowLiveResizeView {
-        let view = WindowLiveResizeView()
-        updateWindowChangeHandler(for: view)
-        return view
-    }
-
-    func updateNSView(_ view: WindowLiveResizeView, context: Context) {
-        updateWindowChangeHandler(for: view)
-        view.publishWindowIdentity()
-    }
-
-    private func updateWindowChangeHandler(for view: WindowLiveResizeView) {
-        let windowID = $windowID
-        view.onWindowChange = { windowID.wrappedValue = $0 }
-    }
-}
-
-private final class WindowLiveResizeView: NSView {
-    var onWindowChange: (ObjectIdentifier?) -> Void = { _ in }
-    private var publishedWindowID: ObjectIdentifier?
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        publishWindowIdentity()
-    }
-
-    func publishWindowIdentity() {
-        let currentWindowID = window.map(ObjectIdentifier.init)
-        guard currentWindowID != publishedWindowID else { return }
-
-        publishedWindowID = currentWindowID
-        DispatchQueue.main.async { [onWindowChange] in
-            onWindowChange(currentWindowID)
-        }
-    }
 }

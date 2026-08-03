@@ -4,16 +4,14 @@ struct EditorStatusBarView: View {
     @ObservedObject var editor: EditorController
 
     var body: some View {
-        ChromeGlassContainer(spacing: 8) {
-            HStack(spacing: 12) {
-                documentStatisticsText
+        HStack(spacing: 12) {
+            documentStatisticsText
 
-                Spacer()
+            Spacer()
 
-                predictionStatusText
-            }
-            .padding(.horizontal, 12)
+            predictionStatusText
         }
+        .padding(.horizontal, 12)
         .frame(height: 28)
         .background(ChromeBarBackground(separatorEdge: .top))
     }

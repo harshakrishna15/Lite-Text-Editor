@@ -1,37 +1,6 @@
 import SwiftUI
 
-private struct ChromeGlassLiveResizeKey: EnvironmentKey {
-    static let defaultValue = false
-}
-
-extension EnvironmentValues {
-    var isChromeGlassLiveResizing: Bool {
-        get { self[ChromeGlassLiveResizeKey.self] }
-        set { self[ChromeGlassLiveResizeKey.self] = newValue }
-    }
-}
-
-enum ChromeRenderingPolicy {
-    static let usesNativeLiquidGlass = false
-    static let usesBackdropBlur = false
-    static let usesSystemMaterialBackgrounds = false
-    static let rimOverlayCount = 1
-    static let usesMaskedLowerEdge = false
-    static let floatingPanelShadowOpacity = 0.08
-    static let floatingPanelShadowRadius: CGFloat = 4
-    static let floatingPanelShadowYOffset: CGFloat = 2
-    static let liveResizeFloatingPanelShadowOpacity = floatingPanelShadowOpacity
-    static let liveResizeFloatingPanelShadowRadius = floatingPanelShadowRadius
-    static let liveResizeFloatingPanelShadowYOffset = floatingPanelShadowYOffset
-
-    static func usesNativeGlass(isLiveResizing: Bool) -> Bool {
-        usesNativeLiquidGlass && !isLiveResizing
-    }
-}
-
 enum ChromeGlassSurface {
-    case toolbar
-    case statusBar
     case panel
     case titlebarControl
     case control
@@ -97,38 +66,13 @@ private struct ChromeGlassRimModifier<S: InsettableShape>: ViewModifier {
 }
 
 private struct ChromeFloatingPanelShadowModifier: ViewModifier {
-    @Environment(\.isChromeGlassLiveResizing) private var isLiveResizing
-
-    @ViewBuilder
     func body(content: Content) -> some View {
-        let shadowOpacity = isLiveResizing
-            ? ChromeRenderingPolicy.liveResizeFloatingPanelShadowOpacity
-            : ChromeRenderingPolicy.floatingPanelShadowOpacity
-        let shadowRadius = isLiveResizing
-            ? ChromeRenderingPolicy.liveResizeFloatingPanelShadowRadius
-            : ChromeRenderingPolicy.floatingPanelShadowRadius
-        let shadowYOffset = isLiveResizing
-            ? ChromeRenderingPolicy.liveResizeFloatingPanelShadowYOffset
-            : ChromeRenderingPolicy.floatingPanelShadowYOffset
-
         content.shadow(
-            color: Color.black.opacity(shadowOpacity),
-            radius: shadowRadius,
+            color: Color.black.opacity(0.08),
+            radius: 4,
             x: 0,
-            y: shadowYOffset
+            y: 2
         )
-    }
-}
-
-struct ChromeGlassContainer<Content: View>: View {
-    @ViewBuilder let content: () -> Content
-
-    init(spacing: CGFloat? = nil, @ViewBuilder content: @escaping () -> Content) {
-        self.content = content
-    }
-
-    var body: some View {
-        content()
     }
 }
 
@@ -169,10 +113,6 @@ extension View {
         modifier(ChromeGlassBackgroundModifier(surface: surface, shape: shape))
     }
 
-    func chromeGlassBar(_ surface: ChromeGlassSurface = .toolbar) -> some View {
-        modifier(ChromeGlassBackgroundModifier(surface: surface, shape: Rectangle()))
-    }
-
     func chromeGlassControlBackground<S: InsettableShape>(
         isActive: Bool,
         isSelected: Bool = false,
@@ -206,8 +146,6 @@ extension View {
 private extension ChromeGlassSurface {
     var rimLineWidth: CGFloat {
         switch self {
-        case .toolbar, .statusBar:
-            return 0.8
         case .panel:
             return 1.15
         case .titlebarControl, .control, .selectedControl, .pressedControl:
@@ -217,8 +155,6 @@ private extension ChromeGlassSurface {
 
     var surfaceFill: Color {
         switch self {
-        case .toolbar, .statusBar:
-            return ChromeStyle.chromeBarBackground
         case .panel:
             return ChromeStyle.chromePanelBackground
         case .titlebarControl, .control:
@@ -232,8 +168,6 @@ private extension ChromeGlassSurface {
 
     var rimColor: Color {
         switch self {
-        case .toolbar, .statusBar:
-            return ChromeStyle.chromeBarBorder
         case .panel:
             return ChromeStyle.chromePanelBorder
         case .titlebarControl, .control, .selectedControl, .pressedControl:
